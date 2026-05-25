@@ -143,10 +143,13 @@
         let draggedElement = null;
 
         // Populate Startup Baseline Interface Inputs
+        // OPTIMIZED: Boots instantly by leaving the fuel database completely closed until searched
         window.addEventListener('DOMContentLoaded', function() {
             addNewWaypointField("Start");
             addNewWaypointField("Destination");
+            document.getElementById('status').innerText = 'Ready - Enter a route to scan fuel';
         });
+
 
         function changeMapTheme(themeName) {
             map.removeLayer(activeTheme);
@@ -325,7 +328,7 @@
             }
         }
 
-        // Live Spatial Sync Processing Engine
+        // Live Spatial Sync Processing Engine (Highly Optimized Performance Version)
         function filterFuelStations(routeData) {
             const statusDiv = document.getElementById('status');
             statusDiv.innerText = "Syncing live data sheets...";
@@ -336,10 +339,24 @@
             const requiresUnleaded = document.getElementById('filterUnleaded').checked;
             const chosenFuelType = document.getElementById('fuelType').value;
 
+            // PERFORMANCE ACCELERATOR 1: Compute a static Bounding Box padding buffer around the entire route corridor
+            // This allows us to reject distant stations instantly before performing complex polygon checks.
+            const routeBBox = turf.bbox(routeData); // Returns [minX, minY, maxX, maxY] -> [min_lon, min_lat, max_lon, max_lat]
+            const padDeg = (selectedRadius / 111.32) + 0.05; // Quick approximation: 1 degree ≈ 111km, adding an extra safe room margin
+            
+            const minLon = routeBBox[0] - padDeg;
+            const minLat = routeBBox[1] - padDeg;
+            const maxLon = routeBBox[2] + padDeg;
+            const maxLat = routeBBox[3] + padDeg;
+
             Papa.parse(GOOGLE_SHEET_CSV_URL, {
-                download: true, header: true, dynamicTyping: true,
+                download: true, 
+                header: true, 
+                dynamicTyping: true,
                 complete: function(results) {
                     const liveStations = results.data;
+                    
+                    // Generate the precise corridor buffer polygon line only once outside the loops
                     const bufferedCorridor = turf.buffer(routeData.features, selectedRadius, {units: 'kilometers'});
                     
                     let cheapestPriceFound = Infinity;
@@ -348,10 +365,20 @@
                     document.getElementById('topStationsList').innerHTML = '';
 
                     liveStations.forEach(function(station) {
+                        // Base data verification check
                         if (!station.lat || !station.lon) return;
+
+                        // PERFORMANCE ACCELERATOR 2: Lightning-fast raw numeric grid range check.
+                        // If the station is completely outside the wide box of your route, skip it instantly.
+                        if (station.lon < minLon || station.lon > maxLon || station.lat < minLat || station.lat > maxLat) {
+                            return; 
+                        }
+
+                        // Static property condition structural locks
                         if (requiresEV && station.has_ev !== true) return;
                         if (requiresUnleaded && station.has_unleaded !== true) return;
 
+                        // Advanced turf geometric check runs only on the small group that passed our fast pre-filter box
                         const point = turf.point([station.lon, station.lat]);
                         if (turf.booleanPointInPolygon(point, bufferedCorridor)) {
                             const price = station[chosenFuelType];
@@ -361,14 +388,20 @@
                                 if (price < cheapestPriceFound) cheapestPriceFound = price;
                             }
 
+                            // Inject high-contrast map marker circles
                             L.circleMarker([station.lat, station.lon], {
-                                radius: 10, fillColor: getMarkerColor(station.e10), color: '#ffffff', weight: 2, fillOpacity: 0.9
+                                radius: 10, 
+                                fillColor: getMarkerColor(station.e10), 
+                                color: '#ffffff', 
+                                weight: 2, 
+                                fillOpacity: 0.9
                             })
-                            .bindPopup('<div class="station-popup"><strong>' + station.brand + '</strong><br>E10: ' + station.e10 + 'p | B7: ' + station.b7 + 'p</div>')
+                            .bindPopup('<div class="station-popup"><strong>' + station.brand + '</strong><br>E10: ' + (station.e10 || 'N/A') + 'p | B7: ' + (station.b7 || 'N/A') + 'p</div>')
                             .addTo(stationMarkers);
                         }
                     });
 
+                    // Render results metrics dashboard updates inside sidebar elements
                     if (validStationsAlongRoute.length > 0) {
                         statusDiv.innerText = "Mapped " + validStationsAlongRoute.length + " stations within corridor.";
                         validStationsAlongRoute.sort(function(a, b) { return a[chosenFuelType] - b[chosenFuelType]; });
@@ -376,8 +409,13 @@
                         validStationsAlongRoute.slice(0, 3).forEach(function(stn) {
                             var li = document.createElement('li'); 
                             li.style.cursor = 'pointer'; 
-                            li.style.padding = '4px';
-                            li.innerHTML = '<strong>' + stn.brand + '</strong> - <span style="color:green;font-weight:bold;">' + stn[chosenFuelType] + 'p</span>';
+                            li.style.padding = '6px';
+                            li.style.marginBottom = '4px';
+                            li.style.borderRadius = '4px';
+                            li.style.backgroundColor = '#fdfdfd';
+                            li.style.border = '1px solid #eaeaea';
+                            
+                            li.innerHTML = '<strong>' + stn.brand + '</strong> - <span style="color:green;font-weight:bold;">' + stn[chosenFuelType] + 'p</span><br><span style="font-size:11px; color:#777;">🔍 Click to focus map</span>';
                             li.onclick = function() { map.flyTo([stn.lat, stn.lon], 14); };
                             document.getElementById('topStationsList').appendChild(li);
                         });
@@ -400,7 +438,8 @@
                 }
             });
         }
-                function getMarkerColor(p) { return !p ? '#7f8c8d' : p <= 135 ? '#2ecc71' : p <= 145 ? '#e67e22' : '#e74c3c'; }
+
+        function getMarkerColor(p) { return !p ? '#7f8c8d' : p <= 135 ? '#2ecc71' : p <= 145 ? '#e67e22' : '#e74c3c'; }
 
         // CSV Export Script Generator Action
         function exportItineraryToCSV() {
@@ -414,4 +453,5 @@
     </script>
 </body>
 </html>
+
 
