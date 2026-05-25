@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Route Planner Dashboard</title>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
+
+    <!-- Leaflet Geosearch (OpenStreetMap Address Autocomplete) -->
+    <link rel="stylesheet" href="https://unpkg.com" />
+    <script src="https://unpkg.com"></script>
+
+    <!-- Turf.js (Spatial Buffering Corridor Logic) -->
+    <script src="https://jsdelivr.net"></script>
+
+    <!-- PapaParse (Live Google Sheets CSV Streamer Parser) -->
+    <script src="https://cloudflare.com"></script>
+
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; height: 100vh; background: #e5e5e5; }
+        
+        /* Sidebar Layout Card Stacks */
+        #sidebar { width: 380px; padding: 15px; box-shadow: 3px 0 10px rgba(0,0,0,0.15); z-index: 1000; background: #ffffff; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-sizing: border-box; }
+        #map { flex-grow: 1; height: 100%; z-index: 1; }
+        
+        .ui-card { background: #ffffff; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 8px; }
+        .grey-card { background: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+        
+        input, select, button { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+        button { background: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1557b0; }
+        
+        /* Visual Connection Lines Tracking Dots */
+        #waypointContainer { position: relative; display: flex; flex-direction: column; gap: 8px; }
+        .draggable-waypoint-row { position: relative; background: #ffffff; z-index: 2; padding: 4px 0; transition: all 0.2s ease; }
+        .draggable-waypoint-row::before { content: ''; position: absolute; left: 19px; top: 24px; bottom: -16px; width: 2px; border-left: 2px dashed #dadce0; z-index: 1; }
+        .draggable-waypoint-row:last-child::before { display: none; }
+
+        /* Suggestions Dropdown Layer Overlay */
+        .suggestions-box { position: absolute; top: 42px; width: 100%; background: white; border: 1px solid #ccc; z-index: 2000; display: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Popup Formatting Rules */
+        .station-popup { font-size: 13px; line-height: 1.4; font-family: Arial, sans-serif; }
+        .price-tag { color: #28a745; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <!-- Main Route Input Panel -->
+        <div class="ui-card">
+            <h2 style="margin: 0 0 5px 0; font-size: 18px; color: #1a73e8;">Fuel Route Planner</h2>
+            
+            <div id="waypointContainer">
+                <!-- Dynamic Input Rows Inject Here -->
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: 4px;">
+                <button onclick="addNewWaypointField('Stop')" style="background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; flex-grow: 1;">➕ Add Stop</button>
+                <button onclick="calculateJourney()" style="background: #1a73e8; color: white; flex-grow: 2;">🚗 Search Route</button>
+            </div>
+            <div id="status" style="font-size: 12px; color: #70757a; text-align: center; font-style: italic;">Ready</div>
+        </div>
+
+        <!-- Map Themes Layout Module -->
+        <div class="grey-card">
+            <label style="font-weight: bold; color: #3c4043;">Map View Layout:</label>
+            <select id="mapTheme" onchange="changeMapTheme(this.value)">
+                <option value="light">Standard Maps</option>
+                <option value="dark">Sleek Dark Mode</option>
+                <option value="satellite">Satellite Hybrid</option>
+            </select>
+        </div>
+
+        <!-- Filters Engine Variables Panel -->
+        <div class="grey-card">
+            <strong style="color: #3c4043;">Filters & Search Corridor Width</strong>
+            <div>
+                <label>Search Buffer Radius: <span id="radiusVal" style="font-weight:bold; color:#1a73e8;">2</span> km</label>
+                <input type="range" id="bufferRadius" min="0.5" max="10" step="0.5" value="2" style="margin-top:4px;" oninput="updateRadiusLabel(this.value)">
+            </div>
+            <div>
+                <label style="font-weight: bold;">Preferred Car Fuel Type:</label>
+                <select id="fuelType" style="margin-top:4px;">
+                    <option value="e10">Petrol (E10)</option>
+                    <option value="b7">Diesel (B7)</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-weight: bold;">Vehicle Efficiency (MPG):</label>
+                <input type="number" id="mpg" value="45" style="margin-top:4px; padding:6px;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+                <label style="display:flex; align-items:center;"><input type="checkbox" id="filterEV" checked style="width:auto; margin-right:6px;">⚡ EV Charging Nodes</label>
+                <label style="display:flex; align-items:center;"><input type="checkbox" id="filterUnleaded" checked style="width:auto; margin-right:6px;">  Traditional Pumps</label>
+            </div>
+        </div>
+
+        <!-- Trip Metrics Summary Display Outputs Card -->
+        <div id="costSummary" style="padding: 12px; background: #e8f0fe; color: #1967d2; border-radius: 8px; font-size: 14px; line-height: 1.5; display: none; box-shadow: inset 0 0 0 1px #d2e3fc;">
+            📍 <strong>Trip Financial Estimates:</strong><br>
+            Total Distance: <span id="summaryDistance" style="font-weight: bold;">0</span> miles<br>
+            Corridor Minimum Fuel Cost: <span id="summaryCost" style="font-weight: bold;">£0.00</span>
+        </div>
+
+        <!-- Top 3 Recommendations Leaderboard Panel Card -->
+        <div id="topStationsContainer" style="display: none;" class="ui-card">
+            <strong style="font-size: 14px; color: #202124; display: block; margin-bottom: 4px;">🥇 Top 3 Cheapest Forecourts:</strong>
+            <ol id="topStationsList" style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6;"></ol>
+            
+            <button id="exportBtn" onclick="exportItineraryToCSV()" style="background: #34a853; color: white; margin-top: 8px; padding: 8px; font-size: 13px;">
+                📥 Export Active Itinerary (CSV)
+            </button>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+
+    <script>
+        // CRITICAL CREDENTIAL CONFIGURATIONS
+        const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
+        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
+
+        // Initialize Map
+        const map = L.map('map').setView([54.5, -3.5], 6);
+        const searchProvider = new GeoSearch.OpenStreetMapProvider();
+
+        const themes = {
+            light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
+            dark: L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
+            satellite: L.tileLayer('https://arcgisonline.com{z}/{y}/{x}', { attribution: '© Esri' })
+        };
+        let activeTheme = themes.light.addTo(map);
+
+        let waypointsList = []; 
+        let routeLayer = null;
+        let stationMarkers = L.layerGroup().addTo(map);
+        let lastSavedRouteData = null;
+        let currentlyFilteredStations = [];
+        let draggedElement = null;
+
+        // Populate Startup Baseline Interface Inputs
+        window.addEventListener('DOMContentLoaded', function() {
+            addNewWaypointField("Start");
+            addNewWaypointField("Destination");
+        });
+
+        function changeMapTheme(themeName) {
+            map.removeLayer(activeTheme);
+            activeTheme = themes[themeName];
+            activeTheme.addTo(map);
+        }
+
+        function updateRadiusLabel(val) {
+            document.getElementById('radiusVal').innerText = val;
+            if (lastSavedRouteData) filterFuelStations(lastSavedRouteData);
+        }
+
+        // Add Listeners to Dropdowns for Live Recalculations
+        document.getElementById('fuelType').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
+        document.getElementById('mpg').addEventListener('input', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
+        document.getElementById('filterEV').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
+        document.getElementById('filterUnleaded').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
+
+        // Add/Remove Dynamic Stop Inputs Mechanics
+        function addNewWaypointField(customLabel) {
+            if (!customLabel) customLabel = "Stop";
+            var container = document.getElementById('waypointContainer');
+            var index = waypointsList.length;
+            waypointsList.push({ coordinates: null, rawText: "" });
+
+            var rowId = 'waypoint-row-' + index;
+            var row = document.createElement('div');
+            row.id = rowId;
+            row.className = 'draggable-waypoint-row';
+            row.setAttribute('data-index', index);
+            row.setAttribute('draggable', 'true');
+            row.style.display = 'flex'; 
+            row.style.alignItems = 'center'; 
+            row.style.gap = '5px'; 
+            row.style.cursor = 'grab';
+
+            var isCoreField = (customLabel === "Start" || customLabel === "Destination");
+
+            var htmlString = '<span style="color: #b0b4b9; font-size: 16px; padding: 0 4px; user-select: none;">⋮⋮</span>' +
+                '<div style="position: relative; flex-grow: 1;">' +
+                '    <input type="text" id="input-' + index + '" placeholder="' + customLabel + '..." style="width: 100%;">' +
+                '    <span id="clear-' + index + '" onclick="clearWaypointField(' + index + ')" style="position: absolute; right: 10px; top: 10px; cursor: pointer; color: #70757a; font-weight: bold; display: none;">×</span>' +
+                '    <div id="suggest-' + index + '" class="suggestions-box"></div>' +
+                '</div>';
+
+            if (!isCoreField) {
+                htmlString += '<button onclick="removeWaypointField(' + index + ', \'' + rowId + '\')" style="background:none; border:none; color:#ea4335; font-size:18px; cursor:pointer; padding:0 5px; width:auto;">🗑️</button>';
+            } else {
+                htmlString += '<div style="width:28px;"></div>';
+            }
+
+            row.innerHTML = htmlString;
+            container.appendChild(row);
+            setupDynamicAutocomplete(index);
+            addDragAndDropListeners(row);
+        }
+
+        function removeWaypointField(index, rowId) {
+            document.getElementById(rowId).remove();
+            waypointsList[index] = null;
+            if(lastSavedRouteData) calculateJourney();
+        }
+
+        function clearWaypointField(index) {
+            document.getElementById('input-' + index).value = '';
+            document.getElementById('suggest-' + index).style.display = 'none';
+            document.getElementById('clear-' + index).style.display = 'none';
+            waypointsList[index] = { coordinates: null, rawText: "" };
+        }
+
+        // Drag and Drop Layout Positioning Script Engine
+        function addDragAndDropListeners(row) {
+            row.addEventListener('dragstart', function(e) { draggedElement = row; row.style.opacity = '0.3'; e.dataTransfer.effectAllowed = 'move'; });
+            row.addEventListener('dragend', function() { draggedElement.style.opacity = '1'; draggedElement = null; reorderWaypointsDataMatrix(); });
+            row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                if (row === draggedElement) return;
+                const container = document.getElementById('waypointContainer');
+                const bounding = row.getBoundingClientRect();
+                const offset = e.clientY - bounding.top - (bounding.height / 2);
+                if (offset < 0) container.insertBefore(draggedElement, row);
+                else container.insertBefore(draggedElement, row.nextSibling);
+            });
+        }
+
+        function reorderWaypointsDataMatrix() {
+            const container = document.getElementById('waypointContainer');
+            const visibleRows = container.querySelectorAll('.draggable-waypoint-row');
+            let updatedNewList = [];
+
+            visibleRows.forEach(function(row, idx) {
+                const originalIndex = parseInt(row.getAttribute('data-index'));
+                updatedNewList.push(waypointsList[originalIndex]);
+                
+                const inputField = row.querySelector('input');
+                if (idx === 0) inputField.placeholder = "Start...";
+                else if (idx === visibleRows.length - 1) inputField.placeholder = "Destination...";
+                else inputField.placeholder = "Stop " + idx + "...";
+            });
+
+            waypointsList = updatedNewList;
+            visibleRows.forEach(function(row, idx) {
+                row.setAttribute('data-index', idx);
+                row.querySelector('input').id = "input-" + idx;
+                row.querySelector('.suggestions-box').id = "suggest-" + idx;
+                row.querySelector('span').id = "clear-" + idx;
+            });
+
+            if (lastSavedRouteData) calculateJourney();
+        }
+
+        // Address Autocomplete Handlers
+        function setupDynamicAutocomplete(index) {
+            const input = document.getElementById("input-" + index);
+            const suggestionsDiv = document.getElementById("suggest-" + index);
+            const clearBtn = document.getElementById("clear-" + index);
+
+            input.addEventListener('input', debounce(async function(e) {
+                const query = e.target.value;
+                clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+                waypointsList[index].rawText = query;
+
+                if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
+
+                const results = await searchProvider.search({ query: query });
+                suggestionsDiv.innerHTML = '';
+                if (results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
+
+                results.slice(0, 5).forEach(function(item) {
+                    const row = document.createElement('div');
+                    row.style.padding = '8px 12px'; row.style.cursor = 'pointer'; row.style.fontSize = '13px'; row.style.borderBottom = '1px solid #f1f3f4';
+                    row.innerText = item.label;
+                    row.onmouseover = function() { row.style.background = '#f1f3f4'; };
+                    row.onmouseout = function() { row.style.background = 'white'; };
+                    row.onclick = function() {
+                        input.value = item.label;
+                        suggestionsDiv.style.display = 'none';
+                        waypointsList[index].coordinates = [item.x, item.y];
+                    };
+                    suggestionsDiv.appendChild(row);
+                });
+                suggestionsDiv.style.display = 'block';
+            }, 400));
+        }
+
+        function debounce(func, delay) {
+            let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
+        }
+
+        // Multi-Waypoint Route Planner Post Call
+        async function calculateJourney() {
+            const statusDiv = document.getElementById('status');
+            const validCoords = waypointsList.filter(wp => wp !== null && wp.coordinates !== null).map(wp => wp.coordinates);
+
+            if (validCoords.length < 2) { alert('Please select at least 2 locations from dropdown suggestions.'); return; }
+
+            statusDiv.innerText = "Calculating dynamic journey...";
+            stationMarkers.clearLayers();
+            if (routeLayer) map.removeLayer(routeLayer);
+
+            try {
+                const response = await fetch('https://openrouteservice.org', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json, application/geo+json', 'Content-Type': 'application/json', 'Authorization': ORS_API_KEY },
+                    body: JSON.stringify({ "coordinates": validCoords })
+                });
+                const routeData = await response.json();
+                lastSavedRouteData = routeData;
+
+                routeLayer = L.geoJSON(routeData, { style: { color: '#1a73e8', weight: 5, opacity: 0.85 } }).addTo(map);
+                map.fitBounds(routeLayer.getBounds());
+
+                filterFuelStations(routeData);
+            } catch (err) {
+                console.error(err); statusDiv.innerText = "Error tracking path coordinates.";
+            }
+        }
+
+        // Live Spatial Sync Processing Engine
+        function filterFuelStations(routeData) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Syncing live data sheets...";
+            stationMarkers.clearLayers();
+
+            const selectedRadius = parseFloat(document.getElementById('bufferRadius').value);
+            const requiresEV = document.getElementById('filterEV').checked;
+            const requiresUnleaded = document.getElementById('filterUnleaded').checked;
+            const chosenFuelType = document.getElementById('fuelType').value;
+
+            Papa.parse(GOOGLE_SHEET_CSV_URL, {
+                download: true, header: true, dynamicTyping: true,
+                complete: function(results) {
+                    const liveStations = results.data;
+                    const bufferedCorridor = turf.buffer(routeData.features, selectedRadius, {units: 'kilometers'});
+                    
+                    let cheapestPriceFound = Infinity;
+                    let validStationsAlongRoute = [];
+                    currentlyFilteredStations = [];
+                    document.getElementById('topStationsList').innerHTML = '';
+
+                    liveStations.forEach(function(station) {
+                        if (!station.lat || !station.lon) return;
+                        if (requiresEV && station.has_ev !== true) return;
+                        if (requiresUnleaded && station.has_unleaded !== true) return;
+
+                        const point = turf.point([station.lon, station.lat]);
+                        if (turf.booleanPointInPolygon(point, bufferedCorridor)) {
+                            const price = station[chosenFuelType];
+                            if (price) {
+                                validStationsAlongRoute.push(station);
+                                currentlyFilteredStations.push(station);
+                                if (price < cheapestPriceFound) cheapestPriceFound = price;
+                            }
+
+                            L.circleMarker([station.lat, station.lon], {
+                                radius: 10, fillColor: getMarkerColor(station.e10), color: '#ffffff', weight: 2, fillOpacity: 0.9
+                            })
+                            .bindPopup('<div class="station-popup"><strong>' + station.brand + '</strong><br>E10: ' + station.e10 + 'p | B7: ' + station.b7 + 'p</div>')
+                            .addTo(stationMarkers);
+                        }
+                    });
+
+                    if (validStationsAlongRoute.length > 0) {
+                        statusDiv.innerText = "Mapped " + validStationsAlongRoute.length + " stations within corridor.";
+                        validStationsAlongRoute.sort(function(a, b) { return a[chosenFuelType] - b[chosenFuelType]; });
+                        
+                        validStationsAlongRoute.slice(0, 3).forEach(function(stn) {
+                            var li = document.createElement('li'); 
+                            li.style.cursor = 'pointer'; 
+                            li.style.padding = '4px';
+                            li.innerHTML = '<strong>' + stn.brand + '</strong> - <span style="color:green;font-weight:bold;">' + stn[chosenFuelType] + 'p</span>';
+                            li.onclick = function() { map.flyTo([stn.lat, stn.lon], 14); };
+                            document.getElementById('topStationsList').appendChild(li);
+                        });
+                        document.getElementById('topStationsContainer').style.display = 'block';
+
+                        // Process Distance Matrix Calculations
+                        var distMeters = routeData.features.properties.summary.distance;
+                        var mpg = parseFloat(document.getElementById('mpg').value) || 45;
+                        var miles = distMeters / 1609.34;
+                        var cost = ((miles / mpg) * 4.54609) * (cheapestPriceFound / 100);
+
+                        document.getElementById('summaryDistance').innerText = miles.toFixed(1);
+                        document.getElementById('summaryCost').innerText = '£' + cost.toFixed(2);
+                        document.getElementById('costSummary').style.display = 'block';
+                    } else {
+                        statusDiv.innerText = "No forecourts match parameters in corridor.";
+                        document.getElementById('costSummary').style.display = 'none';
+                        document.getElementById('topStationsContainer').style.display = 'none';
+                    }
+                }
+            });
+        }
+                function getMarkerColor(p) { return !p ? '#7f8c8d' : p <= 135 ? '#2ecc71' : p <= 145 ? '#e67e22' : '#e74c3c'; }
+
+        // CSV Export Script Generator Action
+        function exportItineraryToCSV() {
+            if (currentlyFilteredStations.length === 0) return;
+            var headers = ["Station Name", "Latitude", "Longitude", "E10 (p)", "B7 (p)"];
+            var rows = currentlyFilteredStations.map(function(s) { return ['"' + s.brand + '"', s.lat, s.lon, s.e10||"N/A", s.b7||"N/A"]; });
+            var csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(function(e) { return e.join(","); })].join("\n");
+            var link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "fuel_itinerary.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
+
