@@ -122,7 +122,7 @@
     <script>
         // CRITICAL CREDENTIAL CONFIGURATIONS
         const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
-        const GOOGLE_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
+        const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
         // Initialize Map
         const map = L.map('map').setView([54.5, -3.5], 6);
@@ -143,8 +143,12 @@
         let draggedElement = null;
 
         // Populate Startup Baseline Interface Inputs
-        // OPTIMIZED: Boots instantly by leaving the fuel database completely closed until searched
-        window.addEventListener('DOMContentLoaded', function() {
+        //  CORRECTED TIMING: Waits for the map container layout to exist first!
+        window.addEventListener('load', function() {
+            // 1. Force Leaflet to recalculate the map size now that the sidebar is visible
+            map.invalidateSize();
+
+            // 2. Safely populate the input fields
             addNewWaypointField("Start");
             addNewWaypointField("Destination");
             document.getElementById('status').innerText = 'Ready - Enter a route to scan fuel';
@@ -331,7 +335,7 @@
         // Live Spatial Sync Processing Engine (Highly Optimized Performance Version)
         function filterFuelStations(routeData) {
             const statusDiv = document.getElementById('status');
-            statusDiv.innerText = "Syncing live data sheets...";
+            statusDiv.innerText = "Calculating live journey boundaries...";
             stationMarkers.clearLayers();
 
             const selectedRadius = parseFloat(document.getElementById('bufferRadius').value);
@@ -339,30 +343,46 @@
             const requiresUnleaded = document.getElementById('filterUnleaded').checked;
             const chosenFuelType = document.getElementById('fuelType').value;
 
-            // PERFORMANCE ACCELERATOR 1: Compute a static Bounding Box padding buffer around the entire route corridor
-            // This allows us to reject distant stations instantly before performing complex polygon checks.
-            const routeBBox = turf.bbox(routeData); // Returns [minX, minY, maxX, maxY] -> [min_lon, min_lat, max_lon, max_lat]
-            const padDeg = (selectedRadius / 111.32) + 0.05; // Quick approximation: 1 degree ≈ 111km, adding an extra safe room margin
-            
-            const minLon = routeBBox[0] - padDeg;
-            const minLat = routeBBox[1] - padDeg;
-            const maxLon = routeBBox[2] + padDeg;
-            const maxLat = routeBBox[3] + padDeg;
+            // 1. DYNAMIC BOUNDING BOX: Turf extracts the exact coordinates of your current trip
+            // Returns an array format: [min_longitude, min_latitude, max_longitude, max_latitude]
+            const routeBBox = turf.bbox(routeData); 
 
-            Papa.parse(GOOGLE_SHEET_CSV_URL, {
+            // Add a safe padding margin around your route box (roughly matches your chosen km radius slider)
+            const paddingDegrees = (selectedRadius / 111.32) + 0.05; 
+
+            const minLon = routeBBox[0] - paddingDegrees;
+            const minLat = routeBBox[1] - paddingDegrees;
+            const maxLon = routeBBox[2] + paddingDegrees;
+            const maxLat = routeBBox[3] + paddingDegrees;
+
+            // 2. CONSTRUCT DYNAMIC SQL: Builds the Google query on the fly using active journey coordinates
+            // Column B = Latitude, Column C = Longitude
+            const sqlQuery = "SELECT * WHERE B >= " + minLat + " AND B <= " + maxLat + " AND C >= " + minLon + " AND C <= " + maxLon;
+
+            // 3. ENCODE URL: Encodes spaces/symbols safely so the web browser can transmit the link
+            const encodedQuery = encodeURIComponent(sqlQuery);
+            const liveDynamicSheetUrl = GOOGLE_SHEET_BASE_URL + "&tq=" + encodedQuery;
+
+            statusDiv.innerText = "Requesting filtered regional stations from Google...";
+
+            // 4. STREAM DATA: Pass the live calculated URL straight into PapaParse
+            Papa.parse(liveDynamicSheetUrl, {
                 download: true, 
                 header: true, 
                 dynamicTyping: true,
                 complete: function(results) {
                     const liveStations = results.data;
-                    
-                    // Generate the precise corridor buffer polygon line only once outside the loops
+
+                    // Generate the precise corridor polygon line once
                     const bufferedCorridor = turf.buffer(routeData.features, selectedRadius, {units: 'kilometers'});
-                    
+
                     let cheapestPriceFound = Infinity;
                     let validStationsAlongRoute = [];
                     currentlyFilteredStations = [];
                     document.getElementById('topStationsList').innerHTML = '';
+
+                    // The rest of your existing loop logic remains exactly the same below...
+
 
                     liveStations.forEach(function(station) {
                         // Base data verification check
