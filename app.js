@@ -147,37 +147,73 @@ function reorderWaypointsDataMatrix() {
     if (lastSavedRouteData) calculateJourney();
 }
 
-// Address Autocomplete Handlers
+// Address Autocomplete Handlers (Fixed 3-Letter Keystroke Connector)
 function setupDynamicAutocomplete(index) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
     const clearBtn = document.getElementById("clear-" + index);
 
+    if (!input || !suggestionsDiv) return; // Prevent silent runtime crashes
+
     input.addEventListener('input', debounce(async function(e) {
         const query = e.target.value;
-        clearBtn.style.display = query.length > 0 ? 'block' : 'none';
+        
+        // 1. Toggle Clear Button (X) visibility
+        if (clearBtn) {
+            clearBtn.style.style.display = query.length > 0 ? 'block' : 'none';
+        }
+        
         waypointsList[index].rawText = query;
 
-        if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
+        // 2. STRIKT 3-LETTER LOCK: If the user typed 1 or 2 letters, keep the dropdown completely hidden
+        if (query.length < 3) { 
+            suggestionsDiv.style.display = 'none'; 
+            return; 
+        }
 
-        const results = await searchProvider.search({ query: query });
-        suggestionsDiv.innerHTML = '';
-        if (results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
+        // 3. Trigger network query to OpenStreetMap (UK Filtered)
+        const statusDiv = document.getElementById('status');
+        try {
+            const results = await searchProvider.search({ query: query });
+            suggestionsDiv.innerHTML = '';
+            
+            if (!results || results.length === 0) { 
+                suggestionsDiv.style.display = 'none'; 
+                return; 
+            }
 
-        results.slice(0, 5).forEach(function(item) {
-            const row = document.createElement('div');
-            row.style.padding = '8px 12px'; row.style.cursor = 'pointer'; row.style.fontSize = '13px'; row.style.borderBottom = '1px solid #f1f3f4';
-            row.innerText = item.label;
-            row.onmouseover = function() { row.style.background = '#f1f3f4'; };
-            row.onmouseout = function() { row.style.background = 'white'; };
-            row.onclick = function() {
-                input.value = item.label;
-                suggestionsDiv.style.display = 'none';
-                waypointsList[index].coordinates = [item.x, item.y];
-            };
-            suggestionsDiv.appendChild(row);
-        });
-        suggestionsDiv.style.display = 'block';
+            // 4. Generate suggestion dropdown option items
+            results.slice(0, 5).forEach(function(item) {
+                const row = document.createElement('div');
+                row.style.padding = '10px 12px'; 
+                row.style.cursor = 'pointer'; 
+                row.style.fontSize = '13px'; 
+                row.style.borderBottom = '1px solid #f1f3f4';
+                row.style.color = '#333';
+                row.innerText = item.label;
+
+                // Hover effects
+                row.onmouseover = function() { row.style.background = '#f1f3f4'; };
+                row.onmouseout = function() { row.style.background = 'white'; };
+                
+                // Clicking an address option selection
+                row.onclick = function() {
+                    input.value = item.label; // Injects address string into field
+                    suggestionsDiv.style.display = 'none'; // Closes panel
+                    if (clearBtn) clearBtn.style.display = 'block';
+                    
+                    // Saves coordinates array securely inside your waypoint matrix list
+                    waypointsList[index].coordinates = [item.x, item.y]; 
+                };
+                suggestionsDiv.appendChild(row);
+            });
+            
+            // Unhide the completed dropdown list container card layout panel
+            suggestionsDiv.style.display = 'block';
+            
+        } catch (err) {
+            console.error("Geocoding lookup error:", err);
+        }
     }, 400));
 }
 
