@@ -1,4 +1,4 @@
-// CRITICAL CONFIGURATIONS (FIXED: Plain text key format to prevent 403 Forbidden Errors)
+// CRITICAL CONFIGURATIONS
 const ORS_API_KEY = '5b3ce3597851110001cf6248fe175b2c71d049629e65ea16d7502d3d';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
@@ -23,17 +23,19 @@ let stationMarkers = L.layerGroup().addTo(map);
 let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
 let userLocation = null;
-let searchByAreaActive = false; // Tracks if user engaged the floating area scanning override trigger button
+let searchByAreaActive = false;
 
 window.addEventListener('load', function() {
     map.invalidateSize();
     setupTabToggles();
-    setupTab1Autocomplete();
     
+    // Build routing forms fields
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
+    
+    // Safely invoke autocompletes after markup handles are ready
+    setupTab1Autocomplete();
 
-    // Pull current geolocation coordinate position state metrics
     if (navigator.geolocation) {
         document.getElementById('status').innerText = "Locating position...";
         navigator.geolocation.getCurrentPosition(
@@ -54,20 +56,16 @@ window.addEventListener('load', function() {
     }
 });
 
-// Sync movement tracking triggers
 map.on('moveend', function() {
     if (currentMode === 'local' && !searchByAreaActive) {
         filterFuelStationsLocalMode();
     }
 });
 
-// NEW FEATURE: Floating Search This Area control function action loop handler
 function searchThisArea() {
     searchByAreaActive = true;
     const mapCenter = map.getCenter();
     document.getElementById('status').innerText = "Scanning visible viewport up to 50 miles...";
-    
-    // Temporarily substitute viewport anchor center to act as search origin tracking point
     userLocation = { lat: mapCenter.lat, lon: mapCenter.lng };
     filterFuelStationsLocalMode();
 }
@@ -78,7 +76,7 @@ function setupTabToggles() {
     
     window.switchTab = function(tabId) {
         document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
-        searchByAreaActive = false; // Reset overrides
+        searchByAreaActive = false;
         
         if (tabId === 'local-tab') {
             currentMode = 'local';
@@ -116,7 +114,7 @@ function updateRadiusLabel(val) {
 }
 
 function updateLocalRadiusLabel(val) {
-    searchByAreaActive = false; // Re-anchor back onto true geographic ranges
+    searchByAreaActive = false;
     document.getElementById('localRadiusVal').innerText = val;
     filterFuelStationsLocalMode();
 }
@@ -131,7 +129,6 @@ function refreshActiveDataView() {
 }
 
 function getCoordinates(station) {
-    // Scan for all standard coordinate variations flexibly
     const latKeys = ['lat', 'latitude', 'Latitude', 'LAT', 'j', 'J'];
     const lonKeys = ['lon', 'lng', 'longitude', 'Longitude', 'LON', 'k', 'K'];
     let lat = null, lon = null;
@@ -140,14 +137,13 @@ function getCoordinates(station) {
     return (isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
-// FIXED PRICING PARSING LAYER: Directly maps onto your actual Sheet column header definitions
 function extractPriceByMetricType(station, fuelType) {
-    const target = (fuelType || 'e10').toLowerCase();
+    const target = (fuelType || 'price_e10').toLowerCase();
     let possibleKeys = [];
     
-    if (target === 'e10') possibleKeys = ['price_e10', 'e10', 'E10'];
-    else if (target === 'e5') possibleKeys = ['price_e5', 'e5', 'E5'];
-    else if (target === 'diesel') possibleKeys = ['price_diesel', 'b7', 'B7', 'diesel'];
+    if (target.includes('e10')) possibleKeys = ['price_e10', 'e10', 'E10'];
+    else if (target.includes('e5')) possibleKeys = ['price_e5', 'e5', 'E5'];
+    else if (target.includes('diesel')) possibleKeys = ['price_diesel', 'b7', 'B7', 'diesel'];
 
     for (let key of possibleKeys) {
         if (station[key] !== undefined && station[key] !== null && station[key] !== '') {
@@ -172,6 +168,8 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
+    if (!container) return; // Safeguard if layout element isn't ready
+    
     var index = waypointsList.length;
     waypointsList.push({ coordinates: null, rawText: "" });
 
@@ -199,7 +197,7 @@ function setupDynamicAutocomplete(index, rowElement) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
     const clearBtn = document.getElementById("clear-" + index);
-    if (!input || !suggestionsDiv) return;
+    if (!input || !suggestionsDiv) return; // SAFEGUARD CRASH PREVENTER
 
     input.addEventListener('focus', () => { rowElement.style.zIndex = '999'; });
     input.addEventListener('blur', () => { setTimeout(() => { rowElement.style.zIndex = '10'; }, 300); });
@@ -246,7 +244,7 @@ function setupTab1Autocomplete() {
                 row.innerText = item.label;
                 row.onclick = function() {
                     input.value = item.label; suggestionsDiv.style.display = 'none';
-                    searchByAreaActive = false; // Restore slider metric mapping tracker
+                    searchByAreaActive = false;
                     userLocation = { lat: item.y, lon: item.x };
                     map.setView([item.y, item.x], 13);
                     filterFuelStationsLocalMode();
@@ -258,7 +256,6 @@ function setupTab1Autocomplete() {
     }, 400));
 }
 
-// FIXED ROUTE SYSTEM CALCULATOR: Connects multi-stop points along the pathway corridor
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
     
@@ -286,7 +283,6 @@ async function calculateJourney() {
         const routeData = await response.json();
         lastSavedRouteData = routeData;
         
-        // Render a thick high-visibility colored route tracking line on the canvas
         routeLayer = L.geoJSON(routeData, { 
             style: { color: '#1a73e8', weight: 6, opacity: 0.85 } 
         }).addTo(map);
@@ -295,11 +291,10 @@ async function calculateJourney() {
         filterFuelStationsRouteMode(routeData);
     } catch (err) {
         console.error(err); 
-        statusDiv.innerText = "Routing authentication fault. Check OpenRouteService panel logs.";
+        statusDiv.innerText = "Routing authentication fault. Check OpenRouteService credentials.";
     }
 }
 
-// FIXED STREAMING ENGINE: Drops broken &tq queries and handles full local parsing matching map viewframes
 function filterFuelStationsLocalMode() {
     Papa.parse(GOOGLE_SHEET_BASE_URL, {
         download: true, header: true, dynamicTyping: true,
@@ -336,17 +331,130 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // Ensure fallback checking for common data keys
         const brandName = station.brand || station.Brand || "Independent";
         station.brand = brandName;
 
         const isTraditional = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1 || station.has_unleaded === "true");
         if (requiresUnleaded && !isTraditional) return;
 
-        // Tab 2: Corridor check logic bounds
         if (spatialBufferPolygon) {
             if (!turf.booleanPointInPolygon(turf.point([coords.lon, coords.lat]), spatialBufferPolygon)) return;
-        } 
-        // Tab 1: Viewport map bounding window checks
-        else {
-            if (!bounds
+        } else {
+            if (!bounds.contains([coords.lat, coords.lon])) return;
+        }
+        
+        if (currentMode === 'local' && userLocation) {
+            station.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, coords.lat, coords.lon);
+            const activeRangeCap = searchByAreaActive ? 50 : localRadiusLimit;
+            if (station.calculatedDistance > activeRangeCap) return;
+        }
+
+        eligibleStations.push(station);
+    });
+
+    const slicedStationsList = eligibleStations.slice(0, 100);
+
+    slicedStationsList.forEach(function(station) {
+        const coords = getCoordinates(station);
+        
+        const e10Price = extractPriceByMetricType(station, 'price_e10');
+        const b7Price = extractPriceByMetricType(station, 'price_diesel'); 
+        const e5Price = extractPriceByMetricType(station, 'price_e5');
+
+        const currentSelectedPrice = extractPriceByMetricType(station, chosenFuelType);
+        if (!isNaN(currentSelectedPrice)) {
+            station.currentFilterPrice = currentSelectedPrice;
+            if (currentSelectedPrice < cheapestPriceFound) {
+                cheapestPriceFound = currentSelectedPrice;
+            }
+        } else {
+            station.currentFilterPrice = Infinity;
+        }
+
+        currentlyFilteredStations.push(station);
+
+        const labelText = (!isNaN(e10Price)) ? e10Price.toFixed(1) + 'p' : 'N/A';
+        const color = getMarkerColor(e10Price);
+
+        const icon = L.divIcon({
+            className: 'price-badge-container',
+            html: `<div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: bold; padding: 2px 5px; border-radius: 4px; font-size: 11px; text-align:center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${labelText}</div>`,
+            iconSize: [46, 22]
+        });
+
+        L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
+            displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price);
+        }).addTo(stationMarkers);
+    });
+
+    statusDiv.innerText = `Forecourts displayed: ${slicedStationsList.length} total rows.`;
+
+    if (currentlyFilteredStations.length > 0) {
+        const sortedList = [...currentlyFilteredStations]
+            .filter(s => s.currentFilterPrice !== Infinity)
+            .sort((a,b) => a.currentFilterPrice - b.currentFilterPrice);
+        
+        sortedList.slice(0, 3).forEach(function(stn) {
+            const c = getCoordinates(stn);
+            const distanceString = (stn.calculatedDistance !== undefined) ? ` (${stn.calculatedDistance.toFixed(1)} mi)` : '';
+
+            var li = document.createElement('li'); li.style.cursor = 'pointer'; li.style.padding = '4px 0';
+            li.innerHTML = `<strong>${stn.brand}</strong> - <span style="color:#137333;font-weight:bold;">${stn.currentFilterPrice.toFixed(1)}p</span>${distanceString}`;
+            li.onclick = () => { map.flyTo([c.lat, c.lon], 14); };
+            document.getElementById('topStationsList').appendChild(li);
+        });
+        document.getElementById('topStationsContainer').style.display = sortedList.length > 0 ? 'block' : 'none';
+
+        if (currentMode === 'route' && lastSavedRouteData) {
+            var miles = lastSavedRouteData.features[0].properties.summary.distance / 1609.34;
+            var cost = ((miles / (parseFloat(document.getElementById('mpg').value) || 45)) * 4.54609) * (cheapestPriceFound / 100);
+            document.getElementById('summaryDistance').innerText = miles.toFixed(1);
+            document.getElementById('summaryCost').innerText = '£' + (isFinite(cost) && cheapestPriceFound !== Infinity ? cost.toFixed(2) : '0.00');
+            document.getElementById('costSummary').style.display = 'block';
+        }
+    }
+}
+
+function displayiOSModalSheet(station, coords, e10, b7, e5) {
+    document.getElementById('sheetBrand').innerText = station.brand;
+    document.getElementById('sheetAddress').innerText = station.address || `Forecourt Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
+    
+    document.getElementById('sheetE10').innerText = (!isNaN(e10)) ? e10.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetB7').innerText = (!isNaN(b7)) ? b7.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetE5').innerText = (!isNaN(e5)) ? e5.toFixed(1) + 'p' : 'N/A';
+
+    const backdrop = document.getElementById('iosModalBackdrop');
+    const sheet = document.getElementById('stationDetailSheet');
+    
+    backdrop.style.display = 'flex';
+    setTimeout(() => {
+        backdrop.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+function closeiOSModalSheet() {
+    const backdrop = document.getElementById('iosModalBackdrop');
+    const sheet = document.getElementById('stationDetailSheet');
+    
+    backdrop.style.opacity = '0';
+    sheet.style.transform = 'translateY(100%)';
+    setTimeout(() => { backdrop.style.display = 'none'; }, 250);
+}
+
+function handleBackdropClick(event) {
+    if (event.target.id === 'iosModalBackdrop') {
+        closeiOSModalSheet();
+    }
+}
+
+function clearWaypointField(index) {
+    document.getElementById('input-' + index).value = '';
+    document.getElementById('suggest-' + index).style.display = 'none';
+    document.getElementById('clear-' + index).style.display = 'none';
+    waypointsList[index] = { coordinates: null, rawText: "" };
+}
+
+function removeWaypointField(index, rowId) { document.getElementById(rowId).remove(); waypointsList[index] = null; if(lastSavedRouteData) calculateJourney(); }
+function getMarkerColor(p) { return !p || isNaN(p) ? '#7f8c8d' : p <= 135 ? '#34a853' : p <= 145 ? '#fbbc05' : '#ea4335'; }
+function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
