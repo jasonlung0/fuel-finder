@@ -1,14 +1,13 @@
 // CRITICAL CREDENTIAL CONFIGURATIONS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
-const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0gid=1137635326&single=true&/gviz/tq?tqx=out:csv&';
+const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
 // Initialize Map
 const map = L.map('map').setView([54.5, -3.5], 6);
-//  CORRECTED UNITED KINGDOM SEARCH FILTER BOUNDARY PARAMETER
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: {
         countrycodes: 'gb', // Restricts autocomplete exclusively to the United Kingdom
-        limit: 5            // Keeps dropdown clean by limiting to top 5 closest matches
+        limit: 5            // Limits to top 5 closest matches
     }
 });
 
@@ -51,7 +50,7 @@ document.getElementById('mpg').addEventListener('input', function() { if(lastSav
 document.getElementById('filterEV').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 document.getElementById('filterUnleaded').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 
-// Add/Remove Dynamic Stop Inputs Mechanics (Corrected Layout Focus)
+// Add/Remove Dynamic Stop Inputs Mechanics
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
@@ -68,17 +67,14 @@ function addNewWaypointField(customLabel) {
     row.style.alignItems = 'center'; 
     row.style.gap = '5px'; 
     row.style.cursor = 'grab';
-
-    // FIXED: Dynamically calculates depth stacking. 
-    // This forces row 0 (Start) to sit higher than row 1 (Destination), overlapping dropdowns cleanly!
+    
+    // Dynamic Visual Stacking Layer Depth Rank Fix
     row.style.position = 'relative';
     row.style.zIndex = (100 - index); 
-    row.style.background = '#ffffff'; 
-
+    row.style.background = '#ffffff';
 
     var isCoreField = (customLabel === "Start" || customLabel === "Destination");
 
-    // FIXED: Ensured class names and wrapper tags match our background geocoding handlers exactly
     var htmlString = '<span style="color: #b0b4b9; font-size: 16px; padding: 0 4px; user-select: none;">⋮⋮</span>' +
         '<div style="position: relative; flex-grow: 1;">' +
         '    <input type="text" id="input-' + index + '" placeholder="' + customLabel + '..." style="width: 100%;" autocomplete="off">' +
@@ -94,8 +90,6 @@ function addNewWaypointField(customLabel) {
 
     row.innerHTML = htmlString;
     container.appendChild(row);
-    
-    // Explicitly wake up the dynamic autocomplete tracking engine for this input card
     setupDynamicAutocomplete(index);
     addDragAndDropListeners(row);
 }
@@ -133,30 +127,19 @@ function reorderWaypointsDataMatrix() {
     const visibleRows = container.querySelectorAll('.draggable-waypoint-row');
     let updatedNewList = [];
 
-    // 1. Loop through visible rows to update internal data cache order
     visibleRows.forEach(function(row, idx) {
         const originalIndex = parseInt(row.getAttribute('data-index'));
         updatedNewList.push(waypointsList[originalIndex]);
         
         const inputField = row.querySelector('input');
-        if (idx === 0) {
-            inputField.placeholder = "Start...";
-        } else if (idx === visibleRows.length - 1) {
-            inputField.placeholder = "Destination...";
-        } else {
-            inputField.placeholder = "Stop " + idx + "...";
-        }
+        if (idx === 0) inputField.placeholder = "Start...";
+        else if (idx === visibleRows.length - 1) inputField.placeholder = "Destination...";
+        else inputField.placeholder = "Stop " + idx + "...";
 
-        // CORRECTED VISUAL STACKING LAYER DEPTH RANK:
-        // Automatically flips the z-index depth properties when items are rearranged.
-        // This ensures the topmost inputs always layer cleanly over lower boxes!
         row.style.zIndex = (100 - idx);
     });
 
-    // 2. Commit the sorted configurations to the global state matrix cache
     waypointsList = updatedNewList;
-
-    // 3. Reset index attributes on the screen elements for future drag tracks alignment
     visibleRows.forEach(function(row, idx) {
         row.setAttribute('data-index', idx);
         row.querySelector('input').id = "input-" + idx;
@@ -164,48 +147,40 @@ function reorderWaypointsDataMatrix() {
         row.querySelector('span').id = "clear-" + idx;
     });
 
-    // 4. If an active route line is already on the map, automatically rebuild the path!
-    if (lastSavedRouteData) {
-        calculateJourney();
-    }
+    if (lastSavedRouteData) calculateJourney();
 }
 
-// Address Autocomplete Handlers (Fixed 3-Letter Keystroke Connector)
+// Address Autocomplete Handlers (Fixed Syntax Typos & Duplicated Properties)
 function setupDynamicAutocomplete(index) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
     const clearBtn = document.getElementById("clear-" + index);
 
-    if (!input || !suggestionsDiv) return; // Prevent silent runtime crashes
+    if (!input || !suggestionsDiv) return;
 
     input.addEventListener('input', debounce(async function(e) {
         const query = e.target.value;
         
-        // 1. Toggle Clear Button (X) visibility
         if (clearBtn) {
-            clearBtn.style.style.display = query.length > 0 ? 'block' : 'none';
+            clearBtn.style.display = query.length > 0 ? 'block' : 'none'; // Fixed duplicated properties crash!
         }
         
         waypointsList[index].rawText = query;
 
-        // 2. STRIKT 3-LETTER LOCK: If the user typed 1 or 2 letters, keep the dropdown completely hidden
+        // 3-LETTER LOCK
         if (query.length < 3) { 
             suggestionsDiv.style.display = 'none'; 
             return; 
         }
 
-        // 3. Trigger network query to OpenStreetMap (UK Filtered)
-        const statusDiv = document.getElementById('status');
         try {
             const results = await searchProvider.search({ query: query });
             suggestionsDiv.innerHTML = '';
-            
             if (!results || results.length === 0) { 
                 suggestionsDiv.style.display = 'none'; 
                 return; 
             }
 
-            // 4. Generate suggestion dropdown option items
             results.slice(0, 5).forEach(function(item) {
                 const row = document.createElement('div');
                 row.style.padding = '10px 12px'; 
@@ -215,25 +190,18 @@ function setupDynamicAutocomplete(index) {
                 row.style.color = '#333';
                 row.innerText = item.label;
 
-                // Hover effects
                 row.onmouseover = function() { row.style.background = '#f1f3f4'; };
                 row.onmouseout = function() { row.style.background = 'white'; };
                 
-                // Clicking an address option selection
                 row.onclick = function() {
-                    input.value = item.label; // Injects address string into field
-                    suggestionsDiv.style.display = 'none'; // Closes panel
+                    input.value = item.label;
+                    suggestionsDiv.style.display = 'none';
                     if (clearBtn) clearBtn.style.display = 'block';
-                    
-                    // Saves coordinates array securely inside your waypoint matrix list
                     waypointsList[index].coordinates = [item.x, item.y]; 
                 };
                 suggestionsDiv.appendChild(row);
             });
-            
-            // Unhide the completed dropdown list container card layout panel
             suggestionsDiv.style.display = 'block';
-            
         } catch (err) {
             console.error("Geocoding lookup error:", err);
         }
@@ -284,7 +252,6 @@ function filterFuelStations(routeData) {
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
     const chosenFuelType = document.getElementById('fuelType').value;
 
-    // 1. Compute dynamic bounding box with buffer padding from your active journey coordinates
     const routeBBox = turf.bbox(routeData); 
     const paddingDegrees = (selectedRadius / 111.32) + 0.05; 
 
@@ -293,13 +260,11 @@ function filterFuelStations(routeData) {
     const maxLon = routeBBox[2] + paddingDegrees;
     const maxLat = routeBBox[3] + paddingDegrees;
 
-    // 2. Build explicit SQL filtering text command on-the-fly
     const sqlQuery = "SELECT * WHERE B >= " + minLat + " AND B <= " + maxLat + " AND C >= " + minLon + " AND C <= " + maxLon;
     const liveDynamicSheetUrl = GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery);
 
     statusDiv.innerText = "Requesting regional data from Google...";
 
-    // 3. Stream data using the dynamic, server-side filtered URL endpoint
     Papa.parse(liveDynamicSheetUrl, {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
@@ -372,5 +337,5 @@ function exportItineraryToCSV() {
     var rows = currentlyFilteredStations.map(function(s) { return ['"' + s.brand + '"', s.lat, s.lon, s.e10||"N/A", s.b7||"N/A"]; });
     var csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(function(e) { return e.join(","); })].join("\n");
     var link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", "fuel_itinerary.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    link.setAttribute("download", `fuel_itinerary.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
