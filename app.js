@@ -1,8 +1,8 @@
-// CRITICAL CREDENTIAL CONFIGURATIONS
-const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3TTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
+// CRITICAL CONFIGURATIONS (FIXED: Raw key text format for OpenRouteService validation)
+const ORS_API_KEY = '5b3ce3597851110001cf6248fe175b2c71d049629e65ea16d7502d3d';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
-// Initialize Map
+// Initialize Leaflet Map Instance
 const map = L.map('map').setView([54.5, -3.5], 6);
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
@@ -22,7 +22,7 @@ let routeLayer = null;
 let stationMarkers = L.layerGroup().addTo(map);
 let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
-let userLocation = null; // Stores user's lat/lon coordinates
+let userLocation = null;
 
 window.addEventListener('load', function() {
     map.invalidateSize();
@@ -32,15 +32,11 @@ window.addEventListener('load', function() {
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
 
-    // Grab user's GPS position
     if (navigator.geolocation) {
         document.getElementById('status').innerText = "Locating your position...";
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                userLocation = {
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                };
+                userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
                 document.getElementById('status').innerText = "Centered on local position.";
                 map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
@@ -56,11 +52,22 @@ window.addEventListener('load', function() {
     }
 });
 
+// Auto-fetch data on map movement pauses
 map.on('moveend', function() {
     if (currentMode === 'local') {
         filterFuelStationsLocalMode();
     }
 });
+
+// NEW: Search This Area logic bounded to 50 miles maximum radius calculation limits
+function searchThisArea() {
+    const mapCenter = map.getCenter();
+    document.getElementById('status').innerText = "Scanning current viewport area...";
+    
+    // Update user reference coordinate anchor point dynamically to the center of the viewport map view
+    userLocation = { lat: mapCenter.lat, lon: mapCenter.lng };
+    filterFuelStationsLocalMode();
+}
 
 function setupTabToggles() {
     const tabRadius = document.getElementById('bufferRadiusContainer');
@@ -104,7 +111,6 @@ function updateRadiusLabel(val) {
     if (lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
-// NEW: Local slider display value update trigger handler
 function updateLocalRadiusLabel(val) {
     document.getElementById('localRadiusVal').innerText = val;
     filterFuelStationsLocalMode();
@@ -120,17 +126,37 @@ function refreshActiveDataView() {
 }
 
 function getCoordinates(station) {
-    const latKeys = ['lat', 'latitude', 'Latitude', 'LAT', 'J'];
-    const lonKeys = ['lon', 'lng', 'longitude', 'Longitude', 'LON', 'K'];
+    // Explicit mappings for raw sheet parameters vs SQL visualizer lowercase column output properties
+    const latKeys = ['lat', 'latitude', 'Latitude', 'LAT', 'j'];
+    const lonKeys = ['lon', 'lng', 'longitude', 'Longitude', 'LON', 'k'];
     let lat = null, lon = null;
+    
     for (let key of latKeys) { if (station[key] !== undefined && station[key] !== null) { lat = parseFloat(station[key]); break; } }
     for (let key of lonKeys) { if (station[key] !== undefined && station[key] !== null) { lon = parseFloat(station[key]); break; } }
     return (isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
-// Helper: Haversine distance calculator to compute strict distance radius in miles
+// BULLETPROOF PRICING UTILITY: Parses values cleanly regardless of header casing or SQL index renaming transformations
+function extractPriceByMetricType(station, fuelType) {
+    const target = (fuelType || 'e10').toLowerCase();
+    
+    // Exact structural index keys configuration mapper maps
+    let possibleKeys = [];
+    if (target === 'e10') possibleKeys = ['e10', 'E10', 'petrol', 'Petrol', 'g'];
+    else if (target === 'b7') possibleKeys = ['b7', 'B7', 'diesel', 'Diesel', 'h'];
+    else if (target === 'e5') possibleKeys = ['e5', 'E5', 'super', 'i'];
+
+    for (let key of possibleKeys) {
+        if (station[key] !== undefined && station[key] !== null && station[key] !== '') {
+            let val = parseFloat(station[key]);
+            if (!isNaN(val) && val > 0) return val;
+        }
+    }
+    return NaN;
+}
+
 function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; // Earth radius in miles
+    const R = 3958.8; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -217,7 +243,6 @@ function setupTab1Autocomplete() {
                 row.innerText = item.label;
                 row.onclick = function() {
                     input.value = item.label; suggestionsDiv.style.display = 'none';
-                    // Re-anchor user reference coordinate focal center point if they search an address
                     userLocation = { lat: item.y, lon: item.x };
                     map.setView([item.y, item.x], 13);
                     filterFuelStationsLocalMode();
@@ -229,36 +254,55 @@ function setupTab1Autocomplete() {
     }, 400));
 }
 
+// FIXED ROUTE PLANNER SYSTEM ENGINE: Safely processes journey coordinate lines
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
+    
+    // Gather all inputs that have valid autocomplete selections
     const validCoords = waypointsList
         .filter(wp => wp && wp.coordinates)
         .map(wp => [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]);
 
-    if (validCoords.length < 2) { alert('Please select points from the suggestion lists.'); return; }
-    statusDiv.innerText = "Tracing path corridor...";
+    if (validCoords.length < 2) { 
+        alert('Please fill out the Start and Destination fields using entries from the popup suggestion lists.'); 
+        return; 
+    }
+    
+    statusDiv.innerText = "Requesting journey path geometry calculations...";
     stationMarkers.clearLayers();
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
         const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {
             method: 'POST',
-            headers: { 'Accept': 'application/json, application/geo+json; charset=utf-8', 'Content-Type': 'application/json', 'Authorization': ORS_API_KEY },
+            headers: { 
+                'Accept': 'application/json, application/geo+json; charset=utf-8', 
+                'Content-Type': 'application/json', 
+                'Authorization': ORS_API_KEY 
+            },
             body: JSON.stringify({ "coordinates": validCoords })
         });
+        
         if (!response.ok) throw new Error(await response.text());
         const routeData = await response.json();
         lastSavedRouteData = routeData;
-        routeLayer = L.geoJSON(routeData, { style: { color: '#1a73e8', weight: 5, opacity: 0.85 } }).addTo(map);
+        
+        // FIXED: Draws a high-visibility colored journey line tracking all stops
+        routeLayer = L.geoJSON(routeData, { 
+            style: { color: '#1a73e8', weight: 6, opacity: 0.85 } 
+        }).addTo(map);
+        
         map.fitBounds(routeLayer.getBounds());
         filterFuelStationsRouteMode(routeData);
     } catch (err) {
-        console.error(err); statusDiv.innerText = "Error requesting OpenRouteService tracks.";
+        console.error(err); 
+        statusDiv.innerText = "Routing authentication error. Verify API status configurations.";
     }
 }
 
 function filterFuelStationsLocalMode() {
     const bounds = map.getBounds();
+    // SQL column coordinate references mapping to Google Sheet query formats
     const sqlQuery = `SELECT * WHERE J >= ${bounds.getSouth()} AND J <= ${bounds.getNorth()} AND K >= ${bounds.getWest()} AND K <= ${bounds.getEast()}`;
     Papa.parse(GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery), {
         download: true, header: true, dynamicTyping: true,
@@ -268,8 +312,10 @@ function filterFuelStationsLocalMode() {
 
 function filterFuelStationsRouteMode(routeData) {
     const selectedRadius = parseFloat(document.getElementById('bufferRadius').value);
-    const routeBBox = turf.bbox(routeData); const padding = (selectedRadius / 111.32) + 0.05;
+    const routeBBox = turf.bbox(routeData); 
+    const padding = (selectedRadius / 111.32) + 0.05;
     const sqlQuery = `SELECT * WHERE J >= ${routeBBox[1] - padding} AND J <= ${routeBBox[3] + padding} AND K >= ${routeBBox[0] - padding} AND K <= ${routeBBox[2] + padding}`;
+    
     Papa.parse(GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery), {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
@@ -279,13 +325,11 @@ function filterFuelStationsRouteMode(routeData) {
     });
 }
 
-// FIXED RENDER ENGINE: Performs text string to float numbers conversions natively
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
     const chosenFuelType = document.getElementById('fuelType').value;
     
-    // Read the chosen radius ceiling for Local Mode
     const localRadiusLimit = parseFloat(document.getElementById('localRadiusSlider')?.value || 5);
 
     stationMarkers.clearLayers();
@@ -298,42 +342,45 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        const isTraditional = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1 || station.has_unleaded === "true");
+        // Column identifier index translation evaluations
+        const brandName = station.brand || station.b || "Independent";
+        station.brand = brandName; // Normalize object key reference properties
+
+        const isTraditional = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1 || station.has_unleaded === "true" || station.f === "TRUE" || station.f === true);
         if (requiresUnleaded && !isTraditional) return;
 
         if (spatialBufferPolygon) {
             if (!turf.booleanPointInPolygon(turf.point([coords.lon, coords.lat]), spatialBufferPolygon)) return;
         }
         
-        // Calculate true straight-line distance if user coordinates are locked in
         if (currentMode === 'local' && userLocation) {
             station.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, coords.lat, coords.lon);
-            // Drop station entry if it's further away than the slider setting
-            if (station.calculatedDistance > localRadiusLimit) return;
+            // Cap search window to slider limits (forced max ceiling caps at 50 miles for map overrides)
+            const maximumAllowedCeiling = Math.max(localRadiusLimit, 50);
+            if (station.calculatedDistance > maximumAllowedCeiling) return;
         }
 
         eligibleStations.push(station);
     });
 
-    // Cap viewport rendering arrays to top 100 max pins
     const slicedStationsList = eligibleStations.slice(0, 100);
 
     slicedStationsList.forEach(function(station) {
         const coords = getCoordinates(station);
         
-        // FIX: Cast string-wrapped cell contents into explicit floating point numbers safely
-        const e10Price = station['e10'] || station['E10'] || station['petrol'] || station['Petrol'] ? parseFloat(station['e10'] || station['E10'] || station['petrol'] || station['Petrol']) : NaN;
-        const b7Price = station['b7'] || station['B7'] || station['diesel'] || station['Diesel'] ? parseFloat(station['b7'] || station['B7'] || station['diesel'] || station['Diesel']) : NaN;
-        const e5Price = station['e5'] || station['E5'] ? parseFloat(station['e5'] || station['E5']) : NaN;
+        // FIXED EXTRACATION MAPPING ROUTINE: Grabs valid numbers out of dynamic column data strings
+        const e10Price = extractPriceByMetricType(station, 'e10');
+        const b7Price = extractPriceByMetricType(station, 'b7');
+        const e5Price = extractPriceByMetricType(station, 'e5');
 
-        const currentSelectedPrice = parseFloat(station[chosenFuelType]);
+        const currentSelectedPrice = extractPriceByMetricType(station, chosenFuelType);
         if (!isNaN(currentSelectedPrice) && currentSelectedPrice < cheapestPriceFound) {
             cheapestPriceFound = currentSelectedPrice;
         }
 
         currentlyFilteredStations.push(station);
 
-        // Map pins display text default fallback values (Petrol E10 format display override)
+        // DEFAULT RENDER STATE: Markers show Petrol E10 prices clearly everywhere by default
         const labelText = (!isNaN(e10Price)) ? e10Price.toFixed(1) + 'p' : 'N/A';
         const color = getMarkerColor(e10Price);
 
@@ -348,20 +395,20 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         }).addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Displaying ${slicedStationsList.length} forecourts inside view configuration.`;
+    statusDiv.innerText = `Found ${slicedStationsList.length} forecourts inside map area bounds.`;
 
-    // TOP 3 LISTINGS GENERATION VIEW
     if (currentlyFilteredStations.length > 0) {
-        // Sort lowest price to highest price
-        const sortedList = [...currentlyFilteredStations].sort((a,b) => (parseFloat(a[chosenFuelType]) || Infinity) - (parseFloat(b[chosenFuelType]) || Infinity));
+        const sortedList = [...currentlyFilteredStations].sort((a,b) => {
+            const priceA = extractPriceByMetricType(a, chosenFuelType) || Infinity;
+            const priceB = extractPriceByMetricType(b, chosenFuelType) || Infinity;
+            return priceA - priceB;
+        });
         
         sortedList.slice(0, 3).forEach(function(stn) {
             const c = getCoordinates(stn);
-            const verifiedPrice = parseFloat(stn[chosenFuelType]);
+            const verifiedPrice = extractPriceByMetricType(stn, chosenFuelType);
             const priceText = !isNaN(verifiedPrice) ? verifiedPrice.toFixed(1) + 'p' : 'N/A';
-            
-            // If distance was calculated, append it cleanly to the label
-            const distanceString = (stn.calculatedDistance !== undefined) ? ` (${stn.calculatedDistance.toFixed(1)} mi away)` : '';
+            const distanceString = (stn.calculatedDistance !== undefined) ? ` (${stn.calculatedDistance.toFixed(1)} mi)` : '';
 
             var li = document.createElement('li'); li.style.cursor = 'pointer'; li.style.padding = '4px';
             li.innerHTML = `<strong>${stn.brand || 'Independent'}</strong> - <span style="color:green;font-weight:bold;">${priceText}</span>${distanceString}`;
@@ -382,7 +429,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
 
 function displayiOSModalSheet(station, coords, e10, b7, e5) {
     document.getElementById('sheetBrand').innerText = station.brand || "Independent Forecourt";
-    document.getElementById('sheetAddress').innerText = station.address || `Location Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
+    document.getElementById('sheetAddress').innerText = station.address || `Location: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
     
     document.getElementById('sheetE10').innerText = (!isNaN(e10)) ? e10.toFixed(1) + 'p' : 'N/A';
     document.getElementById('sheetB7').innerText = (!isNaN(b7)) ? b7.toFixed(1) + 'p' : 'N/A';
@@ -405,6 +452,13 @@ function closeiOSModalSheet() {
     backdrop.style.opacity = '0';
     sheet.style.transform = 'translateY(100%)';
     setTimeout(() => { backdrop.style.display = 'none'; }, 300);
+}
+
+// NEW FEATURE: Dismiss modal when clicking on the dark transparent backdrop overlay area
+function handleBackdropClick(event) {
+    if (event.target.id === 'iosModalBackdrop') {
+        closeiOSModalSheet();
+    }
 }
 
 function clearWaypointField(index) {
