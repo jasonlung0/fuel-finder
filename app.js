@@ -21,7 +21,7 @@ const themes = {
 };
 let activeTheme = themes.light.addTo(map);
 
-let waypointsList = []; 
+let waypointsList = [];
 let routeLayer = null;
 let stationMarkers = L.layerGroup().addTo(map);
 let lastSavedRouteData = null;
@@ -204,18 +204,17 @@ function debounce(func, delay) {
     let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
 }
 
+// Multi-Waypoint Route Planner Post Call
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
-        // BULLETPROOF COORDINATE FORMATTER (No brackets to prevent text model cuts)
+    
     const validCoords = waypointsList
         .filter(function(wp) { 
             return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
         })
         .map(function(wp) { 
-            // Explicitly grabs the first item (Longitude) and second item (Latitude) from your coordinate storage array
-            var longitude = parseFloat(wp.coordinates.slice(0)[0]);
-            var latitude = parseFloat(wp.coordinates.slice(0)[1]);
-            return [longitude, latitude]; 
+            // OpenRouteService demands coordinates passed as [longitude, latitude]
+            return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
         });
 
     if (validCoords.length < 2) { 
@@ -236,7 +235,7 @@ async function calculateJourney() {
                 'Content-Type': 'application/json', 
                 'Authorization': ORS_API_KEY 
             },
-            body: JSON.stringify({ "coordinates": validCoords })
+            body: JSON.stringify({ "coordinates": validCoords }) 
         });
 
         if (!response.ok) {
@@ -247,9 +246,16 @@ async function calculateJourney() {
         const routeData = await response.json();
         lastSavedRouteData = routeData;
 
-        routeLayer = L.geoJSON(routeData, { style: { color: '#1a73e8', weight: 5, opacity: 0.85 } }).addTo(map);
+        // FIXED CONFLICT: OpenRouteService returns coordinates natively as [Lon, Lat] arrays.
+        // We use Leaflet's built-in mapping utility to automatically swap the ordering so GeoJSON handles it perfectly.
+        routeLayer = L.geoJSON(routeData, {
+            coordsToLatLng: function (coords) {
+                return new L.LatLng(coords[1], coords[0]);
+            },
+            style: { color: '#1a73e8', weight: 5, opacity: 0.85 }
+        }).addTo(map);
+        
         map.fitBounds(routeLayer.getBounds());
-
         filterFuelStations(routeData);
     } catch (err) {
         console.error("Full System Error Log Details:", err); 
@@ -262,18 +268,17 @@ function displayStationDetailSheet(station) {
     document.getElementById('sheetBrand').innerText = station.brand || "Independent Station";
     document.getElementById('sheetAddress').innerText = station.address ? station.address : `Coords: [${station.lat.toFixed(4)}, ${station.lon.toFixed(4)}]`;
     
-    // Process Price Row Placements (Gracefully handles empty strings or undefined cells)
+    // Process Price Rows
     document.getElementById('sheetE10').innerText = station.e10 ? station.e10 + 'p' : 'N/A';
     document.getElementById('sheetB7').innerText = station.b7 ? station.b7 + 'p' : 'N/A';
     document.getElementById('sheetE5').innerText = station.e5 ? station.e5 + 'p' : 'N/A';
     
-    // Map Meta Property Flags
+    // Feature Tag Management
     let capabilities = [];
     if (station.has_ev === true || station.has_ev === "TRUE") capabilities.push("⚡ EV Charger");
     if (station.has_unleaded === true || station.has_unleaded === "TRUE") capabilities.push("⛽ Main Pump");
     document.getElementById('sheetCapabilities').innerHTML = capabilities.join(' | ');
 
-    // Open Drawer Visibility
     document.getElementById('stationDetailSheet').style.display = 'flex';
 }
 
@@ -304,7 +309,7 @@ function filterFuelStations(routeData) {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
             const liveStations = results.data;
-            const bufferedCorridor = turf.buffer(routeData.features, selectedRadius, {units: 'kilometers'});
+            const bufferedCorridor = turf.buffer(routeData.features[0], selectedRadius, {units: 'kilometers'});
             
             let cheapestPriceFound = Infinity;
             let validStationsAlongRoute = [];
@@ -325,7 +330,7 @@ function filterFuelStations(routeData) {
                         if (price < cheapestPriceFound) cheapestPriceFound = price;
                     }
 
-                    // RENDERS FLOATING HTML PRICE BADGES DIRECTLY ON THE LEAFLET PLANE
+                    // RENDERS FLOATING HTML PRICE BADGES DIRECTLY ON THE MAP
                     const markerLabel = station[chosenFuelType] ? station[chosenFuelType] + 'p' : 'N/A';
                     const markerColor = getMarkerColor(station[chosenFuelType]);
 
@@ -359,7 +364,7 @@ function filterFuelStations(routeData) {
                 });
                 document.getElementById('topStationsContainer').style.display = 'block';
 
-                var distMeters = routeData.features.properties.summary.distance;
+                var distMeters = routeData.features[0].properties.summary.distance;
                 var mpg = parseFloat(document.getElementById('mpg').value) || 45;
                 var miles = distMeters / 1609.34;
                 var cost = ((miles / mpg) * 4.54609) * (cheapestPriceFound / 100);
