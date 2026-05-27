@@ -4,10 +4,15 @@ const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 
 // Initialize Map
 const map = L.map('map').setView([54.5, -3.5], 6);
+// FIXED UNITED KINGDOM SEARCH ENGINE WITH CUSTOM USER-AGENT SPECIFICATIONS
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: {
         countrycodes: 'gb', // Restricts autocomplete exclusively to the United Kingdom
         limit: 5            // Limits to top 5 closest matches
+    },
+    // Injects required headers telling OpenStreetMap's server who we are to prevent CORS blocks
+    headers: {
+        'User-Agent': 'UK-Fuel-Finder-App-v1.0 (Contact: jasonlung0@github)'
     }
 });
 
