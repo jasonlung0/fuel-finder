@@ -30,7 +30,7 @@
         .draggable-waypoint-row:last-child::before { display: none; }
         .suggestions-box { position: absolute; top: 42px; width: 100%; background: white; border: 1px solid #ccc; z-index: 2000; display: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        /* Custom Inline HTML Price Floating Map Badges */
+        /* Custom Inline HTML Price Badges for Map Rendering */
         .custom-price-marker {
             display: flex;
             align-items: center;
@@ -47,11 +47,9 @@
             cursor: pointer;
             transition: transform 0.15s ease-in-out;
         }
-        .custom-price-marker:hover {
-            transform: scale(1.1);
-        }
+        .custom-price-marker:hover { transform: scale(1.1); }
 
-        /* Detail Table Structural Rules */
+        /* Detail Table Elements styling */
         .detail-sheet-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 13px; }
         .detail-sheet-table th, .detail-sheet-table td { padding: 6px; border-bottom: 1px solid #e8eaed; text-align: left; }
         .detail-sheet-table th { color: #5f6368; font-weight: 500; }
@@ -71,7 +69,7 @@
             <div id="status" style="font-size: 12px; color: #70757a; text-align: center; font-style: italic;">Ready</div>
         </div>
 
-        <div id="stationDetailSheet" class="ui-card" style="display: none; border-left: 5px solid #1a73e8; background: #fafafa; animation: fadeIn 0.2s ease-in-out;">
+        <div id="stationDetailSheet" class="ui-card" style="display: none; border-left: 5px solid #1a73e8; background: #fafafa;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <strong id="sheetBrand" style="font-size: 15px; color: #1a73e8;">Station Brand</strong>
                 <span onclick="document.getElementById('stationDetailSheet').style.display='none'" style="cursor:pointer; font-weight:bold; color:#70757a; font-size:18px; padding: 0 4px;">&times;</span>
