@@ -294,24 +294,51 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // Flatten checkbox string evaluation matches safely
-        if (requiresEV && station.has_ev !== true && station.has_ev !== "TRUE") return;
-        if (requiresUnleaded && station.has_unleaded !== true && station.has_unleaded !== "TRUE") return;
+        // Determine EV status safely
+        const isEVAvailable = (station.has_ev === true || station.has_ev === "TRUE");
+        const isTraditionalAvailable = (station.has_unleaded === true || station.has_unleaded === "TRUE");
+
+        // Filter out stations based on checkbox selections
+        if (requiresEV && !isEVAvailable) return;
+        if (requiresUnleaded && !isTraditionalAvailable) return;
 
         if (spatialBufferPolygon) {
             const point = turf.point([coords.lon, coords.lat]);
             if (!turf.booleanPointInPolygon(point, spatialBufferPolygon)) return;
         }
 
-        const price = station[chosenFuelType];
-        if (price) {
+        // Safely pull individual prices (fallback to dynamic keys if column names vary)
+        const currentPrice = station[chosenFuelType];
+        const e10Price = station['e10'] || station['Petrol'] || 'N/A';
+        const b7Price = station['b7'] || station['Diesel'] || 'N/A';
+
+        if (currentPrice) {
             displayListings.push(station);
             currentlyFilteredStations.push(station);
-            if (price < cheapestPriceFound) cheapestPriceFound = price;
+            if (currentPrice < cheapestPriceFound) cheapestPriceFound = currentPrice;
         }
 
-        const markerLabel = price ? price + 'p' : 'N/A';
-        const markerColor = getMarkerColor(price);
+        const markerLabel = currentPrice ? currentPrice + 'p' : 'N/A';
+        const markerColor = getMarkerColor(currentPrice);
+
+        // Build the dynamic EV status badge for the info box
+        const evBadgeHTML = isEVAvailable 
+            ? `<div style="margin-top: 6px; display: inline-block; background: #e6f4ea; color: #137333; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">⚡ EV Charger Available</div>`
+            : `<div style="margin-top: 6px; display: inline-block; background: #f1f3f4; color: #70757a; padding: 3px 6px; border-radius: 4px; font-size: 11px;">❌ No EV Charging</div>`;
+
+        // Assemble the custom HTML layout inside the station's info box popup
+        const popupContentHTML = `
+            <div class="station-popup" style="min-width: 160px; font-family: Arial, sans-serif;">
+                <strong style="font-size: 14px; color: #1a73e8;">${station.brand || 'Independent'}</strong>
+                <div style="color: #5f6368; font-size: 11px; margin-bottom: 6px;">${station.address || 'UK Highway Corridor'}</div>
+                <hr style="border: 0; border-top: 1px solid #dadce0; margin: 4px 0;">
+                <div style="font-size: 12px; line-height: 1.5;">
+                    <span style="font-weight:bold;">Petrol (E10):</span> ${e10Price}${typeof e10Price === 'number' ? 'p' : ''}<br>
+                    <span style="font-weight:bold;">Diesel (B7):</span> ${b7Price}${typeof b7Price === 'number' ? 'p' : ''}
+                </div>
+                ${evBadgeHTML}
+            </div>
+        `;
 
         const badgeIcon = L.divIcon({
             className: 'price-badge-container',
@@ -319,13 +346,15 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
             iconSize: [46, 22]
         });
 
+        // Generate map pin marker and bind our custom layout configuration
         L.marker([coords.lat, coords.lon], { icon: badgeIcon })
-            .bindPopup(`<strong>${station.brand || 'Independent'}</strong><br>${station.address || ''}<br>Price: ${markerLabel}`)
+            .bindPopup(popupContentHTML)
             .addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Found ${displayListings.length} matching tracking results inside active viewport boundaries.`;
+    statusDiv.innerText = `Found ${displayListings.length} matching stations inside active parameters.`;
 
+    // Render left panel top list summary balances
     if (displayListings.length > 0) {
         displayListings.sort((a, b) => a[chosenFuelType] - b[chosenFuelType]);
         displayListings.slice(0, 3).forEach(function(stn) {
