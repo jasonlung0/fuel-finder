@@ -1,9 +1,9 @@
-// GLOBAL AND API INSTANCE CONFIGURATIONS
+// GLOBAL CONFIGURATIONS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
 // Initialize Leaflet Map Object Instance 
-const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); // Default view context (Dunfermline)
+const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
 L.control.zoom({ position: 'topright' }).addTo(map);
 
 // Define Geosearch Autocomplete Provider instance
@@ -12,7 +12,7 @@ const searchProvider = new GeoSearch.OpenStreetMapProvider({
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0' }
 });
 
-// Configure Map Tile Set Theme Matrix Variations
+// Configure Map Tile Themes
 const themes = {
     light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
     dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB' }),
@@ -30,7 +30,7 @@ let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
 
-// EXPOSE COMPONENT HANDLERS EXPLICITLY ON WINDOW SPACE TO STOP UNCAUGHT REFERENCEERRORS
+// EXPOSE COMPONENT HANDLERS EXPLICITLY ON WINDOW SPACE
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
@@ -105,17 +105,19 @@ window.addNewWaypointField = function(customLabel) {
     if (!container) return;
     
     const index = waypointsList.length;
-    waypointsList.push({ coordinates: null, rawText: "" });
-
+    // Store row tracking id directly in array
     const rowId = 'waypoint-row-' + index;
+    waypointsList.push({ coordinates: null, rawText: "", id: rowId, label: customLabel });
+
     const row = document.createElement('div');
     row.id = rowId;
-    row.className = 'flex items-center gap-2 relative bg-white z-10 w-full transition-all';
+    row.className = 'flex items-center gap-2 relative bg-white z-10 w-full transition-all p-1 border border-transparent rounded-md';
+    row.setAttribute('draggable', 'true');
 
     const isCoreField = (customLabel === "Start" || customLabel === "Destination");
 
     row.innerHTML = `
-        <span class="text-slate-400 text-sm font-semibold select-none cursor-grab px-1">⋮⋮</span>
+        <span class="text-slate-400 text-sm font-semibold cursor-grab px-1 select-none handle">⋮⋮</span>
         <div class="relative flex-grow">
             <input type="text" id="input-${index}" placeholder="${customLabel}..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
             <span id="clear-${index}" onclick="clearWaypointField(${index})" class="absolute right-3 top-2 cursor-pointer text-slate-400 hover:text-slate-600 font-medium hidden text-xs">×</span>
@@ -125,28 +127,86 @@ window.addNewWaypointField = function(customLabel) {
 
     container.appendChild(row);
     setupDynamicAutocomplete(index, row);
+    setupDragAndDropEvents(row);
 };
 
 window.clearWaypointField = function(index) {
     document.getElementById('input-' + index).value = '';
     document.getElementById('suggest-' + index).style.display = 'none';
     document.getElementById('clear-' + index).style.display = 'none';
-    waypointsList[index] = { coordinates: null, rawText: "" };
+    if(waypointsList[index]) {
+        waypointsList[index].coordinates = null;
+        waypointsList[index].rawText = "";
+    }
 };
 
 window.removeWaypointField = function(index, rowId) { 
     const el = document.getElementById(rowId);
     if(el) el.remove(); 
-    waypointsList[index] = null; 
+    waypointsList = waypointsList.filter(wp => wp && wp.id !== rowId);
     if(lastSavedRouteData) window.calculateJourney(); 
 };
+
+// DRAG AND DROP HANDLERS MECHANICS
+function setupDragAndDropEvents(row) {
+    row.addEventListener('dragstart', (e) => {
+        row.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', row.id);
+    });
+
+    row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        document.querySelectorAll('#waypointContainer > div').forEach(el => el.classList.remove('drag-over'));
+        rebuildWaypointsOrderFromDOM();
+    });
+
+    row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        row.classList.add('drag-over');
+    });
+
+    row.addEventListener('dragleave', () => {
+        row.classList.remove('drag-over');
+    });
+
+    row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        const draggedEl = document.getElementById(draggedId);
+        const container = document.getElementById('waypointContainer');
+        
+        if (draggedEl && draggedEl !== row) {
+            const allElements = [...container.querySelectorAll('#waypointContainer > div')];
+            const draggedIndex = allElements.indexOf(draggedEl);
+            const targetIndex = allElements.indexOf(row);
+            
+            if (draggedIndex < targetIndex) {
+                row.after(draggedEl);
+            } else {
+                row.before(draggedEl);
+            }
+        }
+    });
+}
+
+function rebuildWaypointsOrderFromDOM() {
+    const container = document.getElementById('waypointContainer');
+    const rows = [...container.querySelectorAll('#waypointContainer > div')];
+    
+    let newWaypoints = [];
+    rows.forEach((row) => {
+        const found = waypointsList.find(wp => wp && wp.id === row.id);
+        if (found) newWaypoints.push(found);
+    });
+    waypointsList = newWaypoints;
+}
 
 window.calculateJourney = async function() {
     const statusDiv = document.getElementById('status');
     const validCoords = waypointsList.filter(wp => wp && wp.coordinates).map(wp => [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]);
 
     if (validCoords.length < 2) { 
-        alert('Please fill out your Start and Destination points utilizing the autocomplete selections.'); 
+        alert('Please fill out your points utilizing the autocomplete selections.'); 
         return; 
     }
     
@@ -155,9 +215,14 @@ window.calculateJourney = async function() {
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
-        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {
+        // FIXED HEADER SPECIFICATIONS TO AVOID CORDIAL REJECTIONS BY ORS SERVER
+        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
             method: 'POST',
-            headers: { 'Accept': 'application/json, geo+json', 'Content-Type': 'application/json', 'Authorization': ORS_API_KEY },
+            headers: { 
+                'Accept': 'application/geo+json', 
+                'Content-Type': 'application/json', 
+                'Authorization': ORS_API_KEY 
+            },
             body: JSON.stringify({ "coordinates": validCoords })
         });
         if (!response.ok) throw new Error(await response.text());
@@ -186,25 +251,12 @@ window.closeiOSModalSheet = function() {
     setTimeout(() => { backdrop.style.display = 'none'; }, 250);
 };
 
-// Lifecycle Bootstrap Initializer Loop
+// Lifecycle Bootstrap
 window.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const icon = document.getElementById('toggleIcon');
-    if (window.innerWidth < 768) {
-        if (sidebar) sidebar.classList.add('collapsed');
-        if (icon) icon.innerText = "→";
-    } else {
-        if (sidebar) sidebar.classList.remove('collapsed');
-        if (icon) icon.innerText = "←";
-    }
-    
-    map.invalidateSize();
-    
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
     setupTab1Autocomplete();
 
-    // Attach base change event listeners
     document.getElementById('fuelType').addEventListener('change', () => refreshActiveDataView());
     document.getElementById('mpg').addEventListener('input', () => refreshActiveDataView());
     document.getElementById('filterUnleaded').addEventListener('change', () => refreshActiveDataView());
@@ -249,7 +301,11 @@ function setupDynamicAutocomplete(index, rowElement) {
     input.addEventListener('input', debounce(async function(e) {
         const query = e.target.value;
         if (clearBtn) clearBtn.style.display = query.length > 0 ? 'block' : 'none';
-        if (waypointsList[index]) waypointsList[index].rawText = query;
+        
+        // Dynamic state updates
+        const foundIndex = waypointsList.findIndex(wp => wp && wp.id === rowElement.id);
+        if (foundIndex !== -1) waypointsList[foundIndex].rawText = query;
+
         if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
         try {
             const results = await searchProvider.search({ query: query });
@@ -262,7 +318,8 @@ function setupDynamicAutocomplete(index, rowElement) {
                 row.onclick = function() {
                     input.value = item.label; 
                     suggestionsDiv.style.display = 'none';
-                    if (waypointsList[index]) waypointsList[index].coordinates = [item.x, item.y]; 
+                    const fIdx = waypointsList.findIndex(wp => wp && wp.id === rowElement.id);
+                    if (fIdx !== -1) waypointsList[fIdx].coordinates = [item.x, item.y]; 
                 };
                 suggestionsDiv.appendChild(row);
             });
@@ -515,8 +572,8 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
 
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
-    if (p >= 150.9 && p <= 156.8) return '#10b981'; 
-    if (p >= 156.9 && p <= 162.8) return '#3b82f6'; 
+    if (p >= 140.0 && p <= 158.0) return '#10b981'; 
+    if (p > 158.0 && p <= 164.0) return '#3b82f6'; 
     return '#ef4444'; 
 }
 
