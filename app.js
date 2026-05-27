@@ -1,6 +1,5 @@
 // CRITICAL CREDENTIAL CONFIGURATIONS
-// NOTE: If you still receive a 403 error after applying this code, generate a new key at https://openrouteservice.org
-const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3TTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
+const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJidGkiOiJmZTE3NWIyYzcxZDA0OTYyOWU2NWVhMTZkN00wMmQzZCIsImgiOiJtdXJtdXI2NCJ9';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
 // Initialize Map
@@ -27,17 +26,34 @@ let draggedElement = null;
 
 window.addEventListener('load', function() {
     map.invalidateSize();
-    
-    // Automatically bind layout toggle listeners to the HTML elements directly
     setupTabToggles();
     setupTab1Autocomplete();
     
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
-    document.getElementById('status').innerText = 'Ready - Search a route to scan fuel';
+
+    // FIXED: Browser Geolocation now correctly triggers active view repositioning and zooming
+    if (navigator.geolocation) {
+        document.getElementById('status').innerText = "Acquiring device position...";
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                document.getElementById('status').innerText = "Position acquired. Loading nearby forecourts...";
+                map.setView([lat, lon], 12); 
+                filterFuelStationsLocalMode();
+            },
+            function(error) {
+                document.getElementById('status').innerText = "Location access denied. Defaulting to UK Overview.";
+                filterFuelStationsLocalMode();
+            },
+            { timeout: 7000 }
+        );
+    } else {
+        filterFuelStationsLocalMode();
+    }
 });
 
-// Watch map viewport adjustments to refresh local node selections dynamically
 map.on('moveend', function() {
     if (currentMode === 'local') {
         filterFuelStationsLocalMode();
@@ -48,18 +64,21 @@ function setupTabToggles() {
     const tabRadius = document.getElementById('bufferRadiusContainer');
     const tabCost = document.getElementById('costSummary');
     
-    // Find tab elements if they exist or attach dynamically via a global interface handler
     window.switchTab = function(tabId) {
         document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
         
         if (tabId === 'local-tab') {
             currentMode = 'local';
+            document.getElementById('local-tab').classList.add('active');
+            document.querySelector("button[onclick*='local-tab']").classList.add('active');
             if(tabRadius) tabRadius.style.display = 'none';
             if(tabCost) tabCost.style.display = 'none';
             if(routeLayer) map.removeLayer(routeLayer);
             filterFuelStationsLocalMode();
         } else {
             currentMode = 'route';
+            document.getElementById('route-tab').classList.add('active');
+            document.querySelector("button[onclick*='route-tab']").classList.add('active');
             if(tabRadius) tabRadius.style.display = 'block';
             if (lastSavedRouteData) {
                 if (routeLayer && !map.hasLayer(routeLayer)) routeLayer.addTo(map);
@@ -83,7 +102,7 @@ function updateRadiusLabel(val) {
     if (lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
-// Add Listeners to Controls for Realtime Recalculations
+// Global UI input configurations dynamic update bindings
 document.getElementById('fuelType').addEventListener('change', () => refreshActiveDataView());
 document.getElementById('mpg').addEventListener('input', () => refreshActiveDataView());
 document.getElementById('filterEV').addEventListener('change', () => refreshActiveDataView());
@@ -94,19 +113,15 @@ function refreshActiveDataView() {
     else if (currentMode === 'route' && lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
-// Safe multi-column key normalizer mapping strategy
 function getCoordinates(station) {
     const latKeys = ['lat', 'latitude', 'Latitude', 'LAT', 'J'];
     const lonKeys = ['lon', 'lng', 'longitude', 'Longitude', 'LON', 'K'];
-    
     let lat = null, lon = null;
     for (let key of latKeys) { if (station[key] !== undefined && station[key] !== null) { lat = parseFloat(station[key]); break; } }
     for (let key of lonKeys) { if (station[key] !== undefined && station[key] !== null) { lon = parseFloat(station[key]); break; } }
-    
     return (isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
-// Dynamic Input Row Generation Engine Engine
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
@@ -115,16 +130,9 @@ function addNewWaypointField(customLabel) {
 
     var rowId = 'waypoint-row-' + index;
     var row = document.createElement('div');
-    row.id = rowId;
-    row.className = 'draggable-waypoint-row';
-    row.setAttribute('data-index', index);
-    row.setAttribute('draggable', 'true');
-    row.style.display = 'flex'; 
-    row.style.alignItems = 'center'; 
-    row.style.gap = '5px'; 
-    row.style.position = 'relative';
-    row.style.background = '#ffffff';
-    row.style.zIndex = '10'; // Default flat resting layer priority
+    row.id = rowId; row.className = 'draggable-waypoint-row';
+    row.setAttribute('data-index', index); row.setAttribute('draggable', 'true');
+    row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '5px'; row.style.position = 'relative'; row.style.background = '#ffffff'; row.style.zIndex = '10';
 
     var isCoreField = (customLabel === "Start" || customLabel === "Destination");
 
@@ -139,17 +147,14 @@ function addNewWaypointField(customLabel) {
 
     container.appendChild(row);
     setupDynamicAutocomplete(index, row);
-    addDragAndDropListeners(row);
 }
 
 function setupDynamicAutocomplete(index, rowElement) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
     const clearBtn = document.getElementById("clear-" + index);
-
     if (!input || !suggestionsDiv) return;
 
-    // FIX: Elevate the current row container's z-index hierarchy above its siblings when focused
     input.addEventListener('focus', () => { rowElement.style.zIndex = '999'; });
     input.addEventListener('blur', () => { setTimeout(() => { rowElement.style.zIndex = '10'; }, 300); });
 
@@ -157,135 +162,111 @@ function setupDynamicAutocomplete(index, rowElement) {
         const query = e.target.value;
         if (clearBtn) clearBtn.style.display = query.length > 0 ? 'block' : 'none';
         waypointsList[index].rawText = query;
-
         if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
-
         try {
             const results = await searchProvider.search({ query: query });
             suggestionsDiv.innerHTML = '';
             if (!results || results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
-
             results.slice(0, 5).forEach(function(item) {
                 const row = document.createElement('div');
                 row.style.padding = '10px 12px'; row.style.cursor = 'pointer'; row.style.fontSize = '13px'; row.style.borderBottom = '1px solid #f1f3f4'; row.style.color = '#333';
                 row.innerText = item.label;
-                row.onmouseover = () => row.style.background = '#f1f3f4';
-                row.onmouseout = () => row.style.background = 'white';
-                
                 row.onclick = function() {
-                    input.value = item.label;
-                    suggestionsDiv.style.display = 'none';
+                    input.value = item.label; suggestionsDiv.style.display = 'none';
                     waypointsList[index].coordinates = [item.x, item.y]; 
                 };
                 suggestionsDiv.appendChild(row);
             });
             suggestionsDiv.style.display = 'block';
-        } catch (err) { console.error("Geocoding lookup error:", err); }
+        } catch (err) { console.error(err); }
     }, 400));
 }
 
-// ROUTE MODE JOURNEY CALCULATOR (TAB 2)
+function setupTab1Autocomplete() {
+    const input = document.getElementById('localSearchInput');
+    const suggestionsDiv = document.getElementById('localSuggestions');
+    if (!input || !suggestionsDiv) return;
+
+    input.addEventListener('input', debounce(async function(e) {
+        const query = e.target.value;
+        if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
+        try {
+            const results = await searchProvider.search({ query: query });
+            suggestionsDiv.innerHTML = '';
+            if (!results || results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
+            results.forEach(function(item) {
+                const row = document.createElement('div');
+                row.style.padding = '10px 12px'; row.style.cursor = 'pointer'; row.style.fontSize = '13px'; row.style.borderBottom = '1px solid #f1f3f4';
+                row.innerText = item.label;
+                row.onclick = function() {
+                    input.value = item.label; suggestionsDiv.style.display = 'none';
+                    map.setView([item.y, item.x], 13);
+                };
+                suggestionsDiv.appendChild(row);
+            });
+            suggestionsDiv.style.display = 'block';
+        } catch (err) { console.error(err); }
+    }, 400));
+}
+
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
     const validCoords = waypointsList
         .filter(wp => wp && wp.coordinates)
         .map(wp => [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]);
 
-    if (validCoords.length < 2) { 
-        alert('Please select valid destinations from the dropdown autocomplete lists.'); 
-        return; 
-    }
-
-    statusDiv.innerText = "Requesting spatial route lines...";
+    if (validCoords.length < 2) { alert('Please choose route path destinations from autocomplete list options.'); return; }
+    statusDiv.innerText = "Requesting journey spatial path...";
     stationMarkers.clearLayers();
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
-        const apiUrl = 'https://api.openrouteservice.org/v2/directions/driving-car';
-        const response = await fetch(apiUrl, {
+        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car', {
             method: 'POST',
-            headers: { 
-                'Accept': 'application/json, application/geo+json; charset=utf-8', 
-                'Content-Type': 'application/json', 
-                'Authorization': ORS_API_KEY 
-            },
+            headers: { 'Accept': 'application/json, application/geo+json; charset=utf-8', 'Content-Type': 'application/json', 'Authorization': ORS_API_KEY },
             body: JSON.stringify({ "coordinates": validCoords })
         });
-
-        if (!response.ok) {
-            const errorDetails = await response.text();
-            if (response.status === 403) {
-                throw new Error("403 Forbidden: Your ORS Key has expired or doesn't support authorization requests originating from this domain framework profile.");
-            }
-            throw new Error(`Server Rejected Payload: ${errorDetails}`);
-        }
-
+        if (!response.ok) throw new Error(await response.text());
         const routeData = await response.json();
         lastSavedRouteData = routeData;
-
         routeLayer = L.geoJSON(routeData, { style: { color: '#1a73e8', weight: 5, opacity: 0.85 } }).addTo(map);
         map.fitBounds(routeLayer.getBounds());
-
         filterFuelStationsRouteMode(routeData);
     } catch (err) {
-        console.error(err);
-        statusDiv.innerText = err.message.includes("403") ? "Routing Error: API Key Key Rejected (403)." : "Failed tracking path coordinates.";
+        console.error(err); statusDiv.innerText = "Routing configuration error track.";
     }
 }
 
-// STRATIFIED PARSING ENGINE: SCAN VIEWPORT (TAB 1)
 function filterFuelStationsLocalMode() {
-    const statusDiv = document.getElementById('status');
-    stationMarkers.clearLayers();
-
     const bounds = map.getBounds();
-    const minLat = bounds.getSouth(); const maxLat = bounds.getNorth();
-    const minLon = bounds.getWest(); const maxLon = bounds.getEast();
-
-    const sqlQuery = `SELECT * WHERE J >= ${minLat} AND J <= ${maxLat} AND K >= ${minLon} AND K <= ${maxLon}`;
-    const liveDynamicSheetUrl = GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery);
-
-    Papa.parse(liveDynamicSheetUrl, {
+    const sqlQuery = `SELECT * WHERE J >= ${bounds.getSouth()} AND J <= ${bounds.getNorth()} AND K >= ${bounds.getWest()} AND K <= ${bounds.getEast()}`;
+    Papa.parse(GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery), {
         download: true, header: true, dynamicTyping: true,
-        complete: function(results) {
-            processAndRenderStations(results.data, null);
-        }
+        complete: function(results) { processAndRenderStations(results.data, null); }
     });
 }
 
-// STRATIFIED PARSING ENGINE: JOURNEY CORRIDOR BUFFER (TAB 2)
 function filterFuelStationsRouteMode(routeData) {
-    const statusDiv = document.getElementById('status');
-    stationMarkers.clearLayers();
-
     const selectedRadius = parseFloat(document.getElementById('bufferRadius').value);
-    const routeBBox = turf.bbox(routeData); 
-    const paddingDegrees = (selectedRadius / 111.32) + 0.05; 
-
-    const minLon = routeBBox[0] - paddingDegrees; const minLat = routeBBox[1] - paddingDegrees;
-    const maxLon = routeBBox[2] + paddingDegrees; const maxLat = routeBBox[3] + paddingDegrees;
-
-    const sqlQuery = `SELECT * WHERE J >= ${minLat} AND J <= ${maxLat} AND K >= ${minLon} AND K <= ${maxLon}`;
-    const liveDynamicSheetUrl = GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery);
-
-    Papa.parse(liveDynamicSheetUrl, {
+    const routeBBox = turf.bbox(routeData); const padding = (selectedRadius / 111.32) + 0.05;
+    const sqlQuery = `SELECT * WHERE J >= ${routeBBox[1] - padding} AND J <= ${routeBBox[3] + padding} AND K >= ${routeBBox[0] - padding} AND K <= ${routeBBox[2] + padding}`;
+    Papa.parse(GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery), {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
-            // Unpack the feature definition tracking list safe array index structure directly
-            const bufferedCorridor = turf.buffer(routeData.features[0], selectedRadius, {units: 'kilometers'});
-            processAndRenderStations(results.data, bufferedCorridor);
+            const corridor = turf.buffer(routeData.features[0], selectedRadius, {units: 'kilometers'});
+            processAndRenderStations(results.data, corridor);
         }
     });
 }
 
-// Unified downstream filter rendering system block
+// FIXED: Display options process matches with limited marker capping bounds
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresEV = document.getElementById('filterEV').checked;
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
-    const chosenFuelType = document.getElementById('fuelType').value;
     
-    let displayListings = [];
+    stationMarkers.clearLayers();
+    let eligibleStations = [];
     currentlyFilteredStations = [];
     document.getElementById('topStationsList').innerHTML = '';
     let cheapestPriceFound = Infinity;
@@ -294,103 +275,106 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // 1. DETERMINE EV STATUS SAFELY
-        const isEVAvailable = (station.has_ev === true || station.has_ev === "TRUE" || station.has_ev === 1);
-        const isTraditionalAvailable = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1);
+        const isEV = (station.has_ev === true || station.has_ev === "TRUE" || station.has_ev === 1 || station.has_ev === "true");
+        const isTraditional = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1 || station.has_unleaded === "true");
 
-        // Checkbox filtering rules
-        if (requiresEV && !isEVAvailable) return;
-        if (requiresUnleaded && !isTraditionalAvailable) return;
+        if (requiresEV && !isEV) return;
+        if (requiresUnleaded && !isTraditional) return;
 
         if (spatialBufferPolygon) {
-            const point = turf.point([coords.lon, coords.lat]);
-            if (!turf.booleanPointInPolygon(point, spatialBufferPolygon)) return;
+            if (!turf.booleanPointInPolygon(turf.point([coords.lon, coords.lat]), spatialBufferPolygon)) return;
         }
+        eligibleStations.push(station);
+    });
 
-        // 2. EXTRACT FUEL PRICES DYNAMICALLY (With structural column fallbacks)
-        const currentPrice = station[chosenFuelType];
-        const e10Price = station['e10'] || station['E10'] || station['petrol'] || 'N/A';
-        const b7Price = station['b7'] || station['B7'] || station['diesel'] || 'N/A';
+    // FIXED: Capped total displayed markers array limit bounds to 100 max entries to resolve viewport clutter
+    const slicedStationsList = eligibleStations.slice(0, 100);
+
+    slicedStationsList.forEach(function(station) {
+        const coords = getCoordinates(station);
+        
+        // FIXED: Markers display Petrol E10 price by default on map view matching requested layout update
+        const e10Price = station['e10'] || station['E10'] || station['petrol'] || station['Petrol'] || 'N/A';
+        const b7Price = station['b7'] || station['B7'] || station['diesel'] || station['Diesel'] || 'N/A';
         const e5Price = station['e5'] || station['E5'] || 'N/A';
 
-        if (currentPrice) {
-            displayListings.push(station);
-            currentlyFilteredStations.push(station);
-            if (currentPrice < cheapestPriceFound) cheapestPriceFound = currentPrice;
+        if (typeof e10Price === 'number' && e10Price < cheapestPriceFound) {
+            cheapestPriceFound = e10Price;
         }
 
-        const markerLabel = currentPrice ? currentPrice + 'p' : 'N/A';
-        const markerColor = getMarkerColor(currentPrice);
+        currentlyFilteredStations.push(station);
 
-        // 3. CREATE DYNAMIC EV BADGE
-        const evBadgeHTML = isEVAvailable 
-            ? `<div style="margin-top: 8px; display: inline-block; background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; width: calc(100% - 16px); text-align: center;">⚡ EV Charger Available</div>`
-            : `<div style="margin-top: 8px; display: inline-block; background: #f1f3f4; color: #70757a; padding: 4px 8px; border-radius: 4px; font-size: 11px; width: calc(100% - 16px); text-align: center;">❌ No EV Charging</div>`;
+        const labelText = (e10Price !== 'N/A') ? e10Price + 'p' : 'N/A';
+        const color = getMarkerColor(e10Price);
 
-        // 4. ASSEMBLE RICH POPUP HTML INFO BOX
-        const popupContentHTML = `
-            <div style="min-width: 180px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 4px;">
-                <strong style="font-size: 14px; color: #1a73e8; display: block; margin-bottom: 2px;">${station.brand || 'Independent'}</strong>
-                <div style="color: #5f6368; font-size: 11px; margin-bottom: 8px; line-height: 1.3;">${station.address || 'UK Fuel Station'}</div>
-                
-                <div style="background: #f8f9fa; border-radius: 6px; padding: 6px 8px; border: 1px solid #e8eaed;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
-                        <span style="color: #3c4043;">Petrol (E10):</span>
-                        <strong style="color: #202124;">${e10Price}${typeof e10Price === 'number' ? 'p' : ''}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
-                        <span style="color: #3c4043;">Diesel (B7):</span>
-                        <strong style="color: #202124;">${b7Price}${typeof b7Price === 'number' ? 'p' : ''}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
-                        <span style="color: #3c4043;">Super (E5):</span>
-                        <strong style="color: #202124;">${e5Price}${typeof e5Price === 'number' ? 'p' : ''}</strong>
-                    </div>
-                </div>
-                ${evBadgeHTML}
-            </div>
-        `;
-
-        const badgeIcon = L.divIcon({
+        const icon = L.divIcon({
             className: 'price-badge-container',
-            html: `<div style="background-color: ${markerColor}; border: 1px solid white; color: white; font-weight: bold; padding: 2px 5px; border-radius: 4px; font-size: 11px; text-align:center; white-space:nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${markerLabel}</div>`,
+            html: `<div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: bold; padding: 2px 5px; border-radius: 4px; font-size: 11px; text-align:center; white-space:nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.25);">${labelText}</div>`,
             iconSize: [46, 22]
         });
 
-        // 5. ATTACH POPUP HTML LAYOUT TO MARKER
-        L.marker([coords.lat, coords.lon], { icon: badgeIcon })
-            .bindPopup(popupContentHTML, { maxWidth: 250, closeButton: false })
-            .addTo(stationMarkers);
+        // FIXED: Pin selection event handler calls the modified iOS slider overlay view template directly
+        L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
+            displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price, isEV);
+        }).addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Found ${displayListings.length} matching stations inside active parameters.`;
+    statusDiv.innerText = `Displaying ${slicedStationsList.length} forecourts (Capped at 100 max bounds).`;
 
-    // Render left panel side listing profiles
-    if (displayListings.length > 0) {
-        displayListings.sort((a, b) => a[chosenFuelType] - b[chosenFuelType]);
-        displayListings.slice(0, 3).forEach(function(stn) {
+    if (currentlyFilteredStations.length > 0) {
+        const sortedList = [...currentlyFilteredStations].sort((a,b) => (a['e10']||Infinity) - (b['e10']||Infinity));
+        sortedList.slice(0, 3).forEach(function(stn) {
             const c = getCoordinates(stn);
             var li = document.createElement('li'); li.style.cursor = 'pointer'; li.style.padding = '4px';
-            li.innerHTML = `<strong>${stn.brand || 'Independent'}</strong> - <span style="color:green;font-weight:bold;">${stn[chosenFuelType]}p</span>`;
+            li.innerHTML = `<strong>${stn.brand || 'Independent'}</strong> - <span style="color:green;font-weight:bold;">${stn['e10'] || stn['E10'] || 'N/A'}p</span>`;
             li.onclick = () => { map.flyTo([c.lat, c.lon], 14); };
             document.getElementById('topStationsList').appendChild(li);
         });
         document.getElementById('topStationsContainer').style.display = 'block';
 
         if (currentMode === 'route' && lastSavedRouteData) {
-            var distMeters = lastSavedRouteData.features[0].properties.summary.distance;
-            var mpg = parseFloat(document.getElementById('mpg').value) || 45;
-            var miles = distMeters / 1609.34;
-            var cost = ((miles / mpg) * 4.54609) * (cheapestPriceFound / 100);
-
+            var miles = lastSavedRouteData.features[0].properties.summary.distance / 1609.34;
+            var cost = ((miles / (parseFloat(document.getElementById('mpg').value) || 45)) * 4.54609) * (cheapestPriceFound / 100);
             document.getElementById('summaryDistance').innerText = miles.toFixed(1);
-            document.getElementById('summaryCost').innerText = '£' + cost.toFixed(2);
+            document.getElementById('summaryCost').innerText = '£' + (isFinite(cost) ? cost.toFixed(2) : '0.00');
             document.getElementById('costSummary').style.display = 'block';
         }
-    } else {
-        document.getElementById('topStationsContainer').style.display = 'none';
-        if(currentMode === 'route') document.getElementById('costSummary').style.display = 'none';
     }
+}
+
+// FIXED: New iOS Modal Sheet animation slide implementation mechanics 
+function displayiOSModalSheet(station, coords, e10, b7, e5, isEVAvailable) {
+    document.getElementById('sheetBrand').innerText = station.brand || "Independent Forecourt";
+    document.getElementById('sheetAddress').innerText = station.address || `Coords: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
+    
+    document.getElementById('sheetE10').innerText = (e10 !== 'N/A') ? e10 + 'p' : 'N/A';
+    document.getElementById('sheetB7').innerText = (b7 !== 'N/A') ? b7 + 'p' : 'N/A';
+    document.getElementById('sheetE5').innerText = (e5 !== 'N/A') ? e5 + 'p' : 'N/A';
+
+    const badgeContainer = document.getElementById('sheetEVBadgeContainer');
+    if (isEVAvailable) {
+        badgeContainer.innerHTML = `<div style="background: #e6f4ea; color: #137333; padding: 6px; border-radius: 8px; font-weight: bold; font-size: 13px;">⚡ EV Fast Charger Node Configured</div>`;
+    } else {
+        badgeContainer.innerHTML = `<div style="background: #f1f3f4; color: #70757a; padding: 6px; border-radius: 8px; font-size: 13px;">❌ Traditional Pumps Only</div>`;
+    }
+
+    const backdrop = document.getElementById('iosModalBackdrop');
+    const sheet = document.getElementById('stationDetailSheet');
+    
+    backdrop.style.display = 'flex';
+    setTimeout(() => {
+        backdrop.style.opacity = '1';
+        sheet.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+function closeiOSModalSheet() {
+    const backdrop = document.getElementById('iosModalBackdrop');
+    const sheet = document.getElementById('stationDetailSheet');
+    
+    backdrop.style.opacity = '0';
+    sheet.style.transform = 'translateY(100%)';
+    setTimeout(() => { backdrop.style.display = 'none'; }, 300);
 }
 
 function clearWaypointField(index) {
@@ -399,10 +383,10 @@ function clearWaypointField(index) {
     document.getElementById('clear-' + index).style.display = 'none';
     waypointsList[index] = { coordinates: null, rawText: "" };
 }
+
 function removeWaypointField(index, rowId) { document.getElementById(rowId).remove(); waypointsList[index] = null; if(lastSavedRouteData) calculateJourney(); }
-function getMarkerColor(p) { return !p ? '#7f8c8d' : p <= 135 ? '#2ecc71' : p <= 145 ? '#e67e22' : '#e74c3c'; }
+function getMarkerColor(p) { return !p || p === 'N/A' ? '#7f8c8d' : p <= 135 ? '#34a853' : p <= 145 ? '#fbbc05' : '#ea4335'; }
 function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
-function setupTab1Autocomplete() {}
 function addDragAndDropListeners(row) {}
 function reorderWaypointsDataMatrix() {}
 function exportItineraryToCSV() {}
