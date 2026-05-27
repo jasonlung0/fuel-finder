@@ -1,10 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-50/50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Route Planner Dashboard</title>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -16,140 +29,168 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; height: 100vh; background: #f8f9fa; }
-        #sidebar { width: 380px; background: white; box-shadow: 4px 0 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-        #map-container { flex-grow: 1; position: relative; height: 100%; }
-        #map { width: 100%; height: 100%; }
-        
-        .tab-nav { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #dadce0; padding-bottom: 8px; }
-        .tab-btn { flex: 1; padding: 10px; border: none; background: #f1f3f4; color: #5f6368; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-        .tab-btn.active { background: #1a73e8; color: white; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        input, select, button.action-btn { width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
-        input:focus, select:focus { border-color: #1a73e8; outline: none; }
-        button.action-btn { background: #1a73e8; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 5px; }
-        button.action-btn:hover { background: #1557b0; }
-
-        .ui-card { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 12px; padding: 14px; margin-top: 12px; }
-        .draggable-waypoint-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; background: white; padding: 6px; border: 1px solid #dadce0; border-radius: 8px; }
-        .suggestions-box div:hover { background: #f1f3f4; }
+        /* Custom map over-rides to clean Leaflet's legacy aesthetic */
+        .leaflet-bar { border: none !important; box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.06) !important; border-radius: 8px !important; overflow: hidden; }
+        .leaflet-bar a { background-color: #ffffff !important; color: #0f172a !important; border-bottom: 1px solid #f1f5f9 !important; }
+        .leaflet-bar a:hover { background-color: #f8fafc !important; }
+        /* Scrollbar aesthetics matching shadcn components */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body>
+<body class="flex h-full w-full overflow-hidden text-slate-900 antialiased font-sans">
 
-    <div id="sidebar">
-        <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #202124; display: flex; align-items: center; gap: 8px;">⛽ UK Fuel Corridor Finder</h2>
+    <div id="sidebar" class="w-[380px] min-w-[380px] h-full bg-white border-r border-slate-200 flex flex-col z-[2000] p-5 shadow-sm overflow-y-auto shrink-0">
         
-        <div class="tab-nav">
-            <button class="tab-btn active" onclick="switchTab('local-tab')">📍 Local View</button>
-            <button class="tab-btn" onclick="switchTab('route-tab')">🛣️ Route Corridor</button>
+        <div class="mb-5">
+            <h2 class="text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                <span class="text-xl">⛽</span> UK Fuel Corridor Finder
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Locate optimized live-pricing fuel options along routes.</p>
+        </div>
+        
+        <div class="p-1 bg-slate-100 rounded-lg flex gap-1 mb-5">
+            <button class="tab-btn active flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-sm" onclick="switchTab('local-tab')">
+                📍 Local View
+            </button>
+            <button class="tab-btn flex-1 text-xs font-medium py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-sm" onclick="switchTab('route-tab')">
+                🛣️ Route Corridor
+            </button>
         </div>
 
-        <label style="font-size: 12px; font-weight: bold; color: #5f6368; display:block; margin-bottom:4px;">Map Theme View Layer:</label>
-        <select onchange="changeMapTheme(this.value)" style="margin-bottom: 15px;">
-            <option value="light">Standard Light Map</option>
-            <option value="dark">Night Mode Dark Canvas</option>
-            <option value="satellite">Detailed Satellite Imagery</option>
-        </select>
+        <div class="space-y-4 mb-5">
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Map View Layer Theme</label>
+                <select onchange="changeMapTheme(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 focus:border-slate-950">
+                    <option value="light">Standard Light Canvas</option>
+                    <option value="dark">Night Mode Dark Interface</option>
+                    <option value="satellite">Detailed Satellite Imagery</option>
+                </select>
+            </div>
 
-        <label style="font-size: 12px; font-weight: bold; color: #5f6368; display:block; margin-bottom:4px;">Target Fuel Pricing Column:</label>
-        <select id="fuelType">
-            <option value="price_e10">Petrol Unleaded (E10)</option>
-            <option value="price_e5">Super Unleaded (E5)</option>
-            <option value="price_diesel">Standard Diesel (B7)</option>
-        </select>
+            <div>
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Target Fuel Pricing Matrix</label>
+                <select id="fuelType" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 focus:border-slate-950">
+                    <option value="price_e10">Petrol Unleaded (E10)</option>
+                    <option value="price_e5">Super Unleaded (E5)</option>
+                    <option value="price_diesel">Standard Diesel (B7)</option>
+                </select>
+            </div>
+        </div>
 
-        <div id="local-tab" class="tab-content active">
-            <div style="margin-bottom: 12px; padding: 10px; background: #e8f0fe; border-radius: 8px; border: 1px solid #d2e3fc;">
-                <label style="display: block; font-size: 12px; color: #1967d2; font-weight: bold; margin-bottom: 4px;">
-                    🎯 Nearest Stations Range Limit: <span id="localRadiusVal" style="font-weight: bold;">5</span> Miles
+        <hr class="border-slate-200 mb-4" />
+
+        <div id="local-tab" class="tab-content block [&:not(.active)]:hidden active">
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                <label class="flex justify-between items-center text-xs font-medium text-slate-700 mb-2">
+                    <span>🎯 Nearest Stations Filter Window</span>
+                    <span class="bg-slate-200/80 text-slate-900 font-semibold px-2 py-0.5 rounded text-[10px]"><span id="localRadiusVal">5</span> Miles</span>
                 </label>
-                <input type="range" id="localRadiusSlider" min="1" max="10" value="5" step="1" style="width: 100%;" oninput="updateLocalRadiusLabel(this.value)">
+                <input type="range" id="localRadiusSlider" min="1" max="10" value="5" step="1" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateLocalRadiusLabel(this.value)">
             </div>
 
-            <div style="position: relative;">
-                <input type="text" id="localSearchInput" placeholder="Search a town, city or postcode..." autocomplete="off">
-                <div id="localSuggestions" class="suggestions-box" style="position: absolute; top: 42px; left: 0; width: 100%; background: white; border: 1px solid #dadce0; z-index: 9999; display: none; max-height: 150px; overflow-y: auto; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
+            <div class="relative">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Search Area Location Location</label>
+                <input type="text" id="localSearchInput" placeholder="Search a town, city or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950 focus:border-slate-950">
+                <div id="localSuggestions" class="suggestions-box absolute top-[62px] left-0 w-full bg-white border border-slate-200 z-[9999] hidden max-height-[150px] overflow-y-auto rounded-md shadow-md divide-y divide-slate-100"></div>
             </div>
         </div>
 
-        <div id="route-tab" class="tab-content">
-            <div id="waypointContainer"></div>
-            <button class="action-btn" style="background:#f1f3f4; color:#1a73e8; border:1px dashed #1a73e8; margin-bottom:10px;" onclick="addNewWaypointField('Stop')">➕ Add Interim Stop</button>
+        <div id="route-tab" class="tab-content block [&:not(.active)]:hidden">
+            <div id="waypointContainer" class="space-y-2.5 mb-3"></div>
             
-            <div id="bufferRadiusContainer" style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 12px; color: #5f6368; font-weight: bold; margin-bottom: 4px;">
-                    🛡️ Corridor Buffer Width: <span id="radiusVal">3</span> km
+            <button class="w-full text-xs font-medium py-2 px-4 rounded-md border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors mb-4 flex items-center justify-center gap-1.5" onclick="addNewWaypointField('Stop')">
+                <span>➕</span> Add Interim Stop
+            </button>
+            
+            <div id="bufferRadiusContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 hidden">
+                <label class="flex justify-between items-center text-xs font-medium text-slate-700 mb-2">
+                    <span>🛡️ Corridor Buffer Range Boundary</span>
+                    <span class="bg-slate-200/80 text-slate-900 font-semibold px-2 py-0.5 rounded text-[10px]"><span id="radiusVal">3</span> km</span>
                 </label>
-                <input type="range" id="bufferRadius" min="1" max="15" value="3" step="0.5" style="width: 100%;" oninput="updateRadiusLabel(this.value)">
+                <input type="range" id="bufferRadius" min="1" max="15" value="3" step="0.5" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateRadiusLabel(this.value)">
             </div>
 
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; font-size: 12px; color: #5f6368; font-weight: bold; margin-bottom: 4px;">Vehicle Fuel Efficiency (MPG):</label>
-                <input type="number" id="mpg" value="45" min="10" max="100">
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-slate-500 mb-1.5">Vehicle Consumption Target (MPG)</label>
+                <input type="number" id="mpg" value="45" min="10" max="100" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950 focus:border-slate-950">
             </div>
 
-            <button class="action-btn" onclick="calculateJourney()">🚀 Calculate Optimized Journey</button>
+            <button class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-2 px-4 rounded-md shadow transition-colors flex items-center justify-center gap-2" onclick="calculateJourney()">
+                🚀 Calculate Route Plan
+            </button>
         </div>
 
-        <div class="ui-card" style="margin-top: 15px;">
-            <strong style="font-size: 13px; color: #202124; display: block; margin-bottom: 6px;">⚙️ Forecourt Filters</strong>
-            <label style="display:flex; align-items:center; font-size: 13px; color: #3c4043;">
-                <input type="checkbox" id="filterUnleaded" style="width:auto; margin-right:8px;"> Traditional Pumps Only
+        <div class="border border-slate-200 rounded-xl p-4 mt-4 bg-white shadow-sm">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2.5">⚙️ Infrastructure Rules</span>
+            <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                <input type="checkbox" id="filterUnleaded" class="rounded border-slate-300 text-slate-900 focus:ring-slate-950 h-4 w-4 accent-slate-950">
+                <span>Traditional Pumps Only</span>
             </label>
         </div>
 
-        <div id="costSummary" style="padding: 12px; background: #e6f4ea; color: #137333; border-radius: 8px; font-size: 13px; display: none; margin-top:12px; border: 1px solid #ceead6;">
-            📍 <strong>Trip Expense Estimator:</strong><br>
-            Total Distance: <span id="summaryDistance" style="font-weight: bold;">0</span> miles<br>
-            Estimated Corridor Fuel Cost: <span id="summaryCost" style="font-weight: bold;">£0.00</span>
+        <div id="costSummary" class="p-4 bg-emerald-50 text-emerald-950 border border-emerald-200 rounded-xl text-sm hidden mt-4 shadow-sm space-y-1">
+            <div class="font-semibold text-emerald-900 flex items-center gap-1.5">
+                <span>📍</span> Financial Calculations Summary:
+            </div>
+            <div class="text-xs text-emerald-800 pt-1">
+                Total Path Length: <span id="summaryDistance" class="font-bold text-emerald-950">0</span> miles
+            </div>
+            <div class="text-xs text-emerald-800">
+                Minimum Fuel Expense Target: <span id="summaryCost" class="font-bold text-emerald-950 text-sm">£0.00</span>
+            </div>
         </div>
 
-        <div id="topStationsContainer" style="display: none;" class="ui-card">
-            <strong style="font-size: 13px; color: #202124; display: block; margin-bottom: 6px;">🥇 Top 3 Cheapest Forecourts:</strong>
-            <ol id="topStationsList" style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #3c4043;"></ol>
+        <div id="topStationsContainer" class="hidden border border-slate-200 rounded-xl p-4 mt-4 bg-slate-50 shadow-sm">
+            <strong class="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-2">🥇 Safest Budget Selection Choices:</strong>
+            <ol id="topStationsList" class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 font-medium"></ol>
         </div>
 
-        <div id="status" style="margin-top: auto; font-size: 12px; color: #70757a; font-style: italic; text-align: center; padding-top: 15px;">Initializing system components...</div>
+        <div id="status" class="mt-auto pt-6 text-[11px] text-slate-400 text-center font-medium tracking-wide border-t border-slate-100 italic">
+            Connecting interface components...
+        </div>
     </div>
 
-    <div id="map-container">
-        <div style="position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none;">
-            <button id="searchAreaBtn" onclick="searchThisArea()" style="pointer-events: auto; background: #ffffff; color: #1a73e8; font-weight: bold; font-size: 13px; border: none; padding: 10px 18px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
-                🔍 Search this area
+    <div id="map-container" class="flex-grow h-full relative bg-slate-100">
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+            <button id="searchAreaBtn" onclick="searchThisArea()" class="pointer-events-auto bg-white hover:bg-slate-50 text-slate-900 font-medium text-xs py-2 px-4 rounded-full border border-slate-200 shadow-lg flex items-center gap-1.5 transition-all active:scale-[0.98]">
+                <span>🔍</span> Scan This Viewport Area
             </button>
         </div>
-        <div id="map"></div>
+        <div id="map" class="w-full h-full"></div>
     </div>
 
-    <div id="iosModalBackdrop" onclick="handleBackdropClick(event)" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 99999; display: none; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
-        <div id="stationDetailSheet" onclick="event.stopPropagation()" style="background: #ffffff; width: 100%; max-width: 460px; border-radius: 20px 20px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; padding: 22px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.25s cubic-bezier(0.1, 0.76, 0.55, 0.94);">
-            <div style="width: 36px; height: 5px; background: #e0e0e0; border-radius: 3px; align-self: center; margin-bottom: 15px;"></div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+    <div id="iosModalBackdrop" onclick="handleBackdropClick(event)" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[99999] hidden items-end justify-center opacity-0 transition-opacity duration-200">
+        <div id="stationDetailSheet" onclick="event.stopPropagation()" class="bg-white w-full max-w-md rounded-t-2xl shadow-2xl flex flex-col p-6 translate-y-full transition-transform duration-200 ease-out border-t border-slate-200">
+            <div class="w-10 h-1 bg-slate-200 rounded-full self-center mb-4"></div>
+            
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <strong id="sheetBrand" style="font-size: 19px; color: #202124;">Forecourt Name</strong>
-                    <div id="sheetAddress" style="font-size: 13px; color: #5f6368; margin-top: 3px;">Station Location Address</div>
+                    <h3 id="sheetBrand" class="text-base font-semibold text-slate-950 leading-tight">Forecourt Brand Name</h3>
+                    <p id="sheetAddress" class="text-xs text-slate-500 mt-1 max-w-[320px] break-words">Forecourt Structural Address Coordinates Vector</p>
                 </div>
-                <button onclick="closeiOSModalSheet()" style="background: #f1f3f4; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #5f6368; font-weight: bold;">×</button>
+                <button onclick="closeiOSModalSheet()" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 h-7 w-7 rounded-full flex items-center justify-center transition-colors text-lg font-medium">×</button>
             </div>
-            <hr style="border: 0; border-top: 1px solid #f1f3f4; margin: 8px 0 12px 0;">
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0;">
-                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Petrol (E10)</div>
-                    <strong id="sheetE10" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+            
+            <hr class="border-slate-100 my-1" />
+            
+            <div class="grid grid-cols-3 gap-2.5 my-4">
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Unleaded E10</span>
+                    <strong id="sheetE10" class="text-base font-bold text-slate-900 block mt-1">-</strong>
                 </div>
-                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Diesel (B7)</div>
-                    <strong id="sheetB7" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Diesel B7</span>
+                    <strong id="sheetB7" class="text-base font-bold text-slate-900 block mt-1">-</strong>
                 </div>
-                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Super (E5)</div>
-                    <strong id="sheetE5" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Super E5</span>
+                    <strong id="sheetE5" class="text-base font-bold text-slate-900 block mt-1">-</strong>
                 </div>
             </div>
-            <div style="font-size: 11px; color: #9aa0a6; text-align: center; margin-top: 8px;">ℹ️ Pricing streams update live from central repository</div>
+            <p class="text-[10px] text-slate-400 text-center font-medium">ℹ️ Values update in near real-time via core dataset feed integrations.</p>
         </div>
     </div>
 
