@@ -45,7 +45,7 @@ document.getElementById('mpg').addEventListener('input', function() { if(lastSav
 document.getElementById('filterEV').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 document.getElementById('filterUnleaded').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 
-// Add/Remove Dynamic Stop Inputs Mechanics
+// Add/Remove Dynamic Stop Inputs Mechanics (Corrected Layout Focus)
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
@@ -58,15 +58,19 @@ function addNewWaypointField(customLabel) {
     row.className = 'draggable-waypoint-row';
     row.setAttribute('data-index', index);
     row.setAttribute('draggable', 'true');
-    row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '5px'; row.style.cursor = 'grab';
+    row.style.display = 'flex'; 
+    row.style.alignItems = 'center'; 
+    row.style.gap = '5px'; 
+    row.style.cursor = 'grab';
 
     var isCoreField = (customLabel === "Start" || customLabel === "Destination");
 
+    // FIXED: Ensured class names and wrapper tags match our background geocoding handlers exactly
     var htmlString = '<span style="color: #b0b4b9; font-size: 16px; padding: 0 4px; user-select: none;">⋮⋮</span>' +
         '<div style="position: relative; flex-grow: 1;">' +
-        '    <input type="text" id="input-' + index + '" placeholder="' + customLabel + '..." style="width: 100%;">' +
+        '    <input type="text" id="input-' + index + '" placeholder="' + customLabel + '..." style="width: 100%;" autocomplete="off">' +
         '    <span id="clear-' + index + '" onclick="clearWaypointField(' + index + ')" style="position: absolute; right: 10px; top: 10px; cursor: pointer; color: #70757a; font-weight: bold; display: none;">×</span>' +
-        '    <div id="suggest-' + index + '" class="suggestions-box"></div>' +
+        '    <div id="suggest-' + index + '" class="suggestions-box" style="position: absolute; top: 40px; left: 0; width: 100%; background: white; border: 1px solid #dadce0; z-index: 9999; display: none; max-height: 200px; overflow-y: auto; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>' +
         '</div>';
 
     if (!isCoreField) {
@@ -77,6 +81,8 @@ function addNewWaypointField(customLabel) {
 
     row.innerHTML = htmlString;
     container.appendChild(row);
+    
+    // Explicitly wake up the dynamic autocomplete tracking engine for this input card
     setupDynamicAutocomplete(index);
     addDragAndDropListeners(row);
 }
