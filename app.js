@@ -238,7 +238,9 @@ async function calculateJourney() {
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
-        const response = await fetch('https://openrouteservice.org', {
+        //  CORRECTED API ENDPOINT CONFIGURATION:
+        const apiUrl = 'https://api.openrouteservice.org/v2/directions/driving-car';
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 
                 'Accept': 'application/json, application/geo+json; charset=utf-8', 
