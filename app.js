@@ -1,6 +1,6 @@
 // CRITICAL CREDENTIAL CONFIGURATIONS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
-const GOOGLE_SHEET_BASE_URL = 'https://google.com';
+const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0gid=1137635326&single=true&/gviz/tq?tqx=out:csv&';
 
 // Initialize Map
 const map = L.map('map').setView([54.5, -3.5], 6);
