@@ -22,6 +22,7 @@ let routeLayer = null;
 let stationMarkers = L.layerGroup().addTo(map);
 let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
+let userLocation = null; // Stores user's lat/lon coordinates
 
 window.addEventListener('load', function() {
     map.invalidateSize();
@@ -31,19 +32,21 @@ window.addEventListener('load', function() {
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
 
-    // Dynamic User Geolocation Anchor with view window scaling
+    // Grab user's GPS position
     if (navigator.geolocation) {
         document.getElementById('status').innerText = "Locating your position...";
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                };
                 document.getElementById('status').innerText = "Centered on local position.";
-                map.setView([lat, lon], 12); 
+                map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
             },
             function(error) {
-                document.getElementById('status').innerText = "Position access denied. Showing country overview.";
+                document.getElementById('status').innerText = "Location denied. Showing country overview.";
                 filterFuelStationsLocalMode();
             },
             { timeout: 7000 }
@@ -101,7 +104,12 @@ function updateRadiusLabel(val) {
     if (lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
-// Bind UI changes to map refresh
+// NEW: Local slider display value update trigger handler
+function updateLocalRadiusLabel(val) {
+    document.getElementById('localRadiusVal').innerText = val;
+    filterFuelStationsLocalMode();
+}
+
 document.getElementById('fuelType').addEventListener('change', () => refreshActiveDataView());
 document.getElementById('mpg').addEventListener('input', () => refreshActiveDataView());
 document.getElementById('filterUnleaded').addEventListener('change', () => refreshActiveDataView());
@@ -118,6 +126,18 @@ function getCoordinates(station) {
     for (let key of latKeys) { if (station[key] !== undefined && station[key] !== null) { lat = parseFloat(station[key]); break; } }
     for (let key of lonKeys) { if (station[key] !== undefined && station[key] !== null) { lon = parseFloat(station[key]); break; } }
     return (isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
+}
+
+// Helper: Haversine distance calculator to compute strict distance radius in miles
+function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }
 
 function addNewWaypointField(customLabel) {
@@ -197,7 +217,10 @@ function setupTab1Autocomplete() {
                 row.innerText = item.label;
                 row.onclick = function() {
                     input.value = item.label; suggestionsDiv.style.display = 'none';
+                    // Re-anchor user reference coordinate focal center point if they search an address
+                    userLocation = { lat: item.y, lon: item.x };
                     map.setView([item.y, item.x], 13);
+                    filterFuelStationsLocalMode();
                 };
                 suggestionsDiv.appendChild(row);
             });
@@ -256,12 +279,15 @@ function filterFuelStationsRouteMode(routeData) {
     });
 }
 
-// FIXED RENDER LOOP: Removed crashes, displays Petrol E10 everywhere by default, capped at 100 pins max
+// FIXED RENDER ENGINE: Performs text string to float numbers conversions natively
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
     const chosenFuelType = document.getElementById('fuelType').value;
     
+    // Read the chosen radius ceiling for Local Mode
+    const localRadiusLimit = parseFloat(document.getElementById('localRadiusSlider')?.value || 5);
+
     stationMarkers.clearLayers();
     let eligibleStations = [];
     currentlyFilteredStations = [];
@@ -278,30 +304,37 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         if (spatialBufferPolygon) {
             if (!turf.booleanPointInPolygon(turf.point([coords.lon, coords.lat]), spatialBufferPolygon)) return;
         }
+        
+        // Calculate true straight-line distance if user coordinates are locked in
+        if (currentMode === 'local' && userLocation) {
+            station.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, coords.lat, coords.lon);
+            // Drop station entry if it's further away than the slider setting
+            if (station.calculatedDistance > localRadiusLimit) return;
+        }
+
         eligibleStations.push(station);
     });
 
-    // CAPPER: Hard limit at 100 records to prevent Leaflet render stuttering
+    // Cap viewport rendering arrays to top 100 max pins
     const slicedStationsList = eligibleStations.slice(0, 100);
 
     slicedStationsList.forEach(function(station) {
         const coords = getCoordinates(station);
         
-        // Dynamic field extraction mapping definitions
-        const e10Price = station['e10'] || station['E10'] || station['petrol'] || station['Petrol'] || 'N/A';
-        const b7Price = station['b7'] || station['B7'] || station['diesel'] || station['Diesel'] || 'N/A';
-        const e5Price = station['e5'] || station['E5'] || 'N/A';
+        // FIX: Cast string-wrapped cell contents into explicit floating point numbers safely
+        const e10Price = station['e10'] || station['E10'] || station['petrol'] || station['Petrol'] ? parseFloat(station['e10'] || station['E10'] || station['petrol'] || station['Petrol']) : NaN;
+        const b7Price = station['b7'] || station['B7'] || station['diesel'] || station['Diesel'] ? parseFloat(station['b7'] || station['B7'] || station['diesel'] || station['Diesel']) : NaN;
+        const e5Price = station['e5'] || station['E5'] ? parseFloat(station['e5'] || station['E5']) : NaN;
 
-        // Evaluate user-selected fuel filter to determine price tracking minimum benchmarks
-        const selectedPriceValue = station[chosenFuelType];
-        if (typeof selectedPriceValue === 'number' && selectedPriceValue < cheapestPriceFound) {
-            cheapestPriceFound = selectedPriceValue;
+        const currentSelectedPrice = parseFloat(station[chosenFuelType]);
+        if (!isNaN(currentSelectedPrice) && currentSelectedPrice < cheapestPriceFound) {
+            cheapestPriceFound = currentSelectedPrice;
         }
 
         currentlyFilteredStations.push(station);
 
-        // DEFAULT BEHAVIOR: Force map markers to display Petrol E10 prices directly on layout view frames
-        const labelText = (e10Price !== 'N/A') ? e10Price + 'p' : 'N/A';
+        // Map pins display text default fallback values (Petrol E10 format display override)
+        const labelText = (!isNaN(e10Price)) ? e10Price.toFixed(1) + 'p' : 'N/A';
         const color = getMarkerColor(e10Price);
 
         const icon = L.divIcon({
@@ -310,20 +343,28 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
             iconSize: [46, 22]
         });
 
-        // Trigger our sliding overlay modal logic on map-pin selection click profiles
         L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
             displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price);
         }).addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Displaying ${slicedStationsList.length} forecourts (Capped at 100 max).`;
+    statusDiv.innerText = `Displaying ${slicedStationsList.length} forecourts inside view configuration.`;
 
+    // TOP 3 LISTINGS GENERATION VIEW
     if (currentlyFilteredStations.length > 0) {
-        const sortedList = [...currentlyFilteredStations].sort((a,b) => (a[chosenFuelType]||Infinity) - (b[chosenFuelType]||Infinity));
+        // Sort lowest price to highest price
+        const sortedList = [...currentlyFilteredStations].sort((a,b) => (parseFloat(a[chosenFuelType]) || Infinity) - (parseFloat(b[chosenFuelType]) || Infinity));
+        
         sortedList.slice(0, 3).forEach(function(stn) {
             const c = getCoordinates(stn);
+            const verifiedPrice = parseFloat(stn[chosenFuelType]);
+            const priceText = !isNaN(verifiedPrice) ? verifiedPrice.toFixed(1) + 'p' : 'N/A';
+            
+            // If distance was calculated, append it cleanly to the label
+            const distanceString = (stn.calculatedDistance !== undefined) ? ` (${stn.calculatedDistance.toFixed(1)} mi away)` : '';
+
             var li = document.createElement('li'); li.style.cursor = 'pointer'; li.style.padding = '4px';
-            li.innerHTML = `<strong>${stn.brand || 'Independent'}</strong> - <span style="color:green;font-weight:bold;">${stn[chosenFuelType] || 'N/A'}p</span>`;
+            li.innerHTML = `<strong>${stn.brand || 'Independent'}</strong> - <span style="color:green;font-weight:bold;">${priceText}</span>${distanceString}`;
             li.onclick = () => { map.flyTo([c.lat, c.lon], 14); };
             document.getElementById('topStationsList').appendChild(li);
         });
@@ -339,14 +380,13 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     }
 }
 
-// iOS Sliding Drawer sheet animation engine configurations
 function displayiOSModalSheet(station, coords, e10, b7, e5) {
     document.getElementById('sheetBrand').innerText = station.brand || "Independent Forecourt";
     document.getElementById('sheetAddress').innerText = station.address || `Location Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
     
-    document.getElementById('sheetE10').innerText = (e10 !== 'N/A') ? e10 + 'p' : 'N/A';
-    document.getElementById('sheetB7').innerText = (b7 !== 'N/A') ? b7 + 'p' : 'N/A';
-    document.getElementById('sheetE5').innerText = (e5 !== 'N/A') ? e5 + 'p' : 'N/A';
+    document.getElementById('sheetE10').innerText = (!isNaN(e10)) ? e10.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetB7').innerText = (!isNaN(b7)) ? b7.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetE5').innerText = (!isNaN(e5)) ? e5.toFixed(1) + 'p' : 'N/A';
 
     const backdrop = document.getElementById('iosModalBackdrop');
     const sheet = document.getElementById('stationDetailSheet');
@@ -375,5 +415,5 @@ function clearWaypointField(index) {
 }
 
 function removeWaypointField(index, rowId) { document.getElementById(rowId).remove(); waypointsList[index] = null; if(lastSavedRouteData) calculateJourney(); }
-function getMarkerColor(p) { return !p || p === 'N/A' ? '#7f8c8d' : p <= 135 ? '#34a853' : p <= 145 ? '#fbbc05' : '#ea4335'; }
+function getMarkerColor(p) { return !p || isNaN(p) ? '#7f8c8d' : p <= 135 ? '#34a853' : p <= 145 ? '#fbbc05' : '#ea4335'; }
 function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
