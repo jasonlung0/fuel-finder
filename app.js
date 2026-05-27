@@ -31,10 +31,16 @@ let searchByAreaActive = false;
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
-    if (!sidebar) return;
+    if (!sidebar || !icon) return;
     
     sidebar.classList.toggle('collapsed');
-    icon.innerText = sidebar.classList.contains('collapsed') ? "📁" : "📂";
+    
+    // Toggle directional arrows dynamically based on panel status
+    if (sidebar.classList.contains('collapsed')) {
+        icon.innerText = "→";
+    } else {
+        icon.innerText = "←";
+    }
     
     setTimeout(() => { map.invalidateSize(); }, 310);
 };
@@ -182,8 +188,32 @@ window.closeiOSModalSheet = function() {
     setTimeout(() => { backdrop.style.display = 'none'; }, 250);
 };
 
+// Handle window resizing to sync arrow indicators correctly on dynamic viewport adaptations
+window.addEventListener('resize', () => {
+    const sidebar = document.getElementById('sidebar');
+    const icon = document.getElementById('toggleIcon');
+    if (sidebar && icon) {
+        if (sidebar.classList.contains('collapsed')) {
+            icon.innerText = "→";
+        } else {
+            icon.innerText = window.innerWidth < 768 ? "→" : "←";
+        }
+    }
+});
+
 // Lifecycle Start Loop
 window.addEventListener('load', function() {
+    // Initialise mobile view tracking state correctly
+    const sidebar = document.getElementById('sidebar');
+    const icon = document.getElementById('toggleIcon');
+    if (window.innerWidth < 768) {
+        if (sidebar) sidebar.classList.add('collapsed');
+        if (icon) icon.innerText = "→";
+    } else {
+        if (sidebar) sidebar.classList.remove('collapsed');
+        if (icon) icon.innerText = "←";
+    }
+    
     map.invalidateSize();
     
     addNewWaypointField("Start");
@@ -200,12 +230,12 @@ window.addEventListener('load', function() {
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
-                document.getElementById('status').innerText = "Centered on position.";
+                document.getElementById('status').innerText = "Fuel stations displayed:";
                 map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
             },
             function(error) {
-                document.getElementById('status').innerText = "Using default regional coordinates overview.";
+                document.getElementById('status').innerText = "Fuel stations displayed:";
                 filterFuelStationsLocalMode();
             },
             { timeout: 5000 }
@@ -382,7 +412,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         }).addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Forecourts displayed: ${slicedStationsList.length} rows.`;
+    statusDiv.innerText = `Fuel stations displayed: ${slicedStationsList.length}`;
 
     if (currentlyFilteredStations.length > 0) {
         const sortedList = [...currentlyFilteredStations].filter(s => s.currentFilterPrice !== Infinity).sort((a,b) => a.currentFilterPrice - b.currentFilterPrice);
@@ -437,6 +467,7 @@ function getCoordinates(station) {
     return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
+// Fixed validation parser logic for British English metrics variations
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let key in station) {
