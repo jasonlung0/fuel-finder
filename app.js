@@ -213,22 +213,47 @@ function debounce(func, delay) {
 }
 
 // Multi-Waypoint Route Planner Post Call
+// Upgraded, self-cleaning route formatting engine
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
-    const validCoords = waypointsList.filter(wp => wp !== null && wp.coordinates !== null).map(wp => wp.coordinates);
+    
+    // 1. HARD FILTER: Ensure we ONLY grab valid, non-null numeric coordinate array nodes
+    const validCoords = waypointsList
+        .filter(function(wp) { 
+            return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
+        })
+        .map(function(wp) { 
+            // Explicitly force string components back into raw computer numbers to prevent API drops
+            return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
+        });
 
-    if (validCoords.length < 2) { alert('Please select at least 2 locations from dropdown suggestions.'); return; }
+    // 2. CHECK RANGE: If the user didn't successfully click suggestions to fill at least 2 boxes, alert them
+    if (validCoords.length < 2) { 
+        alert('Please type an address and select a location from the dropdown suggestions list for at least 2 fields.'); 
+        return; 
+    }
 
-    statusDiv.innerText = "Calculating dynamic journey...";
+    statusDiv.innerText = "Calculating dynamic journey path...";
     stationMarkers.clearLayers();
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
         const response = await fetch('https://openrouteservice.org', {
             method: 'POST',
-            headers: { 'Accept': 'application/json, application/geo+json', 'Content-Type': 'application/json', 'Authorization': ORS_API_KEY },
-            body: JSON.stringify({ "coordinates": validCoords })
+            headers: { 
+                'Accept': 'application/json, application/geo+json; charset=utf-8', 
+                'Content-Type': 'application/json', 
+                'Authorization': ORS_API_KEY 
+            },
+            body: JSON.stringify({ "coordinates": validCoords }) // Transmits clean numerical array matrix
         });
+
+        // If the server rejects the key or payload data layout, break immediately to show the specific code error
+        if (!response.ok) {
+            const errorMsg = await response.text();
+            throw new Error("Server Rejected Request: " + errorMsg);
+        }
+
         const routeData = await response.json();
         lastSavedRouteData = routeData;
 
@@ -237,7 +262,8 @@ async function calculateJourney() {
 
         filterFuelStations(routeData);
     } catch (err) {
-        console.error(err); statusDiv.innerText = "Error tracking path coordinates.";
+        console.error("Full System Error Log Details:", err); 
+        statusDiv.innerText = "Error tracking path coordinates. Check browser inspect console.";
     }
 }
 
