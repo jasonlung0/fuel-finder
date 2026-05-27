@@ -1,16 +1,18 @@
-// CRITICAL CONFIGURATIONS
+// GLOBAL AND API INSTANCE CONFIGURATIONS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
-// Initialize Map Engine
+// Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); // Default view context (Dunfermline)
 L.control.zoom({ position: 'topright' }).addTo(map);
 
+// Define Geosearch Autocomplete Provider instance
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0' }
 });
 
+// Configure Map Tile Set Theme Matrix Variations
 const themes = {
     light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
     dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB' }),
@@ -18,6 +20,7 @@ const themes = {
 };
 let activeTheme = themes.light.addTo(map);
 
+// Internal State Registers
 let currentMode = 'local'; 
 let waypointsList = []; 
 let routeLayer = null;
@@ -27,7 +30,7 @@ let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
 
-// EXPOSE GLOBAL FUNCTIONS
+// EXPOSE COMPONENT HANDLERS EXPLICITLY ON WINDOW SPACE TO STOP UNCAUGHT REFERENCEERRORS
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
@@ -116,7 +119,7 @@ window.addNewWaypointField = function(customLabel) {
         <div class="relative flex-grow">
             <input type="text" id="input-${index}" placeholder="${customLabel}..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
             <span id="clear-${index}" onclick="clearWaypointField(${index})" class="absolute right-3 top-2 cursor-pointer text-slate-400 hover:text-slate-600 font-medium hidden text-xs">×</span>
-            <div id="suggest-${index}" class="suggestions-box absolute top-[38px] left-0 w-full bg-white border border-slate-200 z-[99999] hidden max-h-[160px] overflow-y-auto rounded-md shadow-lg divide-y divide-slate-100"></div>
+            <div id="suggest-${index}" class="absolute top-[38px] left-0 w-full bg-white border border-slate-200 z-[99999] hidden max-h-[160px] overflow-y-auto rounded-md shadow-lg divide-y divide-slate-100"></div>
         </div>
         ${!isCoreField ? `<button onclick="removeWaypointField(${index}, '${rowId}')" class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-slate-50 transition-colors shrink-0 text-sm">🗑️</button>` : `<div class="w-7 shrink-0"></div>`}`;
 
@@ -143,7 +146,7 @@ window.calculateJourney = async function() {
     const validCoords = waypointsList.filter(wp => wp && wp.coordinates).map(wp => [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]);
 
     if (validCoords.length < 2) { 
-        alert('Please fill out your Start and Destination points utilising the autocomplete items.'); 
+        alert('Please fill out your Start and Destination points utilizing the autocomplete selections.'); 
         return; 
     }
     
@@ -183,7 +186,7 @@ window.closeiOSModalSheet = function() {
     setTimeout(() => { backdrop.style.display = 'none'; }, 250);
 };
 
-// Lifecycle Start Loop
+// Lifecycle Bootstrap Initializer Loop
 window.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
@@ -201,7 +204,7 @@ window.addEventListener('DOMContentLoaded', function() {
     addNewWaypointField("Destination");
     setupTab1Autocomplete();
 
-    // Hook core configuration listeners
+    // Attach base change event listeners
     document.getElementById('fuelType').addEventListener('change', () => refreshActiveDataView());
     document.getElementById('mpg').addEventListener('input', () => refreshActiveDataView());
     document.getElementById('filterUnleaded').addEventListener('change', () => refreshActiveDataView());
@@ -466,4 +469,55 @@ function applyBoxPricingColor(boxId, labelId, textId, price) {
         boxEl.style.backgroundColor = '#eff6ff';
         boxEl.style.borderColor = '#bfdbfe';
         labelEl.style.color = '#2563eb';
-        textEl.style.color
+        textEl.style.color = '#1e3a8a';
+    } else { 
+        boxEl.style.backgroundColor = '#fef2f2';
+        boxEl.style.borderColor = '#fecaca';
+        labelEl.style.color = '#dc2626';
+        textEl.style.color = '#7f1d1d';
+    }
+}
+
+function getCoordinates(station) {
+    let lat = null, lon = null;
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (['lat', 'latitude'].includes(normalizedKey)) lat = parseFloat(station[key]);
+        if (['lon', 'lng', 'longitude'].includes(normalizedKey)) lon = parseFloat(station[key]);
+    }
+    return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
+}
+
+function extractPriceByMetricType(station, fuelType) {
+    const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (target.includes('e10') && normalizedKey.includes('e10')) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if (target.includes('e5') && normalizedKey.includes('e5')) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if ((target.includes('diesel') || target.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+    }
+    return NaN;
+}
+
+function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function getMarkerColor(p) { 
+    if (!p || isNaN(p)) return '#94a3b8'; 
+    if (p >= 150.9 && p <= 156.8) return '#10b981'; 
+    if (p >= 156.9 && p <= 162.8) return '#3b82f6'; 
+    return '#ef4444'; 
+}
+
+function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
