@@ -206,12 +206,16 @@ function debounce(func, delay) {
 
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
+        // BULLETPROOF COORDINATE FORMATTER (No brackets to prevent text model cuts)
     const validCoords = waypointsList
         .filter(function(wp) { 
             return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
         })
         .map(function(wp) { 
-            return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
+            // Explicitly grabs the first item (Longitude) and second item (Latitude) from your coordinate storage array
+            var longitude = parseFloat(wp.coordinates.slice(0)[0]);
+            var latitude = parseFloat(wp.coordinates.slice(0)[1]);
+            return [longitude, latitude]; 
         });
 
     if (validCoords.length < 2) { 
