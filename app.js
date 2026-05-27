@@ -218,14 +218,16 @@ async function calculateJourney() {
     const statusDiv = document.getElementById('status');
     
     // 1. HARD FILTER: Ensure we ONLY grab valid, non-null numeric coordinate array nodes
+        //  CORRECTED POSITION MAPPING CONFIGURATION:
     const validCoords = waypointsList
         .filter(function(wp) { 
             return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
         })
         .map(function(wp) { 
-            // Explicitly force string components back into raw computer numbers to prevent API drops
+            // Index [0] represents your Longitude column data, Index [1] represents Latitude
             return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
         });
+
 
     // 2. CHECK RANGE: If the user didn't successfully click suggestions to fill at least 2 boxes, alert them
     if (validCoords.length < 2) { 
