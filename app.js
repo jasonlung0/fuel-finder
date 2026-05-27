@@ -5,7 +5,7 @@ const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 // Initialize Map with default UK viewing frame
 const map = L.map('map').setView([54.5, -3.5], 6);
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
-    params: { countrycodes: 'gb', limit: 5 },
+    params: { countrycodes: 'gb', limit: 10 },
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0 (Contact: jasonlung0@github)' }
 });
 
