@@ -4,7 +4,13 @@ const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 
 // Initialize Map
 const map = L.map('map').setView([54.5, -3.5], 6);
-const searchProvider = new GeoSearch.OpenStreetMapProvider();
+//  CORRECTED UNITED KINGDOM SEARCH FILTER BOUNDARY PARAMETER
+const searchProvider = new GeoSearch.OpenStreetMapProvider({
+    params: {
+        countrycodes: 'gb', // Restricts autocomplete exclusively to the United Kingdom
+        limit: 5            // Keeps dropdown clean by limiting to top 5 closest matches
+    }
+});
 
 const themes = {
     light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
