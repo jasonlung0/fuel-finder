@@ -294,11 +294,11 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // Determine EV status safely
-        const isEVAvailable = (station.has_ev === true || station.has_ev === "TRUE");
-        const isTraditionalAvailable = (station.has_unleaded === true || station.has_unleaded === "TRUE");
+        // 1. DETERMINE EV STATUS SAFELY
+        const isEVAvailable = (station.has_ev === true || station.has_ev === "TRUE" || station.has_ev === 1);
+        const isTraditionalAvailable = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1);
 
-        // Filter out stations based on checkbox selections
+        // Checkbox filtering rules
         if (requiresEV && !isEVAvailable) return;
         if (requiresUnleaded && !isTraditionalAvailable) return;
 
@@ -307,10 +307,11 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
             if (!turf.booleanPointInPolygon(point, spatialBufferPolygon)) return;
         }
 
-        // Safely pull individual prices (fallback to dynamic keys if column names vary)
+        // 2. EXTRACT FUEL PRICES DYNAMICALLY (With structural column fallbacks)
         const currentPrice = station[chosenFuelType];
-        const e10Price = station['e10'] || station['Petrol'] || 'N/A';
-        const b7Price = station['b7'] || station['Diesel'] || 'N/A';
+        const e10Price = station['e10'] || station['E10'] || station['petrol'] || 'N/A';
+        const b7Price = station['b7'] || station['B7'] || station['diesel'] || 'N/A';
+        const e5Price = station['e5'] || station['E5'] || 'N/A';
 
         if (currentPrice) {
             displayListings.push(station);
@@ -321,20 +322,30 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const markerLabel = currentPrice ? currentPrice + 'p' : 'N/A';
         const markerColor = getMarkerColor(currentPrice);
 
-        // Build the dynamic EV status badge for the info box
+        // 3. CREATE DYNAMIC EV BADGE
         const evBadgeHTML = isEVAvailable 
-            ? `<div style="margin-top: 6px; display: inline-block; background: #e6f4ea; color: #137333; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">⚡ EV Charger Available</div>`
-            : `<div style="margin-top: 6px; display: inline-block; background: #f1f3f4; color: #70757a; padding: 3px 6px; border-radius: 4px; font-size: 11px;">❌ No EV Charging</div>`;
+            ? `<div style="margin-top: 8px; display: inline-block; background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; width: calc(100% - 16px); text-align: center;">⚡ EV Charger Available</div>`
+            : `<div style="margin-top: 8px; display: inline-block; background: #f1f3f4; color: #70757a; padding: 4px 8px; border-radius: 4px; font-size: 11px; width: calc(100% - 16px); text-align: center;">❌ No EV Charging</div>`;
 
-        // Assemble the custom HTML layout inside the station's info box popup
+        // 4. ASSEMBLE RICH POPUP HTML INFO BOX
         const popupContentHTML = `
-            <div class="station-popup" style="min-width: 160px; font-family: Arial, sans-serif;">
-                <strong style="font-size: 14px; color: #1a73e8;">${station.brand || 'Independent'}</strong>
-                <div style="color: #5f6368; font-size: 11px; margin-bottom: 6px;">${station.address || 'UK Highway Corridor'}</div>
-                <hr style="border: 0; border-top: 1px solid #dadce0; margin: 4px 0;">
-                <div style="font-size: 12px; line-height: 1.5;">
-                    <span style="font-weight:bold;">Petrol (E10):</span> ${e10Price}${typeof e10Price === 'number' ? 'p' : ''}<br>
-                    <span style="font-weight:bold;">Diesel (B7):</span> ${b7Price}${typeof b7Price === 'number' ? 'p' : ''}
+            <div style="min-width: 180px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 4px;">
+                <strong style="font-size: 14px; color: #1a73e8; display: block; margin-bottom: 2px;">${station.brand || 'Independent'}</strong>
+                <div style="color: #5f6368; font-size: 11px; margin-bottom: 8px; line-height: 1.3;">${station.address || 'UK Fuel Station'}</div>
+                
+                <div style="background: #f8f9fa; border-radius: 6px; padding: 6px 8px; border: 1px solid #e8eaed;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                        <span style="color: #3c4043;">Petrol (E10):</span>
+                        <strong style="color: #202124;">${e10Price}${typeof e10Price === 'number' ? 'p' : ''}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+                        <span style="color: #3c4043;">Diesel (B7):</span>
+                        <strong style="color: #202124;">${b7Price}${typeof b7Price === 'number' ? 'p' : ''}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                        <span style="color: #3c4043;">Super (E5):</span>
+                        <strong style="color: #202124;">${e5Price}${typeof e5Price === 'number' ? 'p' : ''}</strong>
+                    </div>
                 </div>
                 ${evBadgeHTML}
             </div>
@@ -342,19 +353,19 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
 
         const badgeIcon = L.divIcon({
             className: 'price-badge-container',
-            html: `<div style="background-color: ${markerColor}; border: 1px solid white; color: white; font-weight: bold; padding: 2px 5px; border-radius: 4px; font-size: 11px; text-align:center; white-space:nowrap;">${markerLabel}</div>`,
+            html: `<div style="background-color: ${markerColor}; border: 1px solid white; color: white; font-weight: bold; padding: 2px 5px; border-radius: 4px; font-size: 11px; text-align:center; white-space:nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">${markerLabel}</div>`,
             iconSize: [46, 22]
         });
 
-        // Generate map pin marker and bind our custom layout configuration
+        // 5. ATTACH POPUP HTML LAYOUT TO MARKER
         L.marker([coords.lat, coords.lon], { icon: badgeIcon })
-            .bindPopup(popupContentHTML)
+            .bindPopup(popupContentHTML, { maxWidth: 250, closeButton: false })
             .addTo(stationMarkers);
     });
 
     statusDiv.innerText = `Found ${displayListings.length} matching stations inside active parameters.`;
 
-    // Render left panel top list summary balances
+    // Render left panel side listing profiles
     if (displayListings.length > 0) {
         displayListings.sort((a, b) => a[chosenFuelType] - b[chosenFuelType]);
         displayListings.slice(0, 3).forEach(function(stn) {
