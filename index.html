@@ -5,18 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Route Planner Dashboard</title>
     
-    <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Leaflet Geosearch (OpenStreetMap Address Autocomplete) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.0/dist/geosearch.css" />
     <script src="https://unpkg.com/leaflet-geosearch@3.11.0/dist/bundle.min.js"></script>
 
-    <!-- Turf.js (Spatial Buffering Corridor Logic) -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
 
-    <!-- PapaParse (Live Google Sheets CSV Streamer Parser) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
@@ -33,8 +29,33 @@
         .draggable-waypoint-row::before { content: ''; position: absolute; left: 19px; top: 24px; bottom: -16px; width: 2px; border-left: 2px dashed #dadce0; z-index: 1; }
         .draggable-waypoint-row:last-child::before { display: none; }
         .suggestions-box { position: absolute; top: 42px; width: 100%; background: white; border: 1px solid #ccc; z-index: 2000; display: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .station-popup { font-size: 13px; line-height: 1.4; font-family: Arial, sans-serif; }
-        .price-tag { color: #28a745; font-weight: bold; }
+        
+        /* Custom Inline HTML Price Floating Map Badges */
+        .custom-price-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 3px 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border: 1px solid #ffffff;
+            white-space: nowrap;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.15s ease-in-out;
+        }
+        .custom-price-marker:hover {
+            transform: scale(1.1);
+        }
+
+        /* Detail Table Structural Rules */
+        .detail-sheet-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 13px; }
+        .detail-sheet-table th, .detail-sheet-table td { padding: 6px; border-bottom: 1px solid #e8eaed; text-align: left; }
+        .detail-sheet-table th { color: #5f6368; font-weight: 500; }
+        .detail-sheet-table td { font-weight: bold; color: #202124; }
     </style>
 </head>
 <body>
@@ -48,6 +69,26 @@
                 <button onclick="calculateJourney()" style="background: #1a73e8; color: white; flex-grow: 2;">🚗 Search Route</button>
             </div>
             <div id="status" style="font-size: 12px; color: #70757a; text-align: center; font-style: italic;">Ready</div>
+        </div>
+
+        <div id="stationDetailSheet" class="ui-card" style="display: none; border-left: 5px solid #1a73e8; background: #fafafa; animation: fadeIn 0.2s ease-in-out;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong id="sheetBrand" style="font-size: 15px; color: #1a73e8;">Station Brand</strong>
+                <span onclick="document.getElementById('stationDetailSheet').style.display='none'" style="cursor:pointer; font-weight:bold; color:#70757a; font-size:18px; padding: 0 4px;">&times;</span>
+            </div>
+            <div id="sheetAddress" style="font-size: 12px; color: #5f6368; font-style: italic; margin-bottom: 4px;">Location Breakdown</div>
+            
+            <table class="detail-sheet-table">
+                <thead>
+                    <tr><th>Fuel Grade</th><th>Price (p)</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Petrol (E10)</td><td id="sheetE10">-</td></tr>
+                    <tr><td>Diesel (B7)</td><td id="sheetB7">-</td></tr>
+                    <tr><td>Premium Petrol (E5)</td><td id="sheetE5">-</td></tr>
+                </tbody>
+            </table>
+            <div id="sheetCapabilities" style="font-size: 11px; margin-top: 6px; display: flex; gap: 10px; color: #5f6368; font-weight: 500;"></div>
         </div>
 
         <div class="grey-card">
@@ -78,7 +119,7 @@
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
                 <label style="display:flex; align-items:center;"><input type="checkbox" id="filterEV" checked style="width:auto; margin-right:6px;">⚡ EV Charging Nodes</label>
-                <label style="display:flex; align-items:center;"><input type="checkbox" id="filterUnleaded" checked style="width:auto; margin-right:6px;">  Traditional Pumps</label>
+                <label style="display:flex; align-items:center;"><input type="checkbox" id="filterUnleaded" checked style="width:auto; margin-right:6px;"> Traditional Pumps</label>
             </div>
         </div>
 
@@ -97,7 +138,6 @@
     
     <div id="map"></div>
 
-    <!-- Links up directly to our separate logic processor file below -->
     <script src="app.js"></script>
 </body>
 </html>
