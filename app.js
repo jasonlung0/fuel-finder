@@ -2,17 +2,24 @@
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3TTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR4rIqHLHn1BY6N0AWwpDTXJj0HkxGgtj_gthIpchXzxkwCxu-BPCy51bJqalR7Z8x4QPK2PiE1w0s0/pub?gid=1137635326&single=true&output=csv';
 
-// Initialize Map with default UK viewing frame (re-centered via Geolocation shortly after)
+// Initialize Map with default UK viewing frame
 const map = L.map('map').setView([54.5, -3.5], 6);
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0 (Contact: jasonlung0@github)' }
 });
 
+// FIXED: Corrected tile layer URL paths to resolve domain connection issues
 const themes = {
-    light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
-    dark: L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-    satellite: L.tileLayer('https://arcgisonline.com{z}/{y}/{x}', { attribution: '© Esri' })
+    light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: '© OpenStreetMap contributors' 
+    }),
+    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+        attribution: '© OpenStreetMap contributors, © CartoDB' 
+    }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+        attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community' 
+    })
 };
 let activeTheme = themes.light.addTo(map);
 
@@ -34,7 +41,7 @@ window.addEventListener('load', function() {
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
 
-    // FEATURE 1: Trigger Browser Geolocation Detection Immediately
+    // Trigger Browser Geolocation Detection Immediately
     if (navigator.geolocation) {
         document.getElementById('status').innerText = "Requesting device GPS anchor...";
         navigator.geolocation.getCurrentPosition(
@@ -42,7 +49,7 @@ window.addEventListener('load', function() {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 document.getElementById('status').innerText = "Position acquired. Loading nearby forecourts...";
-                map.setView([lat, lon], 12); // Zoom right down to regional detail
+                map.setView([lat, lon], 12); 
             },
             function(error) {
                 document.getElementById('status').innerText = "GPS denied. Defaulting to national overview.";
@@ -56,7 +63,7 @@ window.addEventListener('load', function() {
     }
 });
 
-// FEATURE 2: Automated Idle Pan/Zoom Price Loading Engine
+// Automated Idle Pan/Zoom Price Loading Engine
 map.on('moveend', function() {
     if (currentMode === 'local') {
         refreshPricesOnViewChange();
@@ -111,7 +118,7 @@ function updateRadiusLabel(val) {
     if (lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
-// Global Filter Change Listeners
+// FIXED: Cleaned up inline attribute formatting references
 document.getElementById('filterEV').addEventListener('change', refreshPricesOnViewChange);
 document.getElementById('filterUnleaded').addEventListener('change', refreshPricesOnViewChange);
 
