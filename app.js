@@ -4,13 +4,11 @@ const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 
 // Initialize Map
 const map = L.map('map').setView([54.5, -3.5], 6);
-// FIXED UNITED KINGDOM SEARCH ENGINE WITH CUSTOM USER-AGENT SPECIFICATIONS
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: {
         countrycodes: 'gb', // Restricts autocomplete exclusively to the United Kingdom
         limit: 5            // Limits to top 5 closest matches
     },
-    // Injects required headers telling OpenStreetMap's server who we are to prevent CORS blocks
     headers: {
         'User-Agent': 'UK-Fuel-Finder-App-v1.0 (Contact: jasonlung0@github)'
     }
@@ -30,7 +28,6 @@ let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
 let draggedElement = null;
 
-// FIXED BOOT TIMING: Wait for CSS layouts to stabilize completely before drawing Leaflet bounds
 window.addEventListener('load', function() {
     map.invalidateSize();
     addNewWaypointField("Start");
@@ -49,13 +46,11 @@ function updateRadiusLabel(val) {
     if (lastSavedRouteData) filterFuelStations(lastSavedRouteData);
 }
 
-// Add Listeners to Dropdowns for Live Recalculations
 document.getElementById('fuelType').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 document.getElementById('mpg').addEventListener('input', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 document.getElementById('filterEV').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 document.getElementById('filterUnleaded').addEventListener('change', function() { if(lastSavedRouteData) filterFuelStations(lastSavedRouteData); });
 
-// Add/Remove Dynamic Stop Inputs Mechanics
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
@@ -73,7 +68,6 @@ function addNewWaypointField(customLabel) {
     row.style.gap = '5px'; 
     row.style.cursor = 'grab';
     
-    // Dynamic Visual Stacking Layer Depth Rank Fix
     row.style.position = 'relative';
     row.style.zIndex = (100 - index); 
     row.style.background = '#ffffff';
@@ -112,7 +106,6 @@ function clearWaypointField(index) {
     waypointsList[index] = { coordinates: null, rawText: "" };
 }
 
-// Drag and Drop Layout Positioning Script Engine
 function addDragAndDropListeners(row) {
     row.addEventListener('dragstart', function(e) { draggedElement = row; row.style.opacity = '0.3'; e.dataTransfer.effectAllowed = 'move'; });
     row.addEventListener('dragend', function() { draggedElement.style.opacity = '1'; draggedElement = null; reorderWaypointsDataMatrix(); });
@@ -155,7 +148,6 @@ function reorderWaypointsDataMatrix() {
     if (lastSavedRouteData) calculateJourney();
 }
 
-// Address Autocomplete Handlers (Fixed Syntax Typos & Duplicated Properties)
 function setupDynamicAutocomplete(index) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
@@ -165,14 +157,9 @@ function setupDynamicAutocomplete(index) {
 
     input.addEventListener('input', debounce(async function(e) {
         const query = e.target.value;
-        
-        if (clearBtn) {
-            clearBtn.style.display = query.length > 0 ? 'block' : 'none'; // Fixed duplicated properties crash!
-        }
-        
+        if (clearBtn) clearBtn.style.display = query.length > 0 ? 'block' : 'none';
         waypointsList[index].rawText = query;
 
-        // 3-LETTER LOCK
         if (query.length < 3) { 
             suggestionsDiv.style.display = 'none'; 
             return; 
@@ -217,23 +204,16 @@ function debounce(func, delay) {
     let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); };
 }
 
-// Multi-Waypoint Route Planner Post Call
-// Upgraded, self-cleaning route formatting engine
 async function calculateJourney() {
     const statusDiv = document.getElementById('status');
-    
-    // 1. HARD FILTER: Ensure we ONLY grab valid, non-null numeric coordinate array nodes
-        //  CORRECTED VISUAL LAYOUT INDEX ARRAYS:
     const validCoords = waypointsList
         .filter(function(wp) { 
             return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
         })
         .map(function(wp) { 
-            // Index [0] grabs Longitude, Index [1] grabs Latitude from your search data array
             return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
         });
 
-    // 2. CHECK RANGE: If the user didn't successfully click suggestions to fill at least 2 boxes, alert them
     if (validCoords.length < 2) { 
         alert('Please type an address and select a location from the dropdown suggestions list for at least 2 fields.'); 
         return; 
@@ -244,7 +224,6 @@ async function calculateJourney() {
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
-        //  CORRECTED API ENDPOINT CONFIGURATION:
         const apiUrl = 'https://api.openrouteservice.org/v2/directions/driving-car';
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -253,10 +232,9 @@ async function calculateJourney() {
                 'Content-Type': 'application/json', 
                 'Authorization': ORS_API_KEY 
             },
-            body: JSON.stringify({ "coordinates": validCoords }) // Transmits clean numerical array matrix
+            body: JSON.stringify({ "coordinates": validCoords })
         });
 
-        // If the server rejects the key or payload data layout, break immediately to show the specific code error
         if (!response.ok) {
             const errorMsg = await response.text();
             throw new Error("Server Rejected Request: " + errorMsg);
@@ -275,7 +253,26 @@ async function calculateJourney() {
     }
 }
 
-// DYNAMIC SPATIAL PROCESSING SYNC ENGINE
+// DRIVES THE INTERACTIVE SIDEBAR SHEET POPUP WITH DATA EXTRACTS
+function displayStationDetailSheet(station) {
+    document.getElementById('sheetBrand').innerText = station.brand || "Independent Station";
+    document.getElementById('sheetAddress').innerText = station.address ? station.address : `Coords: [${station.lat.toFixed(4)}, ${station.lon.toFixed(4)}]`;
+    
+    // Process Price Row Placements (Gracefully handles empty strings or undefined cells)
+    document.getElementById('sheetE10').innerText = station.e10 ? station.e10 + 'p' : 'N/A';
+    document.getElementById('sheetB7').innerText = station.b7 ? station.b7 + 'p' : 'N/A';
+    document.getElementById('sheetE5').innerText = station.e5 ? station.e5 + 'p' : 'N/A';
+    
+    // Map Meta Property Flags
+    let capabilities = [];
+    if (station.has_ev === true || station.has_ev === "TRUE") capabilities.push("⚡ EV Charger");
+    if (station.has_unleaded === true || station.has_unleaded === "TRUE") capabilities.push("⛽ Main Pump");
+    document.getElementById('sheetCapabilities').innerHTML = capabilities.join(' | ');
+
+    // Open Drawer Visibility
+    document.getElementById('stationDetailSheet').style.display = 'flex';
+}
+
 function filterFuelStations(routeData) {
     const statusDiv = document.getElementById('status');
     statusDiv.innerText = "Calculating journey boundaries...";
@@ -312,8 +309,8 @@ function filterFuelStations(routeData) {
 
             liveStations.forEach(function(station) {
                 if (!station.lat || !station.lon) return;
-                if (requiresEV && station.has_ev !== true) return;
-                if (requiresUnleaded && station.has_unleaded !== true) return;
+                if (requiresEV && station.has_ev !== true && station.has_ev !== "TRUE") return;
+                if (requiresUnleaded && station.has_unleaded !== true && station.has_unleaded !== "TRUE") return;
 
                 const point = turf.point([station.lon, station.lat]);
                 if (turf.booleanPointInPolygon(point, bufferedCorridor)) {
@@ -324,10 +321,21 @@ function filterFuelStations(routeData) {
                         if (price < cheapestPriceFound) cheapestPriceFound = price;
                     }
 
-                    L.circleMarker([station.lat, station.lon], {
-                        radius: 10, fillColor: getMarkerColor(station.e10), color: '#ffffff', weight: 2, fillOpacity: 0.9
+                    // RENDERS FLOATING HTML PRICE BADGES DIRECTLY ON THE LEAFLET PLANE
+                    const markerLabel = station[chosenFuelType] ? station[chosenFuelType] + 'p' : 'N/A';
+                    const markerColor = getMarkerColor(station[chosenFuelType]);
+
+                    const divIconTemplate = L.divIcon({
+                        className: 'price-badge-container',
+                        html: `<div class="custom-price-marker" style="background-color: ${markerColor};">${markerLabel}</div>`,
+                        iconSize: [46, 22],
+                        iconAnchor: [23, 11]
+                    });
+
+                    L.marker([station.lat, station.lon], { icon: divIconTemplate })
+                    .on('click', function() {
+                        displayStationDetailSheet(station);
                     })
-                    .bindPopup('<div class="station-popup"><strong>' + station.brand + '</strong><br>E10: ' + station.e10 + 'p | B7: ' + station.b7 + 'p</div>')
                     .addTo(stationMarkers);
                 }
             });
@@ -339,12 +347,14 @@ function filterFuelStations(routeData) {
                 validStationsAlongRoute.slice(0, 3).forEach(function(stn) {
                     var li = document.createElement('li'); li.style.cursor = 'pointer'; li.style.padding = '4px';
                     li.innerHTML = '<strong>' + stn.brand + '</strong> - <span style="color:green;font-weight:bold;">' + stn[chosenFuelType] + 'p</span>';
-                    li.onclick = function() { map.flyTo([stn.lat, stn.lon], 14); };
+                    li.onclick = function() { 
+                        map.flyTo([stn.lat, stn.lon], 14); 
+                        displayStationDetailSheet(stn);
+                    };
                     document.getElementById('topStationsList').appendChild(li);
                 });
                 document.getElementById('topStationsContainer').style.display = 'block';
 
-                // Process Distance Calculations
                 var distMeters = routeData.features.properties.summary.distance;
                 var mpg = parseFloat(document.getElementById('mpg').value) || 45;
                 var miles = distMeters / 1609.34;
@@ -364,11 +374,10 @@ function filterFuelStations(routeData) {
 
 function getMarkerColor(p) { return !p ? '#7f8c8d' : p <= 135 ? '#2ecc71' : p <= 145 ? '#e67e22' : '#e74c3c'; }
 
-// CSV Export Script Generator Action
 function exportItineraryToCSV() {
     if (currentlyFilteredStations.length === 0) return;
-    var headers = ["Station Name", "Latitude", "Longitude", "E10 (p)", "B7 (p)"];
-    var rows = currentlyFilteredStations.map(function(s) { return ['"' + s.brand + '"', s.lat, s.lon, s.e10||"N/A", s.b7||"N/A"]; });
+    var headers = ["Station Name", "Latitude", "Longitude", "E10 (p)", "B7 (p)", "E5 (p)"];
+    var rows = currentlyFilteredStations.map(function(s) { return ['"' + s.brand + '"', s.lat, s.lon, s.e10||"N/A", s.b7||"N/A", s.e5||"N/A"]; });
     var csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(function(e) { return e.join(","); })].join("\n");
     var link = document.createElement("a"); link.setAttribute("href", encodeURI(csvContent));
     link.setAttribute("download", `fuel_itinerary.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
