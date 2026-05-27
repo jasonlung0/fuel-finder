@@ -69,6 +69,13 @@ function addNewWaypointField(customLabel) {
     row.style.gap = '5px'; 
     row.style.cursor = 'grab';
 
+    // FIXED: Dynamically calculates depth stacking. 
+    // This forces row 0 (Start) to sit higher than row 1 (Destination), overlapping dropdowns cleanly!
+    row.style.position = 'relative';
+    row.style.zIndex = (100 - index); 
+    row.style.background = '#ffffff'; 
+
+
     var isCoreField = (customLabel === "Start" || customLabel === "Destination");
 
     // FIXED: Ensured class names and wrapper tags match our background geocoding handlers exactly
@@ -126,17 +133,30 @@ function reorderWaypointsDataMatrix() {
     const visibleRows = container.querySelectorAll('.draggable-waypoint-row');
     let updatedNewList = [];
 
+    // 1. Loop through visible rows to update internal data cache order
     visibleRows.forEach(function(row, idx) {
         const originalIndex = parseInt(row.getAttribute('data-index'));
         updatedNewList.push(waypointsList[originalIndex]);
         
         const inputField = row.querySelector('input');
-        if (idx === 0) inputField.placeholder = "Start...";
-        else if (idx === visibleRows.length - 1) inputField.placeholder = "Destination...";
-        else inputField.placeholder = "Stop " + idx + "...";
+        if (idx === 0) {
+            inputField.placeholder = "Start...";
+        } else if (idx === visibleRows.length - 1) {
+            inputField.placeholder = "Destination...";
+        } else {
+            inputField.placeholder = "Stop " + idx + "...";
+        }
+
+        // CORRECTED VISUAL STACKING LAYER DEPTH RANK:
+        // Automatically flips the z-index depth properties when items are rearranged.
+        // This ensures the topmost inputs always layer cleanly over lower boxes!
+        row.style.zIndex = (100 - idx);
     });
 
+    // 2. Commit the sorted configurations to the global state matrix cache
     waypointsList = updatedNewList;
+
+    // 3. Reset index attributes on the screen elements for future drag tracks alignment
     visibleRows.forEach(function(row, idx) {
         row.setAttribute('data-index', idx);
         row.querySelector('input').id = "input-" + idx;
@@ -144,7 +164,10 @@ function reorderWaypointsDataMatrix() {
         row.querySelector('span').id = "clear-" + idx;
     });
 
-    if (lastSavedRouteData) calculateJourney();
+    // 4. If an active route line is already on the map, automatically rebuild the path!
+    if (lastSavedRouteData) {
+        calculateJourney();
+    }
 }
 
 // Address Autocomplete Handlers (Fixed 3-Letter Keystroke Connector)
