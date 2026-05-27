@@ -63,7 +63,7 @@
         <div class="space-y-4 mb-5">
             <div>
                 <label class="block text-xs font-medium text-slate-500 mb-1.5">Map View Layer Theme</label>
-                <select onchange="changeMapTheme(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950">
+                <select onchange="changeMapTheme(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-990 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950">
                     <option value="light">Standard Light Canvas</option>
                     <option value="dark">Night Mode Dark Interface</option>
                     <option value="satellite">Detailed Satellite Imagery</option>
@@ -138,7 +138,7 @@
         </div>
 
         <div id="topStationsContainer" class="hidden border border-slate-200 rounded-xl p-4 mt-4 bg-slate-50 shadow-sm">
-            <strong class="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-2">🥇 Safest Budget Selection Choices:</strong>
+            <strong class="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-2">🥇 Cheapest Selection Choices:</strong>
             <ol id="topStationsList" class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 font-medium"></ol>
         </div>
 
@@ -185,5 +185,6 @@
         </div>
     </div>
 
+    <script src="app.js"></script>
 </body>
 </html>
