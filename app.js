@@ -223,16 +223,15 @@ async function calculateJourney() {
     const statusDiv = document.getElementById('status');
     
     // 1. HARD FILTER: Ensure we ONLY grab valid, non-null numeric coordinate array nodes
-        //  CORRECTED POSITION MAPPING CONFIGURATION:
+        //  CORRECTED VISUAL LAYOUT INDEX ARRAYS:
     const validCoords = waypointsList
         .filter(function(wp) { 
             return wp !== null && wp !== undefined && wp.coordinates !== null && wp.coordinates !== undefined; 
         })
         .map(function(wp) { 
-            // Index [0] represents your Longitude column data, Index [1] represents Latitude
+            // Index [0] grabs Longitude, Index [1] grabs Latitude from your search data array
             return [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]; 
         });
-
 
     // 2. CHECK RANGE: If the user didn't successfully click suggestions to fill at least 2 boxes, alert them
     if (validCoords.length < 2) { 
