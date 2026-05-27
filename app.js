@@ -186,7 +186,7 @@ function filterFuelStationsLocalMode() {
     const chosenFuelType = document.getElementById('fuelType').value;
 
     // Direct regional parameters SQL fetch query payload
-    const sqlQuery = "SELECT * WHERE B >= " + minLat + " AND B <= " + maxLat + " AND C >= " + minLon + " AND C <= " + maxLon;
+    const sqlQuery = "SELECT * WHERE J >= " + minLat + " AND J <= " + maxLat + " AND K >= " + minLon + " AND K <= " + maxLon;
     const liveDynamicSheetUrl = GOOGLE_SHEET_BASE_URL + "&tq=" + encodeURIComponent(sqlQuery);
 
     Papa.parse(liveDynamicSheetUrl, {
