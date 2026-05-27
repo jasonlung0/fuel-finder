@@ -3,179 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuel Intelligence Dashboard</title>
+    <title>Fuel Route Planner Dashboard</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.0/dist/geosearch.css" />
-    <script src="https://unpkg.com/leaflet-geosearch@3.11.0/dist/bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet-geosearch@3.11.0/dist/bundle.min.js\"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; height: 100vh; background: #e5e5e5; }
-        #sidebar { width: 380px; padding: 15px; box-shadow: 3px 0 10px rgba(0,0,0,0.15); z-index: 1000; background: #ffffff; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; box-sizing: border-box; }
-        #map { flex-grow: 1; height: 100%; z-index: 1; }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; display: flex; height: 100vh; background: #f8f9fa; }
+        #sidebar { width: 380px; background: white; box-shadow: 4px 0 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        #map-container { flex-grow: 1; position: relative; height: 100%; }
+        #map { width: 100%; height: 100%; }
         
-        .ui-card { background: #ffffff; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 8px; }
-        .grey-card { background: #f8f9fa; padding: 12px; border-radius: 8px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
-        
-        input, select, button { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
-        button { background: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #1557b0; }
-        
-        /* Tab Navigation Bar Styles */
-        .tab-header { display: flex; border-bottom: 2px solid #dadce0; margin-bottom: 5px; }
-        .tab-btn { flex: 1; padding: 10px; background: none; color: #5f6368; border: none; font-weight: bold; border-radius: 0; cursor: pointer; font-size: 13px; text-align: center; }
-        .tab-btn:hover { background: #f1f3f4; color: #1a73e8; }
-        .tab-btn.active { color: #1a73e8; border-bottom: 3px solid #1a73e8; font-weight: bold; }
-        .tab-content { display: none; flex-direction: column; gap: 10px; }
-        .tab-content.active { display: flex; }
+        .tab-nav { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #dadce0; padding-bottom: 8px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: #f1f3f4; color: #5f6368; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background: #1a73e8; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        #waypointContainer { position: relative; display: flex; flex-direction: column; gap: 8px; }
-        .draggable-waypoint-row { position: relative; background: #ffffff; z-index: 2; padding: 4px 0; display: flex; align-items: center; gap: 5px; cursor: grab; }
-        .draggable-waypoint-row::before { content: ''; position: absolute; left: 19px; top: 24px; bottom: -16px; width: 2px; border-left: 2px dashed #dadce0; z-index: 1; }
-        .draggable-waypoint-row:last-child::before { display: none; }
-        .suggestions-box { position: absolute; top: 42px; width: 100%; background: white; border: 1px solid #ccc; z-index: 2000; display: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        
-        /* Custom Map Inline HTML Price Badges */
-        .custom-price-marker {
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 11px; color: #ffffff;
-            border-radius: 6px; padding: 3px 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-            border: 1px solid #ffffff; white-space: nowrap; text-align: center;
-            cursor: pointer; transition: transform 0.15s ease-in-out;
-        }
-        .custom-price-marker:hover { transform: scale(1.1); }
+        input, select, button.action-btn { width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 14px; box-sizing: border-box; margin-bottom: 10px; }
+        input:focus, select:focus { border-color: #1a73e8; outline: none; }
+        button.action-btn { background: #1a73e8; color: white; font-weight: bold; border: none; cursor: pointer; margin-top: 5px; }
+        button.action-btn:hover { background: #1557b0; }
 
-        .detail-sheet-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 13px; }
-        .detail-sheet-table th, .detail-sheet-table td { padding: 6px; border-bottom: 1px solid #e8eaed; text-align: left; }
-        .detail-sheet-table th { color: #5f6368; font-weight: 500; }
-        .detail-sheet-table td { font-weight: bold; color: #202124; }
+        .ui-card { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 12px; padding: 14px; margin-top: 12px; }
+        .draggable-waypoint-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; background: white; padding: 6px; border: 1px solid #dadce0; border-radius: 8px; }
+        .suggestions-box div:hover { background: #f1f3f4; }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <div class="tab-header">
-            <button class="tab-btn active" onclick="switchTab('local-tab')">📍 Nearby Prices</button>
-            <button class="tab-btn" onclick="switchTab('route-tab')">🚗 Route Planner</button>
+        <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #202124; display: flex; align-items: center; gap: 8px;">⛽ UK Fuel Corridor Finder</h2>
+        
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('local-tab')">📍 Local View</button>
+            <button class="tab-btn" onclick="switchTab('route-tab')">🛣️ Route Corridor</button>
         </div>
 
-        <div id="status" style="font-size: 12px; color: #70757a; text-align: center; font-style: italic; padding: 2px 0;">Locating device position...</div>
+        <label style="font-size: 12px; font-weight: bold; color: #5f6368; display:block; margin-bottom:4px;">Map Theme View Layer:</label>
+        <select onchange="changeMapTheme(this.value)" style="margin-bottom: 15px;">
+            <option value="light">Standard Light Map</option>
+            <option value="dark">Night Mode Dark Canvas</option>
+            <option value="satellite">Detailed Satellite Imagery</option>
+        </select>
+
+        <label style="font-size: 12px; font-weight: bold; color: #5f6368; display:block; margin-bottom:4px;">Target Fuel Pricing Column:</label>
+        <select id="fuelType">
+            <option value="e10">Petrol Unleaded (E10)</option>
+            <option value="e5">Super Unleaded (E5)</option>
+            <option value="diesel">Standard Diesel (B7)</option>
+        </select>
 
         <div id="local-tab" class="tab-content active">
-            <div style="margin-bottom: 12px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dadce0;">
-                <label style="display: block; font-size: 12px; color: #5f6368; font-weight: bold; margin-bottom: 4px;">
-                    📍 Filter Nearest Stations Within: <span id="localRadiusVal" style="color: #1a73e8;">5</span> Miles
+            <div style="margin-bottom: 12px; padding: 10px; background: #e8f0fe; border-radius: 8px; border: 1px solid #d2e3fc;">
+                <label style="display: block; font-size: 12px; color: #1967d2; font-weight: bold; margin-bottom: 4px;">
+                    🎯 Nearest Stations Range Limit: <span id="localRadiusVal" style="font-weight: bold;">5</span> Miles
                 </label>
                 <input type="range" id="localRadiusSlider" min="1" max="10" value="5" step="1" style="width: 100%;" oninput="updateLocalRadiusLabel(this.value)">
             </div>
-        
-            <div style="position: relative; margin-bottom: 12px;">
-                <input type="text" id="localSearchInput" placeholder="Search a town or postcode..." autocomplete="off" style="width: 100%;">
-                <div id="localSuggestions" class="suggestions-box" style="position: absolute; top: 40px; left: 0; width: 100%; background: white; border: 1px solid #dadce0; z-index: 9999; display: none; max-height: 150px; overflow-y: auto;"></div>
+
+            <div style="position: relative;">
+                <input type="text" id="localSearchInput" placeholder="Search a town, city or postcode..." autocomplete="off">
+                <div id="localSuggestions" class="suggestions-box" style="position: absolute; top: 42px; left: 0; width: 100%; background: white; border: 1px solid #dadce0; z-index: 9999; display: none; max-height: 150px; overflow-y: auto; border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
             </div>
         </div>
 
-        <div id="route-tab" class="tab-content ui-card">
-            <strong style="font-size: 14px; color: #202124;">Calculate Route Corridor</strong>
+        <div id="route-tab" class="tab-content">
             <div id="waypointContainer"></div>
-            <div style="display: flex; gap: 8px; margin-top: 4px;">
-                <button onclick="addNewWaypointField('Stop')" style="background: #f1f3f4; color: #3c4043; border: 1px solid #dadce0; flex-grow: 1;">➕ Add Stop</button>
-                <button onclick="calculateJourney()" style="background: #1a73e8; color: white; flex-grow: 2;">🚗 Search Route</button>
+            <button class="action-btn" style="background:#f1f3f4; color:#1a73e8; border:1px dashed #1a73e8; margin-bottom:10px;" onclick="addNewWaypointField('Stop')">➕ Add Interim Stop</button>
+            
+            <div id="bufferRadiusContainer" style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; color: #5f6368; font-weight: bold; margin-bottom: 4px;">
+                    🛡️ Corridor Buffer Width: <span id="radiusVal">3</span> km
+                </label>
+                <input type="range" id="bufferRadius" min="1" max="15" value="3" step="0.5" style="width: 100%;" oninput="updateRadiusLabel(this.value)">
             </div>
+
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; color: #5f6368; font-weight: bold; margin-bottom: 4px;">Vehicle Fuel Efficiency (MPG):</label>
+                <input type="number" id="mpg" value="45" min="10" max="100">
+            </div>
+
+            <button class="action-btn" onclick="calculateJourney()">🚀 Calculate Optimized Journey</button>
         </div>
 
-        <div style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none;">
-            <button id="searchAreaBtn" onclick="searchThisArea()" style="pointer-events: auto; background: #ffffff; color: #1a73e8; font-weight: bold; font-size: 13px; border: none; padding: 10px 16px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
-                🔍 Search this area
-            </button>
-        </div>
-        
-        <div id="iosModalBackdrop" onclick="handleBackdropClick(event)" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 99999; display: none; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity 0.3s ease;">
-            <div id="stationDetailSheet" onclick="event.stopPropagation()" style="background: #ffffff; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.3); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.76, 0.55, 0.94);">
-                
-                <div style="width: 40px; height: 5px; background: #e0e0e0; border-radius: 3px; align-self: center; margin-bottom: 15px;"></div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                    <div>
-                        <strong id="sheetBrand" style="font-size: 20px; color: #202124;">Forecourt Brand</strong>
-                        <div id="sheetAddress" style="font-size: 13px; color: #5f6368; margin-top: 2px;">Station Location Address</div>
-                    </div>
-                    <button onclick="closeiOSModalSheet()" style="background: #f1f3f4; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #5f6368; font-weight: bold;">×</button>
-                </div>
-        
-                <hr style="border: 0; border-top: 1px solid #f1f3f4; margin: 10px 0;">
-        
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0;">
-                    <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                        <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Petrol (E10)</div>
-                        <strong id="sheetE10" style="font-size: 18px; color: #202124; display: block; margin-top: 4px;">-</strong>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                        <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Diesel (B7)</div>
-                        <strong id="sheetB7" style="font-size: 18px; color: #202124; display: block; margin-top: 4px;">-</strong>
-                    </div>
-                    <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
-                        <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Super (E5)</div>
-                        <strong id="sheetE5" style="font-size: 18px; color: #202124; display: block; margin-top: 4px;">-</strong>
-                    </div>
-                </div>
-        
-                <div style="font-size: 11px; color: #9aa0a6; text-align: center; margin-top: 5px;">ℹ️ Pricing streams update live from central repository</div>
-            </div>
+        <div class="ui-card" style="margin-top: 15px;">
+            <strong style="font-size: 13px; color: #202124; display: block; margin-bottom: 6px;">⚙️ Forecourt Filters</strong>
+            <label style="display:flex; align-items:center; font-size: 13px; color: #3c4043;">
+                <input type="checkbox" id="filterUnleaded" style="width:auto; margin-right:8px;"> Traditional Pumps Only
+            </label>
         </div>
 
-        <div class="grey-card">
-            <strong style="color: #3c4043;">Configuration Options</strong>
-            <div>
-                <label style="font-weight: bold;">Preferred Car Fuel Type:</label>
-                <select id="fuelType" onchange="refreshPricesOnViewChange()">
-                    <option value="e10">Petrol (E10)</option>
-                    <option value="b7">Diesel (B7)</option>
-                </select>
-            </div>
-            <div id="bufferRadiusContainer" style="display:none;">
-                <label>Route Corridor Buffer Radius: <span id="radiusVal" style="font-weight:bold; color:#1a73e8;">2</span> km</label>
-                <input type="range" id="bufferRadius" min="0.5" max="10" step="0.5" value="2" style="margin-top:4px;" oninput="updateRadiusLabel(this.value)">
-            </div>
-            <div>
-                <label style="font-weight: bold;">Vehicle Efficiency (MPG):</label>
-                <input type="number" id="mpg" value="45" style="margin-top:4px; padding:6px;" oninput="refreshPricesOnViewChange()">
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
-                <label style="display:flex; align-items:center;"><input type="checkbox" id="filterUnleaded" style="width:auto; margin-right:6px;">  Traditional Pumps</label>
-            </div>
-        </div>
-
-        <div id="costSummary" style="padding: 12px; background: #e8f0fe; color: #1967d2; border-radius: 8px; font-size: 14px; display: none; box-shadow: inset 0 0 0 1px #d2e3fc;">
-            📍 <strong>Trip Financial Estimates:</strong><br>
+        <div id="costSummary" style="padding: 12px; background: #e6f4ea; color: #137333; border-radius: 8px; font-size: 13px; display: none; margin-top:12px; border: 1px solid #ceead6;">
+            📍 <strong>Trip Expense Estimator:</strong><br>
             Total Distance: <span id="summaryDistance" style="font-weight: bold;">0</span> miles<br>
-            Corridor Minimum Fuel Cost: <span id="summaryCost" style="font-weight: bold;">£0.00</span>
+            Estimated Corridor Fuel Cost: <span id="summaryCost" style="font-weight: bold;">£0.00</span>
         </div>
 
         <div id="topStationsContainer" style="display: none;" class="ui-card">
-            <strong style="font-size: 14px; color: #202124; display: block; margin-bottom: 4px;">🥇 Cheapest Forecourts:</strong>
-            <ol id="topStationsList" style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.6;"></ol>
-            <button id="exportBtn" onclick="exportItineraryToCSV()" style="background: #34a853; color: white; margin-top: 8px; padding: 8px; font-size: 13px;">📥 Export Visible Stations (CSV)</button>
+            <strong style="font-size: 13px; color: #202124; display: block; margin-bottom: 6px;">🥇 Top 3 Cheapest Forecourts:</strong>
+            <ol id="topStationsList" style="margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #3c4043;"></ol>
         </div>
 
-        <div class="grey-card">
-            <label style="font-weight: bold; color: #3c4043;">Map Theme Layout:</label>
-            <select id="mapTheme" onchange="changeMapTheme(this.value)">
-                <option value="light">Standard Maps</option>
-                <option value="dark">Sleek Dark Mode</option>
-                <option value="satellite">Satellite Hybrid</option>
-            </select>
+        <div id="status" style="margin-top: auto; font-size: 12px; color: #70757a; font-style: italic; text-align: center; padding-top: 15px;">Initializing system components...</div>
+    </div>
+
+    <div id="map-container">
+        <div style="position: absolute; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000; pointer-events: none;">
+            <button id="searchAreaBtn" onclick="searchThisArea()" style="pointer-events: auto; background: #ffffff; color: #1a73e8; font-weight: bold; font-size: 13px; border: none; padding: 10px 18px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s;">
+                🔍 Search this area
+            </button>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div id="iosModalBackdrop" onclick="handleBackdropClick(event)" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 99999; display: none; align-items: flex-end; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
+        <div id="stationDetailSheet" onclick="event.stopPropagation()" style="background: #ffffff; width: 100%; max-width: 460px; border-radius: 20px 20px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.2); display: flex; flex-direction: column; padding: 22px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.25s cubic-bezier(0.1, 0.76, 0.55, 0.94);">
+            <div style="width: 36px; height: 5px; background: #e0e0e0; border-radius: 3px; align-self: center; margin-bottom: 15px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <strong id="sheetBrand" style="font-size: 19px; color: #202124;">Forecourt Name</strong>
+                    <div id="sheetAddress" style="font-size: 13px; color: #5f6368; margin-top: 3px;">Station Location Address</div>
+                </div>
+                <button onclick="closeiOSModalSheet()" style="background: #f1f3f4; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #5f6368; font-weight: bold;">×</button>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #f1f3f4; margin: 8px 0 12px 0;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0;">
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
+                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Petrol (E10)</div>
+                    <strong id="sheetE10" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
+                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Diesel (B7)</div>
+                    <strong id="sheetB7" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+                </div>
+                <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e8eaed;">
+                    <div style="font-size: 11px; color: #5f6368; font-weight: 500;">Super (E5)</div>
+                    <strong id="sheetE5" style="font-size: 17px; color: #202124; display: block; margin-top: 4px;">-</strong>
+                </div>
+            </div>
+            <div style="font-size: 11px; color: #9aa0a6; text-align: center; margin-top: 8px;">ℹ️ Pricing streams update live from central repository</div>
         </div>
     </div>
-    
-    <div id="map"></div>
 
-    <script src="app.js"></script>
 </body>
 </html>
