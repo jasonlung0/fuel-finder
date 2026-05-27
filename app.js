@@ -29,11 +29,9 @@ window.addEventListener('load', function() {
     map.invalidateSize();
     setupTabToggles();
     
-    // Build routing forms fields
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
     
-    // Safely invoke autocompletes after markup handles are ready
     setupTab1Autocomplete();
 
     if (navigator.geolocation) {
@@ -128,27 +126,39 @@ function refreshActiveDataView() {
     else if (currentMode === 'route' && lastSavedRouteData) filterFuelStationsRouteMode(lastSavedRouteData);
 }
 
+// BULLETPROOF COORDINATE NORMALIZER MAPPER
 function getCoordinates(station) {
-    const latKeys = ['lat', 'latitude', 'Latitude', 'LAT', 'j', 'J'];
-    const lonKeys = ['lon', 'lng', 'longitude', 'Longitude', 'LON', 'k', 'K'];
     let lat = null, lon = null;
-    for (let key of latKeys) { if (station[key] !== undefined && station[key] !== null) { lat = parseFloat(station[key]); break; } }
-    for (let key of lonKeys) { if (station[key] !== undefined && station[key] !== null) { lon = parseFloat(station[key]); break; } }
-    return (isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
+    
+    // Read keys dynamically regardless of case, layout spacing, or underscore mutations
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (['lat', 'latitude'].includes(normalizedKey)) {
+            lat = parseFloat(station[key]);
+        }
+        if (['lon', 'lng', 'longitude'].includes(normalizedKey)) {
+            lon = parseFloat(station[key]);
+        }
+    }
+    return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
+// BULLETPROOF CASE-INSENSITIVE PRICE SELECTOR LOOKUP
 function extractPriceByMetricType(station, fuelType) {
-    const target = (fuelType || 'price_e10').toLowerCase();
-    let possibleKeys = [];
+    const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
     
-    if (target.includes('e10')) possibleKeys = ['price_e10', 'e10', 'E10'];
-    else if (target.includes('e5')) possibleKeys = ['price_e5', 'e5', 'E5'];
-    else if (target.includes('diesel')) possibleKeys = ['price_diesel', 'b7', 'B7', 'diesel'];
-
-    for (let key of possibleKeys) {
-        if (station[key] !== undefined && station[key] !== null && station[key] !== '') {
-            let val = parseFloat(station[key]);
-            if (!isNaN(val) && val > 0) return val;
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // Match user column identifiers flexibly
+        if (target.includes('e10') && normalizedKey.includes('e10')) {
+            let val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if (target.includes('e5') && normalizedKey.includes('e5')) {
+            let val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if ((target.includes('diesel') || target.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
+            let val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
     }
     return NaN;
@@ -168,7 +178,7 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
 function addNewWaypointField(customLabel) {
     if (!customLabel) customLabel = "Stop";
     var container = document.getElementById('waypointContainer');
-    if (!container) return; // Safeguard if layout element isn't ready
+    if (!container) return;
     
     var index = waypointsList.length;
     waypointsList.push({ coordinates: null, rawText: "" });
@@ -197,7 +207,7 @@ function setupDynamicAutocomplete(index, rowElement) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
     const clearBtn = document.getElementById("clear-" + index);
-    if (!input || !suggestionsDiv) return; // SAFEGUARD CRASH PREVENTER
+    if (!input || !suggestionsDiv) return;
 
     input.addEventListener('focus', () => { rowElement.style.zIndex = '999'; });
     input.addEventListener('blur', () => { setTimeout(() => { rowElement.style.zIndex = '10'; }, 300); });
@@ -331,10 +341,20 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        const brandName = station.brand || station.Brand || "Independent";
+        // Extract Brand dynamic lookups safely
+        let brandName = "Independent";
+        for (let key in station) {
+            if (key.toLowerCase().trim() === 'brand') { brandName = station[key]; break; }
+        }
         station.brand = brandName;
 
-        const isTraditional = (station.has_unleaded === true || station.has_unleaded === "TRUE" || station.has_unleaded === 1 || station.has_unleaded === "true");
+        // Flexible lookup structure mapping for pump parameters
+        let isTraditional = true;
+        for (let key in station) {
+            if (key.toLowerCase().includes('unleaded')) {
+                isTraditional = (station[key] === true || station[key] === "TRUE" || station[key] === 1 || station[key] === "true");
+            }
+        }
         if (requiresUnleaded && !isTraditional) return;
 
         if (spatialBufferPolygon) {
@@ -352,7 +372,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         eligibleStations.push(station);
     });
 
-    const slicedStationsList = eligibleStations.slice(0, 100);
+    const slicedStationsList = eligibleStations.slice(0, 150);
 
     slicedStationsList.forEach(function(station) {
         const coords = getCoordinates(station);
@@ -373,8 +393,10 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
 
         currentlyFilteredStations.push(station);
 
-        const labelText = (!isNaN(e10Price)) ? e10Price.toFixed(1) + 'p' : 'N/A';
-        const color = getMarkerColor(e10Price);
+        // Display current active selected fuel price on pin badge dynamically
+        const badgeValue = !isNaN(currentSelectedPrice) ? currentSelectedPrice : e10Price;
+        const labelText = (!isNaN(badgeValue)) ? badgeValue.toFixed(1) + 'p' : 'N/A';
+        const color = getMarkerColor(badgeValue);
 
         const icon = L.divIcon({
             className: 'price-badge-container',
@@ -417,7 +439,9 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
 
 function displayiOSModalSheet(station, coords, e10, b7, e5) {
     document.getElementById('sheetBrand').innerText = station.brand;
-    document.getElementById('sheetAddress').innerText = station.address || `Forecourt Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
+    
+    let targetAddress = station.address || station.Address;
+    document.getElementById('sheetAddress').innerText = targetAddress || `Forecourt Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
     
     document.getElementById('sheetE10').innerText = (!isNaN(e10)) ? e10.toFixed(1) + 'p' : 'N/A';
     document.getElementById('sheetB7').innerText = (!isNaN(b7)) ? b7.toFixed(1) + 'p' : 'N/A';
