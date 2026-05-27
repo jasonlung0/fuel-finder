@@ -105,7 +105,6 @@ window.addNewWaypointField = function(customLabel) {
     if (!container) return;
     
     const index = waypointsList.length;
-    // Store row tracking id directly in array
     const rowId = 'waypoint-row-' + index;
     waypointsList.push({ coordinates: null, rawText: "", id: rowId, label: customLabel });
 
@@ -215,7 +214,6 @@ window.calculateJourney = async function() {
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
-        // FIXED HEADER SPECIFICATIONS TO AVOID CORDIAL REJECTIONS BY ORS SERVER
         const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
             method: 'POST',
             headers: { 
@@ -264,7 +262,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
+                userLocation = { lat: position.coords.latitude, font: position.coords.longitude };
                 map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
             },
@@ -302,7 +300,6 @@ function setupDynamicAutocomplete(index, rowElement) {
         const query = e.target.value;
         if (clearBtn) clearBtn.style.display = query.length > 0 ? 'block' : 'none';
         
-        // Dynamic state updates
         const foundIndex = waypointsList.findIndex(wp => wp && wp.id === rowElement.id);
         if (foundIndex !== -1) waypointsList[foundIndex].rawText = query;
 
@@ -370,8 +367,12 @@ function filterFuelStationsRouteMode(routeData) {
     Papa.parse(GOOGLE_SHEET_BASE_URL, {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
-            const selectedRadius = parseFloat(document.getElementById('bufferRadius').value || 3);
-            const corridor = turf.buffer(routeData.features[0], selectedRadius, {units: 'kilometers'});
+            // Read slider value in miles from the UI
+            const selectedRadiusMiles = parseFloat(document.getElementById('bufferRadius').value || 2);
+            // Convert to kilometers for Turf.js spatial calculation compatibility
+            const radiusInKm = selectedRadiusMiles * 1.60934;
+            
+            const corridor = turf.buffer(routeData.features[0], radiusInKm, {units: 'kilometers'});
             processAndRenderStations(results.data, corridor);
         }
     });
@@ -577,4 +578,5 @@ function getMarkerColor(p) {
     return '#ef4444'; 
 }
 
+// Simple debounce wrapper function
 function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
