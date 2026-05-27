@@ -92,10 +92,10 @@
                 
                 <div id="bufferRadiusContainer" class="bg-slate-50 border border-slate-200 rounded-xl p-4 hidden">
                     <label class="flex justify-between items-center text-xs font-medium text-slate-700 mb-2">
-                        <span>🛣️ Route Corridor Buffer Radius</span>
-                        <span class="bg-slate-200/80 text-slate-900 font-semibold px-2 py-0.5 rounded text-[10px]"><span id="radiusVal">3</span> km</span>
+                        <span>🛣️ Route Journey Radius</span>
+                        <span class="bg-slate-200/80 text-slate-900 font-semibold px-2 py-0.5 rounded text-[10px]"><span id="radiusVal">2</span> miles</span>
                     </label>
-                    <input type="range" id="bufferRadius" min="1" max="15" value="3" step="0.5" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateRadiusLabel(this.value)">
+                    <input type="range" id="bufferRadius" min="0.5" max="10" value="2" step="0.5" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateRadiusLabel(this.value)">
                 </div>
 
                 <div>
@@ -120,8 +120,8 @@
 
         <div id="costSummary" class="p-4 bg-emerald-50 text-emerald-950 border border-emerald-200 rounded-xl text-sm hidden mt-4 shadow-sm space-y-1">
             <div class="font-semibold text-emerald-900 flex items-center gap-1.5"><span>📍</span> Financial Calculations Summary:</div>
-            <div class="text-xs text-emerald-800 pt-1">Total Path Length: <span id="summaryDistance" class="font-bold text-emerald-950">0</span> miles</div>
-            <div class="text-xs text-emerald-800">Minimum Fuel Expense Target: <span id="summaryCost" class="font-bold text-emerald-950 text-sm">£0.00</span></div>
+            <div class="text-xs text-emerald-800 pt-1">Total Route Distance: <span id="summaryDistance" class="font-bold text-emerald-950">0</span> miles</div>
+            <div class="text-xs text-emerald-800">Minimum Fuel Cost: <span id="summaryCost" class="font-bold text-emerald-950 text-sm">£0.00</span></div>
         </div>
 
         <div id="topStationsContainer" class="hidden border border-slate-200 rounded-xl p-4 mt-4 bg-slate-50 shadow-sm">
