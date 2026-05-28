@@ -262,7 +262,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                // FIXED THE TYPO HERE FROM 'font:' TO 'lon:'
+                // FIXED GEOLOCATION TYPO: Set key to 'lon' instead of 'font'
                 userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
                 map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
@@ -368,9 +368,9 @@ function filterFuelStationsRouteMode(routeData) {
     Papa.parse(GOOGLE_SHEET_BASE_URL, {
         download: true, header: true, dynamicTyping: true,
         complete: function(results) {
-            // Read slider value in miles from the UI
+            // Read updated interface element 'bufferRadius' (Route Journey Radius) in miles
             const selectedRadiusMiles = parseFloat(document.getElementById('bufferRadius').value || 2);
-            // Convert to kilometers for Turf.js spatial calculation compatibility
+            // Convert to kilometers for Turf.js spatial calculation engine compatibility
             const radiusInKm = selectedRadiusMiles * 1.60934;
             
             const corridor = turf.buffer(routeData.features[0], radiusInKm, {units: 'kilometers'});
@@ -412,6 +412,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         }
         
         if (currentMode === 'local' && userLocation) {
+            // Updated calculation filter from km to miles
             station.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, coords.lat, coords.lon);
             const activeRangeCap = searchByAreaActive ? 50 : localRadiusLimit;
             if (station.calculatedDistance > activeRangeCap) return;
@@ -474,6 +475,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         }
 
         if (currentMode === 'route' && lastSavedRouteData) {
+            // Conversions matching updated 'Total Route Distance' and 'Minimum Fuel Cost' labels
             const miles = lastSavedRouteData.features[0].properties.summary.distance / 1609.34;
             const cost = ((miles / (parseFloat(document.getElementById('mpg').value) || 45)) * 4.54609) * (cheapestPriceFound / 100);
             document.getElementById('summaryDistance').innerText = miles.toFixed(1);
@@ -547,6 +549,7 @@ function getCoordinates(station) {
     return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
+// Fixed metric assignment methods to correctly handle prices
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let key in station) {
