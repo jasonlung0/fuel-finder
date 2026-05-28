@@ -5,10 +5,10 @@ const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc
 const GOV_CLIENT_ID = 'cIbqCdZusjAdJaIfzF0kgcMxjr1EIZqR';
 const GOV_CLIENT_SECRET = 'WUlusvwsxuM6ZZeT58rWETJsQsYQcfteQD4g4EwU4nxcHb6anSawYgET5BoTK6PU';
 
-// Base URLs using a CORS proxy for browser-only execution
-const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-const GOV_AUTH_URL = CORS_PROXY + 'https://api.fuelfinder.service.gov.uk/oauth2/token'; 
-const GOV_STATIONS_API_URL = CORS_PROXY + 'https://api.fuelfinder.service.gov.uk/v1/prices'; 
+// Free open-source CORS proxy service to handle the client browser restrictions cleanly
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+const GOV_AUTH_URL = CORS_PROXY + encodeURIComponent('https://api.fuelfinder.service.gov.uk/oauth2/token'); 
+const GOV_STATIONS_API_URL = CORS_PROXY + encodeURIComponent('https://api.fuelfinder.service.gov.uk/v1/prices'); 
 
 // Internal OAuth Token Management Registers
 let cachedAccessToken = null;
@@ -81,7 +81,8 @@ window.switchTab = function(tabId) {
             filterFuelStationsRouteMode(lastSavedRouteData);
         } else {
             stationMarkers.clearLayers();
-            document.getElementById('topStationsContainer').classList.add('hidden');
+            const container = document.getElementById('topStationsContainer');
+            if (container) container.classList.add('hidden');
         }
     }
 };
@@ -108,7 +109,8 @@ window.updateLocalRadiusLabel = function(val) {
 window.searchThisArea = function() {
     searchByAreaActive = true;
     const mapCenter = map.getCenter();
-    document.getElementById('status').innerText = "Scanning visible viewport...";
+    const status = document.getElementById('status');
+    if (status) status.innerText = "Scanning visible viewport...";
     userLocation = { lat: mapCenter.lat, lon: mapCenter.lng };
     filterFuelStationsLocalMode();
 };
@@ -369,19 +371,16 @@ function setupTab1Autocomplete() {
     }, 400));
 }
 
-// ----------------------------------------------------------------------
-// OFFICIAL PUBLIC API OAUTH HANDSHAKE HANDLER WITH APPLICATION ENCODING
-// ----------------------------------------------------------------------
+// ----------------------------------------------------
+// GOV.UK OAUTH 2.0 AUTHENTICATION HANDSHAKE
+// ----------------------------------------------------
 async function getGovApiAccessToken() {
     const currentTime = Date.now();
-    
-    // If token is still fresh and cached, reuse it
     if (cachedAccessToken && tokenExpiryTime && currentTime < tokenExpiryTime) {
         return cachedAccessToken;
     }
 
     try {
-        // OAuth client_credentials specification requires application/x-www-form-urlencoded
         const urlParams = new URLSearchParams();
         urlParams.append('grant_type', 'client_credentials');
         urlParams.append('client_id', GOV_CLIENT_ID);
@@ -401,9 +400,7 @@ async function getGovApiAccessToken() {
         }
 
         const data = await response.json();
-        
         cachedAccessToken = data.access_token;
-        // Expire token 60 seconds early to prevent edge latency validation misses
         tokenExpiryTime = Date.now() + ((data.expires_in || 3600) * 1000) - 60000;
         
         return cachedAccessToken;
@@ -466,6 +463,7 @@ async function filterFuelStationsRouteMode(routeData) {
     }
 }
 
+// Fixed cut-off execution function below
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
@@ -642,7 +640,6 @@ function getCoordinates(station) {
     return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
-// Map the official schema keys safely to your extraction algorithm
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let key in station) {
