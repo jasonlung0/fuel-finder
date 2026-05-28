@@ -1,7 +1,7 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 
-// Aggregated Open-Source UK Standard Fuel Endpoint (Bypasses broken auth domains)
+// Central Open-Source Aggregator Mirror for UK Fuel Data (No complex auth required)
 const GOV_STATIONS_API_URL = 'https://ukfuel.pipw.workers.dev/'; 
 
 // Initialize Leaflet Map Object Instance 
@@ -212,7 +212,7 @@ window.calculateJourney = async function() {
         return; 
     }
     
-    statusDiv.innerText = "Requesting multi-stop track traces...";
+    if (statusDiv) statusDiv.innerText = "Requesting multi-stop track traces...";
     stationMarkers.clearLayers();
     if (routeLayer) map.removeLayer(routeLayer);
 
@@ -235,7 +235,7 @@ window.calculateJourney = async function() {
         filterFuelStationsRouteMode(routeData);
     } catch (err) {
         console.error(err); 
-        statusDiv.innerText = "Routing fault. Check your endpoints.";
+        if (statusDiv) statusDiv.innerText = "Routing fault. Check your endpoints.";
     }
 };
 
@@ -360,7 +360,7 @@ function setupTab1Autocomplete() {
 }
 
 // ----------------------------------------------------
-// LIVE DIRECT API DATA FETCH (No Handshake Required)
+// DIRECT LIVE PIPELINE - REMOVED BROKEN HANDSHAKE
 // ----------------------------------------------------
 async function fetchLiveGovStationData() {
     const response = await fetch(GOV_STATIONS_API_URL, {
@@ -373,6 +373,7 @@ async function fetchLiveGovStationData() {
     }
 
     const jsonPayload = await response.json();
+    // Normalizes wrapper variations cleanly if present
     return jsonPayload.stations || jsonPayload;
 }
 
@@ -413,9 +414,11 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     stationMarkers.clearLayers();
     let eligibleStations = [];
     currentlyFilteredStations = [];
-    document.getElementById('topStationsList').innerHTML = '';
+    
+    const listEl = document.getElementById('topStationsList');
+    if (listEl) listEl.innerHTML = '';
+    
     let cheapestPriceFound = Infinity;
-
     const bounds = map.getBounds();
 
     stationsArray.forEach(function(station) {
@@ -443,6 +446,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         eligibleStations.push(station);
     });
 
+    // Limit active DOM footprints for performant viewport changes
     const slicedStationsList = eligibleStations.slice(0, 150);
 
     slicedStationsList.forEach(function(station) {
@@ -488,7 +492,9 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
             li.className = "cursor-pointer py-1 border-b border-slate-100 last:border-none hover:text-slate-900";
             li.innerHTML = `<span>${stn.brand}</span> - <span class="text-emerald-600 font-bold">${stn.currentFilterPrice.toFixed(1)}p</span><span class="text-slate-400 font-normal">${distanceString}</span>`;
             li.onclick = () => { map.flyTo([c.lat, c.lon], 14); };
-            document.getElementById('topStationsList').appendChild(li);
+            
+            const listContainer = document.getElementById('topStationsList');
+            if (listContainer) listContainer.appendChild(li);
         });
         
         const topContainer = document.getElementById('topStationsContainer');
@@ -500,9 +506,14 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         if (currentMode === 'route' && lastSavedRouteData) {
             const miles = lastSavedRouteData.features[0].properties.summary.distance / 1609.34;
             const cost = ((miles / (parseFloat(document.getElementById('mpg').value) || 45)) * 4.54609) * (cheapestPriceFound / 100);
-            document.getElementById('summaryDistance').innerText = miles.toFixed(1);
-            document.getElementById('summaryCost').innerText = '£' + (isFinite(cost) && cheapestPriceFound !== Infinity ? cost.toFixed(2) : '0.00');
-            document.getElementById('costSummary').classList.remove('hidden');
+            
+            const sumDist = document.getElementById('summaryDistance');
+            const sumCost = document.getElementById('summaryCost');
+            if (sumDist) sumDist.innerText = miles.toFixed(1);
+            if (sumCost) sumCost.innerText = '£' + (isFinite(cost) && cheapestPriceFound !== Infinity ? cost.toFixed(2) : '0.00');
+            
+            const costSumCont = document.getElementById('costSummary');
+            if (costSumCont) costSumCont.classList.remove('hidden');
         }
     }
 }
@@ -598,8 +609,8 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
 
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
-    if (p >= 140.0 && p <= 158.0) return '#10b981'; 
-    if (p > 158.0 && p <= 164.0) return '#3b82f6'; 
+    if (p >= 130.0 && p <= 148.0) return '#10b981'; 
+    if (p > 148.0 && p <= 155.0) return '#3b82f6'; 
     return '#ef4444'; 
 }
 
