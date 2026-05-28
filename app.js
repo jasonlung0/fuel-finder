@@ -65,7 +65,7 @@ window.switchTab = function(tabId) {
         currentMode = 'route';
         document.getElementById('route-tab').classList.add('active');
         document.querySelector("button[onclick*='route-tab']").classList.add('active');
-        if(tabRadius) tabRadius.classList.remove('hidden');
+        if(tabRadius) tabRadius.remove('hidden');
         if (lastSavedRouteData) {
             if (routeLayer && !map.hasLayer(routeLayer)) routeLayer.addTo(map);
             filterFuelStationsRouteMode(lastSavedRouteData);
@@ -327,7 +327,7 @@ function setupTab1Autocomplete() {
 }
 
 // ----------------------------------------------------
-// CLEAN REFACTORED WORKER CALL (NO AUTH HANDLED IN FRONTEND)
+// EXTRACTS FROM OFFICIAL API DATA STRUCTURE
 // ----------------------------------------------------
 async function fetchLiveGovStationData() {
     try {
@@ -339,7 +339,8 @@ async function fetchLiveGovStationData() {
             throw new Error(`Edge worker proxy returned execution error state: ${response.status}`);
         }
         const jsonPayload = await response.json();
-        return jsonPayload.stations || jsonPayload;
+        // Maps .data array natively used by the production Gov UK Fuel Finder
+        return jsonPayload.data || jsonPayload.stations || jsonPayload;
     } catch (error) {
         console.error("Worker extraction processing fault:", error);
         throw error;
@@ -392,6 +393,12 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     
     let cheapestPriceFound = Infinity;
     const bounds = map.getBounds();
+
+    if (!Array.isArray(stationsArray)) {
+        console.error("Data received is not an iterable array:", stationsArray);
+        if (statusDiv) statusDiv.innerText = "Telemetry array parse error.";
+        return;
+    }
 
     stationsArray.forEach(function(station) {
         const coords = getCoordinates(station);
@@ -582,10 +589,11 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
     return 7918 * Math.asin(Math.sqrt(a)); // 2 * R; R = 3959 miles
 }
 
+// Refactored dynamically to support accurate relative UK average scales
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
-    if (p >= 130.0 && p <= 145.0) return '#10b981'; // Green (Cheap)
-    if (p > 145.0 && p <= 152.0) return '#3b82f6';  // Blue (Average)
+    if (p < 135.0) return '#10b981';                // Green (Very Cheap)
+    if (p >= 135.0 && p <= 148.0) return '#3b82f6'; // Blue (Average)
     return '#ef4444';                               // Red (Expensive)
 }
 
@@ -604,9 +612,12 @@ window.addEventListener('DOMContentLoaded', function() {
             function(position) {
                 userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
                 map.setView([userLocation.lat, userLocation.lon], 12); 
-                filterFuelStationsLocalMode();
+                // Delay parsing slightly to make sure leaflet completes layout calculation checks
+                setTimeout(() => { filterFuelStationsLocalMode(); }, 200);
             },
-            function() { filterFuelStationsLocalMode(); },
+            function() { 
+                setTimeout(() => { filterFuelStationsLocalMode(); }, 200); 
+            },
             { timeout: 5000 }
         );
     } else {
