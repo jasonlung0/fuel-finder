@@ -1,20 +1,16 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
-
-// POINT THIS DIRECTLY TO YOUR DEPLOYED CLOUDFLARE WORKER ROUTE PROXY URL:
 const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
 // Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
 L.control.zoom({ position: 'topright' }).addTo(map);
 
-// Define Geosearch Autocomplete Provider instance
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0' }
 });
 
-// Configure Map Tile Themes
 const themes = {
     light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
     dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB' }),
@@ -22,7 +18,6 @@ const themes = {
 };
 let activeTheme = themes.light.addTo(map);
 
-// Internal State Registers
 let currentMode = 'local'; 
 let waypointsList = []; 
 let routeLayer = null;
@@ -32,9 +27,6 @@ let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
 
-// ----------------------------------------------------
-// UI EXPOSURES MOUNTED TO GLOBAL WINDOW NAMESPACE
-// ----------------------------------------------------
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
@@ -65,7 +57,7 @@ window.switchTab = function(tabId) {
         currentMode = 'route';
         document.getElementById('route-tab').classList.add('active');
         document.querySelector("button[onclick*='route-tab']").classList.add('active');
-        if(tabRadius) tabRadius.remove('hidden');
+        if(tabRadius) tabRadius.classList.remove('hidden');
         if (lastSavedRouteData) {
             if (routeLayer && !map.hasLayer(routeLayer)) routeLayer.addTo(map);
             filterFuelStationsRouteMode(lastSavedRouteData);
@@ -136,9 +128,15 @@ window.addNewWaypointField = function(customLabel) {
 };
 
 window.clearWaypointField = function(index) {
-    document.getElementById('input-' + index).value = '';
-    document.getElementById('suggest-' + index).style.display = 'none';
-    document.getElementById('clear-' + index).style.display = 'none';
+    const inputEl = document.getElementById('input-' + index);
+    if (inputEl) inputEl.value = '';
+    
+    const suggestEl = document.getElementById('suggest-' + index);
+    if (suggestEl) suggestEl.style.display = 'none';
+    
+    const clearEl = document.getElementById('clear-' + index);
+    if (clearEl) clearEl.style.display = 'none';
+    
     if(waypointsList[index]) {
         waypointsList[index].coordinates = null;
         waypointsList[index].rawText = "";
@@ -254,9 +252,6 @@ window.closeiOSModalSheet = function() {
     setTimeout(() => { backdrop.style.display = 'none'; }, 250);
 };
 
-// ----------------------------------------------------
-// AUTOCOMPLETE HANDLERS
-// ----------------------------------------------------
 function setupDynamicAutocomplete(index, rowElement) {
     const input = document.getElementById("input-" + index);
     const suggestionsDiv = document.getElementById("suggest-" + index);
@@ -326,9 +321,6 @@ function setupTab1Autocomplete() {
     }, 400));
 }
 
-// ----------------------------------------------------
-// EXTRACTS FROM OFFICIAL API DATA STRUCTURE
-// ----------------------------------------------------
 async function fetchLiveGovStationData() {
     try {
         const response = await fetch(PROXY_WORKER_URL, {
@@ -339,7 +331,6 @@ async function fetchLiveGovStationData() {
             throw new Error(`Edge worker proxy returned execution error state: ${response.status}`);
         }
         const jsonPayload = await response.json();
-        // Maps .data array natively used by the production Gov UK Fuel Finder
         return jsonPayload.data || jsonPayload.stations || jsonPayload;
     } catch (error) {
         console.error("Worker extraction processing fault:", error);
@@ -375,9 +366,6 @@ async function filterFuelStationsRouteMode(routeData) {
     }
 }
 
-// ----------------------------------------------------
-// SPATIAL AND PRICING RENDERING MATRIX
-// ----------------------------------------------------
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
@@ -495,9 +483,6 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     }
 }
 
-// ----------------------------------------------------
-// IOS MODAL SHEETS RENDERING ENGINE
-// ----------------------------------------------------
 function displayiOSModalSheet(station, coords, e10, b7, e5) {
     document.getElementById('sheetBrand').innerText = station.brand;
     const targetAddress = station.address || station.Address;
@@ -552,9 +537,6 @@ function applyBoxPricingColor(boxId, labelId, textId, price) {
     }
 }
 
-// ----------------------------------------------------
-// UTILITIES AND DATA EXTRAPOLATION
-// ----------------------------------------------------
 function getCoordinates(station) {
     let lat = null, lon = null;
     for (let key in station) {
@@ -583,21 +565,19 @@ function extractPriceByMetricType(station, fuelType) {
 }
 
 function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
-    const p = 0.017453292519943295; // Math.PI / 180
+    const p = 0.017453292519943295; 
     const c = Math.cos;
     const a = 0.5 - c((lat2 - lat1) * p)/2 + c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p))/2;
-    return 7918 * Math.asin(Math.sqrt(a)); // 2 * R; R = 3959 miles
+    return 7918 * Math.asin(Math.sqrt(a)); 
 }
 
-// Refactored dynamically to support accurate relative UK average scales
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
-    if (p < 135.0) return '#10b981';                // Green (Very Cheap)
-    if (p >= 135.0 && p <= 148.0) return '#3b82f6'; // Blue (Average)
-    return '#ef4444';                               // Red (Expensive)
+    if (p < 135.0) return '#10b981';                
+    if (p >= 135.0 && p <= 148.0) return '#3b82f6'; 
+    return '#ef4444';                               
 }
 
-// Lifecycle Bootstrapper Initializations
 window.addEventListener('DOMContentLoaded', function() {
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
@@ -612,7 +592,6 @@ window.addEventListener('DOMContentLoaded', function() {
             function(position) {
                 userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
                 map.setView([userLocation.lat, userLocation.lon], 12); 
-                // Delay parsing slightly to make sure leaflet completes layout calculation checks
                 setTimeout(() => { filterFuelStationsLocalMode(); }, 200);
             },
             function() { 
