@@ -1,9 +1,8 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 
-// The URL of your deployed serverless proxy (Cloudflare Worker or Vercel)
-// Make sure to replace this with your actual edge worker URL
-const LIVE_PROXY_WORKER_URL = 'https://fuel-api-proxy.yourname.workers.dev';
+// IMPORTANT: Replace this placeholder string with your actual deployed Cloudflare Worker URL
+const LIVE_PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev/';
 
 // Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
@@ -377,8 +376,6 @@ async function fetchLiveGovStationData() {
         }
 
         const jsonPayload = await response.json();
-        
-        // Handle raw array structures or wrapper schemas gracefully
         return jsonPayload.stations || jsonPayload;
     } catch (error) {
         console.error("Worker extraction processing fault:", error);
