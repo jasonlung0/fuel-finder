@@ -75,7 +75,6 @@ async function getGovApiAccessToken() {
 
         const data = await response.json();
         cachedAccessToken = data.access_token;
-        // Calculate expiry timestamp (expires_in is usually returned in seconds)
         tokenExpiryTime = Date.now() + (data.expires_in * 1000);
         
         return cachedAccessToken;
@@ -436,7 +435,6 @@ async function fetchLiveGovStationData() {
     }
 
     const jsonPayload = await response.json();
-    // The government standard schema wraps stations inside a parent property: { stations: [...] }
     return jsonPayload.stations || jsonPayload;
 }
 
@@ -484,14 +482,11 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // Map standard API fields to app expectations safely
         station.brand = station.brand || "Independent";
 
-        // Handle structural check for "Traditional Pumps Only" feature
-        // If traditional check is enabled, check if station supports common standard fuels
         if (requiresUnleaded) {
             const hasE10 = extractPriceByMetricType(station, 'price_e10');
-            if (isNaN(hasE10)) return; // Exclude hyper-specialized charging infrastructure/LPG stops
+            if (isNaN(hasE10)) return; 
         }
 
         if (spatialBufferPolygon) {
@@ -502,4 +497,170 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         
         if (currentMode === 'local' && userLocation) {
             station.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, coords.lat, coords.lon);
-            const activeRangeCap = searchBy
+            const activeRangeCap = searchByAreaActive ? 50 : localRadiusLimit;
+            if (station.calculatedDistance > activeRangeCap) return;
+        }
+        eligibleStations.push(station);
+    });
+
+    const slicedStationsList = eligibleStations.slice(0, 150);
+
+    slicedStationsList.forEach(function(station) {
+        const coords = getCoordinates(station);
+        const e10Price = extractPriceByMetricType(station, 'price_e10');
+        const b7Price = extractPriceByMetricType(station, 'price_diesel'); 
+        const e5Price = extractPriceByMetricType(station, 'price_e5');
+
+        const currentSelectedPrice = extractPriceByMetricType(station, chosenFuelType);
+        if (!isNaN(currentSelectedPrice)) {
+            station.currentFilterPrice = currentSelectedPrice;
+            if (currentSelectedPrice < cheapestPriceFound) cheapestPriceFound = currentSelectedPrice;
+        } else {
+            station.currentFilterPrice = Infinity;
+        }
+
+        currentlyFilteredStations.push(station);
+
+        const badgeValue = !isNaN(currentSelectedPrice) ? currentSelectedPrice : e10Price;
+        const labelText = (!isNaN(badgeValue)) ? badgeValue.toFixed(1) + 'p' : 'N/A';
+        
+        const color = getMarkerColor(badgeValue);
+
+        const icon = L.divIcon({
+            className: 'price-badge-container',
+            html: `<div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: 600; padding: 2px 5px; border-radius: 6px; font-size: 10px; text-align:center; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">${labelText}</div>`,
+            iconSize: [46, 22]
+        });
+
+        L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
+            displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price);
+        }).addTo(stationMarkers);
+    });
+
+    statusDiv.innerText = `Forecourts displayed: ${slicedStationsList.length} rows.`;
+
+    if (currentlyFilteredStations.length > 0) {
+        const sortedList = [...currentlyFilteredStations].filter(s => s.currentFilterPrice !== Infinity).sort((a,b) => a.currentFilterPrice - b.currentFilterPrice);
+        sortedList.slice(0, 3).forEach(function(stn) {
+            const c = getCoordinates(stn);
+            const distanceString = (stn.calculatedDistance !== undefined) ? ` (${stn.calculatedDistance.toFixed(1)} mi)` : '';
+            const li = document.createElement('li'); 
+            li.className = "cursor-pointer py-1 border-b border-slate-100 last:border-none hover:text-slate-900";
+            li.innerHTML = `<span>${stn.brand}</span> - <span class="text-emerald-600 font-bold">${stn.currentFilterPrice.toFixed(1)}p</span><span class="text-slate-400 font-normal">${distanceString}</span>`;
+            li.onclick = () => { map.flyTo([c.lat, c.lon], 14); };
+            document.getElementById('topStationsList').appendChild(li);
+        });
+        
+        const topContainer = document.getElementById('topStationsContainer');
+        if (topContainer) {
+            if(sortedList.length > 0) topContainer.classList.remove('hidden');
+            else topContainer.classList.add('hidden');
+        }
+
+        if (currentMode === 'route' && lastSavedRouteData) {
+            const miles = lastSavedRouteData.features[0].properties.summary.distance / 1609.34;
+            const cost = ((miles / (parseFloat(document.getElementById('mpg').value) || 45)) * 4.54609) * (cheapestPriceFound / 100);
+            document.getElementById('summaryDistance').innerText = miles.toFixed(1);
+            document.getElementById('summaryCost').innerText = '£' + (isFinite(cost) && cheapestPriceFound !== Infinity ? cost.toFixed(2) : '0.00');
+            document.getElementById('costSummary').classList.remove('hidden');
+        }
+    }
+}
+
+function displayiOSModalSheet(station, coords, e10, b7, e5) {
+    document.getElementById('sheetBrand').innerText = station.brand;
+    const targetAddress = station.address || station.Address;
+    document.getElementById('sheetAddress').innerText = targetAddress || `Forecourt Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
+    
+    document.getElementById('sheetE10').innerText = (!isNaN(e10)) ? e10.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetB7').innerText = (!isNaN(b7)) ? b7.toFixed(1) + 'p' : 'N/A';
+    document.getElementById('sheetE5').innerText = (!isNaN(e5)) ? e5.toFixed(1) + 'p' : 'N/A';
+
+    applyBoxPricingColor('boxE10', 'labelE10', 'sheetE10', e10);
+    applyBoxPricingColor('boxB7', 'labelB7', 'sheetB7', b7);
+    applyBoxPricingColor('boxE5', 'labelE5', 'sheetE5', e5);
+
+    const backdrop = document.getElementById('iosModalBackdrop');
+    const sheet = document.getElementById('stationDetailSheet');
+    if(!backdrop || !sheet) return;
+    backdrop.style.display = 'flex';
+    setTimeout(() => { backdrop.style.opacity = '1'; sheet.style.transform = 'translateY(0)'; }, 10);
+}
+
+function applyBoxPricingColor(boxId, labelId, textId, price) {
+    const boxEl = document.getElementById(boxId);
+    const labelEl = document.getElementById(labelId);
+    const textEl = document.getElementById(textId);
+    if (!boxEl || !labelEl || !textEl) return;
+
+    if (!price || isNaN(price)) {
+        boxEl.style.backgroundColor = '#f8fafc';
+        boxEl.style.borderColor = '#e2e8f0';
+        labelEl.style.color = '#94a3b8';
+        textEl.style.color = '#0f172a';
+        return;
+    }
+
+    const targetColor = getMarkerColor(price);
+
+    if (targetColor === '#10b981') { 
+        boxEl.style.backgroundColor = '#f0fdf4';
+        boxEl.style.borderColor = '#bbf7d0';
+        labelEl.style.color = '#16a34a';
+        textEl.style.color = '#14532d';
+    } else if (targetColor === '#3b82f6') { 
+        boxEl.style.backgroundColor = '#eff6ff';
+        boxEl.style.borderColor = '#bfdbfe';
+        labelEl.style.color = '#2563eb';
+        textEl.style.color = '#1e3a8a';
+    } else { 
+        boxEl.style.backgroundColor = '#fef2f2';
+        boxEl.style.borderColor = '#fecaca';
+        labelEl.style.color = '#dc2626';
+        textEl.style.color = '#7f1d1d';
+    }
+}
+
+function getCoordinates(station) {
+    let lat = null, lon = null;
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (['lat', 'latitude'].includes(normalizedKey)) lat = parseFloat(station[key]);
+        if (['lon', 'lng', 'longitude'].includes(normalizedKey)) lon = parseFloat(station[key]);
+    }
+    return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
+}
+
+function extractPriceByMetricType(station, fuelType) {
+    const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (let key in station) {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (target.includes('e10') && normalizedKey.includes('e10')) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if (target.includes('e5') && normalizedKey.includes('e5')) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if ((target.includes('diesel') || target.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+    }
+    return NaN;
+}
+
+function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function getMarkerColor(p) { 
+    if (!p || isNaN(p)) return '#94a3b8'; 
+    if (p >= 140.0 && p <= 158.0) return '#10b981'; 
+    if (p > 158.0 && p <= 164.0) return '#3b82f6'; 
+    return '#ef4444'; 
+}
+
+function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
