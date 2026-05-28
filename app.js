@@ -262,7 +262,8 @@ window.addEventListener('DOMContentLoaded', function() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
-                userLocation = { lat: position.coords.latitude, font: position.coords.longitude };
+                // FIXED THE TYPO HERE FROM 'font:' TO 'lon:'
+                userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
                 map.setView([userLocation.lat, userLocation.lon], 12); 
                 filterFuelStationsLocalMode();
             },
