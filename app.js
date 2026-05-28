@@ -1,18 +1,9 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 
-// Official GOV.UK Fuel Finder API Configurations
-const GOV_CLIENT_ID = 'cIbqCdZusjAdJaIfzF0kgcMxjr1EIZqR';
-const GOV_CLIENT_SECRET = 'WUlusvwsxuM6ZZeT58rWETJsQsYQcfteQD4g4EwU4nxcHb6anSawYgET5BoTK6PU';
-
-// Free open-source CORS proxy service to handle the client browser restrictions cleanly
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-const GOV_AUTH_URL = CORS_PROXY + encodeURIComponent('https://api.fuelfinder.service.gov.uk/oauth2/token'); 
-const GOV_STATIONS_API_URL = CORS_PROXY + encodeURIComponent('https://api.fuelfinder.service.gov.uk/v1/prices'); 
-
-// Internal OAuth Token Management Registers
-let cachedAccessToken = null;
-let tokenExpiryTime = null;
+// The URL of your deployed serverless proxy (Cloudflare Worker or Vercel)
+// Make sure to replace this with your actual edge worker URL
+const LIVE_PROXY_WORKER_URL = 'https://fuel-api-proxy.yourname.workers.dev';
 
 // Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
@@ -372,67 +363,27 @@ function setupTab1Autocomplete() {
 }
 
 // ----------------------------------------------------
-// GOV.UK OAUTH 2.0 AUTHENTICATION HANDSHAKE
+// TELEMETRY RECOVERY LAYER VIA PRIVATE SECURE EDGE
 // ----------------------------------------------------
-async function getGovApiAccessToken() {
-    const currentTime = Date.now();
-    if (cachedAccessToken && tokenExpiryTime && currentTime < tokenExpiryTime) {
-        return cachedAccessToken;
-    }
-
+async function fetchLiveGovStationData() {
     try {
-        const urlParams = new URLSearchParams();
-        urlParams.append('grant_type', 'client_credentials');
-        urlParams.append('client_id', GOV_CLIENT_ID);
-        urlParams.append('client_secret', GOV_CLIENT_SECRET);
-
-        const response = await fetch(GOV_AUTH_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json'
-            },
-            body: urlParams
+        const response = await fetch(LIVE_PROXY_WORKER_URL, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
         });
 
         if (!response.ok) {
-            throw new Error(`Auth handshake error status code: ${response.status}`);
+            throw new Error(`Edge worker proxy returned execution error state: ${response.status}`);
         }
 
-        const data = await response.json();
-        cachedAccessToken = data.access_token;
-        tokenExpiryTime = Date.now() + ((data.expires_in || 3600) * 1000) - 60000;
+        const jsonPayload = await response.json();
         
-        return cachedAccessToken;
+        // Handle raw array structures or wrapper schemas gracefully
+        return jsonPayload.stations || jsonPayload;
     } catch (error) {
-        console.error("Authentication handshake fault:", error);
+        console.error("Worker extraction processing fault:", error);
         throw error;
     }
-}
-
-// ----------------------------------------------------
-// TELEMETRY RECOVERY LAYER FROM OFFICIAL RESOURCE
-// ----------------------------------------------------
-async function fetchLiveGovStationData() {
-    const token = await getGovApiAccessToken();
-    if (!token) {
-        throw new Error("Unable to fetch data due to missing authentication token.");
-    }
-
-    const response = await fetch(GOV_STATIONS_API_URL, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`API returned data lookup error code: ${response.status}`);
-    }
-
-    const jsonPayload = await response.json();
-    return jsonPayload.stations || jsonPayload;
 }
 
 async function filterFuelStationsLocalMode() {
@@ -463,7 +414,9 @@ async function filterFuelStationsRouteMode(routeData) {
     }
 }
 
-// Fixed cut-off execution function below
+// ----------------------------------------------------
+// CORE DATA RENDERING & SPATIAL INTERSECT PROCESSING
+// ----------------------------------------------------
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
