@@ -327,7 +327,7 @@ function setupTab1Autocomplete() {
 }
 
 // ----------------------------------------------------
-// CORE API TELEMETRY LOADING
+// CLEAN REFACTORED WORKER CALL (NO AUTH HANDLED IN FRONTEND)
 // ----------------------------------------------------
 async function fetchLiveGovStationData() {
     try {
@@ -375,7 +375,7 @@ async function filterFuelStationsRouteMode(routeData) {
 }
 
 // ----------------------------------------------------
-// SPATIAL AND PRICING CORE LOGIC MATRIX
+// SPATIAL AND PRICING RENDERING MATRIX
 // ----------------------------------------------------
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
@@ -573,6 +573,13 @@ function extractPriceByMetricType(station, fuelType) {
         }
     }
     return NaN;
+}
+
+function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
+    const p = 0.017453292519943295; // Math.PI / 180
+    const c = Math.cos;
+    const a = 0.5 - c((lat2 - lat1) * p)/2 + c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p))/2;
+    return 7918 * Math.asin(Math.sqrt(a)); // 2 * R; R = 3959 miles
 }
 
 function getMarkerColor(p) { 
