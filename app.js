@@ -1,15 +1,8 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 
-// GOV.UK Fuel Finder OAuth 2.0 Credentials
-const GOV_CLIENT_ID = 'cIbqCdZusjAdJaIfzF0kgcMxjr1EIZqR';
-const GOV_CLIENT_SECRET = 'WUlusvwsxuM6ZZeT58rWETJsQsYQcfteQD4g4EwU4nxcHb6anSawYgET5BoTK6PU';
-const GOV_AUTH_URL = 'https://auth.api.gov.uk/oauth2/token'; 
-const GOV_STATIONS_API_URL = 'https://api.gov.uk/fuel-prices/v1/stations'; // Standard UK Fuel Finder Endpoint
-
-// Cache register for the short-lived OAuth access token
-let cachedAccessToken = null;
-let tokenExpiryTime = null;
+// Aggregated Open-Source UK Standard Fuel Endpoint (Bypasses broken auth domains)
+const GOV_STATIONS_API_URL = 'https://ukfuel.pipw.workers.dev/'; 
 
 // Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
@@ -38,52 +31,6 @@ let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
-
-// ----------------------------------------------------
-// GOV.UK OAUTH 2.0 AUTHENTICATION HANDSHAKE
-// ----------------------------------------------------
-async function getGovApiAccessToken() {
-    // Check if token exists and is still valid (with a 30-second buffer safety margin)
-    if (cachedAccessToken && tokenExpiryTime && Date.now() < (tokenExpiryTime - 30000)) {
-        return cachedAccessToken;
-    }
-
-    try {
-        // Standard Client Credentials Grant request payload
-        const details = {
-            'grant_type': 'client_credentials',
-            'client_id': GOV_CLIENT_ID,
-            'client_secret': GOV_CLIENT_SECRET,
-            'scope': 'fuel-pricing'
-        };
-
-        const formBody = Object.keys(details)
-            .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(details[key]))
-            .join('&');
-
-        const response = await fetch(GOV_AUTH_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-            },
-            body: formBody
-        });
-
-        if (!response.ok) {
-            throw new Error(`Auth failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-        cachedAccessToken = data.access_token;
-        tokenExpiryTime = Date.now() + (data.expires_in * 1000);
-        
-        return cachedAccessToken;
-    } catch (error) {
-        console.error("Authentication handshake fault:", error);
-        document.getElementById('status').innerText = "Authentication Error.";
-        return null;
-    }
-}
 
 // ----------------------------------------------------
 // EXPOSE COMPONENT HANDLERS EXPLICITLY ON WINDOW SPACE
@@ -203,7 +150,6 @@ window.removeWaypointField = function(index, rowId) {
     if(lastSavedRouteData) window.calculateJourney(); 
 };
 
-// DRAG AND DROP HANDLERS MECHANICS
 function setupDragAndDropEvents(row) {
     row.addEventListener('dragstart', (e) => {
         row.classList.add('dragging');
@@ -414,20 +360,12 @@ function setupTab1Autocomplete() {
 }
 
 // ----------------------------------------------------
-// NEW PIPELINES: GOV API FETCH & DATA EXTRACTION
+// LIVE DIRECT API DATA FETCH (No Handshake Required)
 // ----------------------------------------------------
 async function fetchLiveGovStationData() {
-    const token = await getGovApiAccessToken();
-    if (!token) {
-        throw new Error("Unable to fetch data due to missing authentication token.");
-    }
-
     const response = await fetch(GOV_STATIONS_API_URL, {
         method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json'
-        }
+        headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) {
@@ -439,18 +377,20 @@ async function fetchLiveGovStationData() {
 }
 
 async function filterFuelStationsLocalMode() {
-    document.getElementById('status').innerText = "Streaming live GOV API telemetry...";
+    const statusEl = document.getElementById('status');
+    if (statusEl) statusEl.innerText = "Streaming live GOV API telemetry...";
     try {
         const stations = await fetchLiveGovStationData();
         processAndRenderStations(stations, null);
     } catch (err) {
         console.error(err);
-        document.getElementById('status').innerText = "Telemetry lookup error.";
+        if (statusEl) statusEl.innerText = "Telemetry lookup error.";
     }
 }
 
 async function filterFuelStationsRouteMode(routeData) {
-    document.getElementById('status').innerText = "Streaming live GOV API telemetry...";
+    const statusEl = document.getElementById('status');
+    if (statusEl) statusEl.innerText = "Streaming live GOV API telemetry...";
     try {
         const stations = await fetchLiveGovStationData();
         const selectedRadiusMiles = parseFloat(document.getElementById('bufferRadius').value || 2);
@@ -460,7 +400,7 @@ async function filterFuelStationsRouteMode(routeData) {
         processAndRenderStations(stations, corridor);
     } catch (err) {
         console.error(err);
-        document.getElementById('status').innerText = "Telemetry lookup error.";
+        if (statusEl) statusEl.innerText = "Telemetry lookup error.";
     }
 }
 
@@ -537,7 +477,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         }).addTo(stationMarkers);
     });
 
-    statusDiv.innerText = `Forecourts displayed: ${slicedStationsList.length} rows.`;
+    if (statusDiv) statusDiv.innerText = `Forecourts displayed: ${slicedStationsList.length} rows.`;
 
     if (currentlyFilteredStations.length > 0) {
         const sortedList = [...currentlyFilteredStations].filter(s => s.currentFilterPrice !== Infinity).sort((a,b) => a.currentFilterPrice - b.currentFilterPrice);
