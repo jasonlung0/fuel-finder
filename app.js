@@ -1,8 +1,18 @@
 // GLOBAL CONFIGURATIONS & API KEYS
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 
-// Central Open-Source Aggregator Mirror for UK Fuel Data (No complex auth required)
-const GOV_STATIONS_API_URL = 'https://ukfuel.pipw.workers.dev/'; 
+// Official GOV.UK Fuel Finder API Configurations
+const GOV_CLIENT_ID = 'cIbqCdZusjAdJaIfzF0kgcMxjr1EIZqR';
+const GOV_CLIENT_SECRET = 'WUlusvwsxuM6ZZeT58rWETJsQsYQcfteQD4g4EwU4nxcHb6anSawYgET5BoTK6PU';
+
+// Base URLs using a CORS proxy for browser-only execution
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+const GOV_AUTH_URL = CORS_PROXY + 'https://api.fuelfinder.service.gov.uk/oauth2/token'; 
+const GOV_STATIONS_API_URL = CORS_PROXY + 'https://api.fuelfinder.service.gov.uk/v1/prices'; 
+
+// Internal OAuth Token Management Registers
+let cachedAccessToken = null;
+let tokenExpiryTime = null;
 
 // Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
@@ -359,21 +369,72 @@ function setupTab1Autocomplete() {
     }, 400));
 }
 
+// ----------------------------------------------------------------------
+// OFFICIAL PUBLIC API OAUTH HANDSHAKE HANDLER WITH APPLICATION ENCODING
+// ----------------------------------------------------------------------
+async function getGovApiAccessToken() {
+    const currentTime = Date.now();
+    
+    // If token is still fresh and cached, reuse it
+    if (cachedAccessToken && tokenExpiryTime && currentTime < tokenExpiryTime) {
+        return cachedAccessToken;
+    }
+
+    try {
+        // OAuth client_credentials specification requires application/x-www-form-urlencoded
+        const urlParams = new URLSearchParams();
+        urlParams.append('grant_type', 'client_credentials');
+        urlParams.append('client_id', GOV_CLIENT_ID);
+        urlParams.append('client_secret', GOV_CLIENT_SECRET);
+
+        const response = await fetch(GOV_AUTH_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            body: urlParams
+        });
+
+        if (!response.ok) {
+            throw new Error(`Auth handshake error status code: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        cachedAccessToken = data.access_token;
+        // Expire token 60 seconds early to prevent edge latency validation misses
+        tokenExpiryTime = Date.now() + ((data.expires_in || 3600) * 1000) - 60000;
+        
+        return cachedAccessToken;
+    } catch (error) {
+        console.error("Authentication handshake fault:", error);
+        throw error;
+    }
+}
+
 // ----------------------------------------------------
-// DIRECT LIVE PIPELINE - REMOVED BROKEN HANDSHAKE
+// TELEMETRY RECOVERY LAYER FROM OFFICIAL RESOURCE
 // ----------------------------------------------------
 async function fetchLiveGovStationData() {
+    const token = await getGovApiAccessToken();
+    if (!token) {
+        throw new Error("Unable to fetch data due to missing authentication token.");
+    }
+
     const response = await fetch(GOV_STATIONS_API_URL, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' }
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+        }
     });
 
     if (!response.ok) {
-        throw new Error(`API returned error code: ${response.status}`);
+        throw new Error(`API returned data lookup error code: ${response.status}`);
     }
 
     const jsonPayload = await response.json();
-    // Normalizes wrapper variations cleanly if present
     return jsonPayload.stations || jsonPayload;
 }
 
@@ -446,7 +507,6 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         eligibleStations.push(station);
     });
 
-    // Limit active DOM footprints for performant viewport changes
     const slicedStationsList = eligibleStations.slice(0, 150);
 
     slicedStationsList.forEach(function(station) {
@@ -582,6 +642,7 @@ function getCoordinates(station) {
     return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
 }
 
+// Map the official schema keys safely to your extraction algorithm
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
     for (let key in station) {
