@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UK Fuel Corridor Finder</title>
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
+    <link class="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -41,7 +41,7 @@
         .dragging { opacity: 0.4; background-color: #f1f5f9; }
         .drag-over { border-top: 2px solid #0f172a; }
 
-        /* --- Gemini-Style Smooth Sidebar Transitions --- */
+        /* --- Optimized Smooth Sidebar Layout --- */
         #sidebar {
             width: 380px;
             height: 100vh;
@@ -52,27 +52,13 @@
             overflow-y: auto;
         }
         
-        #sidebar.collapsed {
-            width: 64px; /* Minimal icon-only footprints */
-        }
-        
-        /* Smoothly hide text labels when menu collapses */
+        /* FIX: Removed aggressive sub-element hidden opacity parameters 
+           to keep text boxes and layout tabs interactive on desktop viewports. */
         #sidebar.collapsed .menu-text-label,
         #sidebar.collapsed #waypointContainer,
         #sidebar.collapsed .tab-content,
         #sidebar.collapsed #topStationsContainer {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.15s ease;
-        }
-        
-        #sidebar:not(.collapsed) .menu-text-label,
-        #sidebar:not(.collapsed) #waypointContainer,
-        #sidebar:not(.collapsed) .tab-content {
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.25s ease 0.1s;
+            /* Kept unhidden to maintain permanent desktop view visibility */
         }
         
         /* Map adjustment wrapper */
@@ -90,7 +76,7 @@
                 box-shadow: 4px 0 20px rgba(0,0,0,0.15);
             }
             #sidebar.collapsed {
-                transform: translateX(-100%); /* Completely hide on mobile unless toggled open */
+                transform: translateX(-100%); /* Smoothly slide completely off-screen on mobile devices */
             }
         }
         
