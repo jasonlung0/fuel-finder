@@ -392,7 +392,9 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        station.brand = station.brand || "Independent";
+        // Support both new dot-notated data structures and legacy fallback formats
+        station.brand = station['forecourts.brand_name'] || station.brand || "Independent";
+        station.address = station['forecourts.location.address_line_1'] || station.address || station.Address || "";
 
         if (requiresUnleaded) {
             const hasE10 = extractPriceByMetricType(station, 'price_e10');
@@ -538,6 +540,14 @@ function applyBoxPricingColor(boxId, labelId, textId, price) {
 }
 
 function getCoordinates(station) {
+    // 1. Direct lookup for flattened government CSV keys
+    if (station['forecourts.location.latitude'] && station['forecourts.location.longitude']) {
+        const lat = parseFloat(station['forecourts.location.latitude']);
+        const lon = parseFloat(station['forecourts.location.longitude']);
+        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
+    }
+
+    // 2. Fallback loop for legacy or simple key mappings
     let lat = null, lon = null;
     for (let key in station) {
         const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -548,16 +558,33 @@ function getCoordinates(station) {
 }
 
 function extractPriceByMetricType(station, fuelType) {
-    const target = (fuelType || 'price_e10').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const target = (fuelType || 'price_e10').toLowerCase();
+    
+    // 1. Direct mapping check for new dot-notated pricing objects from worker KV
+    if (target.includes('e10') && station['forecourts.fuel_price.E10']) {
+        const val = parseFloat(station['forecourts.fuel_price.E10']);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if (target.includes('e5') && station['forecourts.fuel_price.E5']) {
+        const val = parseFloat(station['forecourts.fuel_price.E5']);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if ((target.includes('diesel') || target.includes('b7')) && station['forecourts.fuel_price.B7']) {
+        const val = parseFloat(station['forecourts.fuel_price.B7']);
+        if (!isNaN(val) && val > 0) return val;
+    }
+
+    // 2. Fallback string-matching iteration loop
+    const targetNorm = target.replace(/[^a-z0-9]/g, '');
     for (let key in station) {
         const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (target.includes('e10') && normalizedKey.includes('e10')) {
+        if (targetNorm.includes('e10') && normalizedKey.includes('e10')) {
             const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
-        if (target.includes('e5') && normalizedKey.includes('e5')) {
+        if (targetNorm.includes('e5') && normalizedKey.includes('e5')) {
             const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
-        if ((target.includes('diesel') || target.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
+        if ((targetNorm.includes('diesel') || targetNorm.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
             const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
     }
