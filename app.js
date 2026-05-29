@@ -35,7 +35,7 @@ window.toggleSidebar = function() {
     sidebar.classList.toggle('collapsed');
     icon.innerText = sidebar.classList.contains('collapsed') ? "→" : "←";
     
-    setTimeout(() => { map.invalidateSize(); }, 310);
+    setTimeout(() => { map.invalidateSize(); }, 360);
 };
 
 window.switchTab = function(tabId) {
@@ -366,21 +366,47 @@ async function filterFuelStationsRouteMode(routeData) {
     }
 }
 
-// Brand identifier helper to retrieve high-fidelity graphic emoji icons inside marker boxes
-function getBrandLogoIcon(brandName) {
-    if (!brandName) return "⛽";
+// Vector Engine: High-fidelity inline SVGs for major UK filling station brands
+function getBrandLogoVector(brandName) {
+    if (!brandName) return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#64748b"/></svg>`;
     const name = brandName.toLowerCase();
-    if (name.includes("tesco")) return "🛒";
-    if (name.includes("asda")) return "💚";
-    if (name.includes("sainsbury")) return "🟠";
-    if (name.includes("morrison")) return "🟡";
-    if (name.includes("bp")) return "🟢";
-    if (name.includes("shell")) return "🐚";
-    if (name.includes("esso")) return "🔴";
-    if (name.includes("texaco")) return "⭐";
-    if (name.includes("jet")) return "⚡";
-    if (name.includes("applegreen")) return "🍏";
-    return "⛽";
+    
+    if (name.includes("bp")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#00A651"/><path d="M50 5 L55 35 L85 30 L63 50 L85 70 L55 65 L50 95 L45 65 L15 70 L37 50 L15 30 L45 35 Z" fill="#FFF200"/></svg>`;
+    }
+    if (name.includes("shell")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M50 5 C20 5 10 35 10 65 C10 85 30 95 50 95 C70 95 90 85 90 65 C90 35 80 5 50 5 Z" fill="#FFD500" stroke="#FF0000" stroke-width="6"/><path d="M25 65 L35 90 M50 60 L50 90 M75 65 L65 90" stroke="#FF0000" stroke-width="5"/></svg>`;
+    }
+    if (name.includes("esso")) {
+        return `<svg viewBox="0 0 100 50" xmlns="http://www.w3.org/2000/svg"><ellipse cx="50" cy="25" rx="46" ry="22" fill="#E21B23" stroke="#0033A0" stroke-width="3"/><text x="50" y="33" font-family="Arial, sans-serif" font-weight="900" font-size="24" fill="#FFFFFF" text-anchor="middle">Esso</text></svg>`;
+    }
+    if (name.includes("texaco")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#E21B23"/><polygon points="50,15 60,40 88,40 65,58 75,85 50,68 25,85 35,58 12,40 40,40" fill="#FFFFFF"/><text x="50" y="58" font-family="sans-serif" font-weight="900" font-size="20" fill="#000" text-anchor="middle">T</text></svg>`;
+    }
+    if (name.includes("jet")) {
+        return `<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="60" rx="8" fill="#FFD500"/><ellipse cx="50" cy="30" rx="42" ry="22" fill="#0033A0"/><text x="50" y="38" font-family="Impact, Arial" font-weight="900" font-size="24" fill="#FFD500" text-anchor="middle">JET</text></svg>`;
+    }
+    if (name.includes("gulf")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#0033A0"/><circle cx="50" cy="50" r="34" fill="#FF6600"/><ellipse cx="50" cy="50" rx="30" ry="18" fill="#FFFFFF"/><text x="50" y="56" font-family="sans-serif" font-weight="900" font-size="18" fill="#0033A0" text-anchor="middle">Gulf</text></svg>`;
+    }
+    if (name.includes("tesco")) {
+        return `<svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="40" fill="#FFFFFF"/><text x="50" y="26" font-family="Helvetica, Arial" font-weight="900" font-size="22" fill="#EE1C2E" text-anchor="middle">TESCO</text><rect x="10" y="32" width="80" height="4" fill="#00539B"/></svg>`;
+    }
+    if (name.includes("asda")) {
+        return `<svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="40" rx="6" fill="#78BE20"/><text x="50" y="28" font-family="sans-serif" font-weight="900" font-size="22" fill="#FFFFFF" text-anchor="middle">ASDA</text></svg>`;
+    }
+    if (name.includes("morrison")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#004A32"/><circle cx="50" cy="40" r="12" fill="#FFC72C"/><path d="M40 65 L50 45 L60 65 Z" fill="#FFC72C"/></svg>`;
+    }
+    if (name.includes("sainsbury")) {
+        return `<svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><text x="50" y="28" font-family="sans-serif" font-weight="900" font-size="16" fill="#E06100" text-anchor="middle">Sainsbury's</text></svg>`;
+    }
+    if (name.includes("applegreen")) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#005A36"/><path d="M30 50 Q50 20 70 50 Q50 80 30 50 Z" fill="#81B622"/></svg>`;
+    }
+
+    // Default Fallback Fuel Icon Container
+    return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 12h-2v-2h2v2zm-2-4h2V6h-2v2zm3-5H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V12h2c1.66 0 3-1.34 3-3V7c0-2.21-1.79-4-4-4zm-4 15H4V5h10v13zm4-7c-.55 0-1-.45-1-1V7c0-.55.45-1 1-1s1 .45 1 1v3c0 .55-.45 1-1 1z" fill="#475569"/></svg>`;
 }
 
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
@@ -454,19 +480,21 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const labelText = (!isNaN(badgeValue)) ? badgeValue.toFixed(1) + 'p' : 'N/A';
         
         const color = getMarkerColor(badgeValue);
-        const logo = getBrandLogoIcon(station.brand);
+        const vectorLogo = getBrandLogoVector(station.brand);
 
-        // Map marker structure updated to 44px height incorporating a dynamic brand identifier
+        // Single-line layout generation using structural flex wrappers
         const icon = L.divIcon({
-            className: 'price-badge-container',
+            className: 'custom-leaflet-pill-marker',
             html: `
-                <div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: 700; border-radius: 6px; font-size: 11px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); height: 44px; width: 48px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; padding: 2px 0;">
-                    <span style="font-size: 13px; line-height: 1; margin-bottom: 2px;">${logo}</span>
-                    <span style="line-height: 1; font-size: 11px;">${labelText}</span>
+                <div class="inline-fuel-badge" style="background-color: ${color};">
+                    <div class="marker-logo-container">
+                        ${vectorLogo}
+                    </div>
+                    <span>${labelText}</span>
                 </div>
             `,
-            iconSize: [48, 44],
-            iconAnchor: [24, 22]
+            iconSize: [92, 28],
+            iconAnchor: [46, 14]
         });
 
         L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
@@ -523,7 +551,6 @@ function displayiOSModalSheet(station, coords, e10, b7, e5, b7p) {
     applyBoxPricingColor('boxB7', 'labelB7', 'sheetB7', b7);
     applyBoxPricingColor('boxE5', 'labelE5', 'sheetE5', e5);
 
-    // Contextual handling for Premium Diesel layout node
     const premiumEl = document.getElementById('sheetB7P');
     if (premiumEl) {
         premiumEl.innerText = (!isNaN(b7p)) ? b7p.toFixed(1) + 'p' : 'N/A';
@@ -633,7 +660,7 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
     return 7918 * Math.asin(Math.sqrt(a)); 
 }
 
-// Custom configuration bracket: Green (150.9 - 156.8), Blue (156.9 - 162.8), Red (162.9+)
+// Custom range specifications: 150.9 - 156.8 Green | 156.9 - 162.8 Blue | 162.9+ Red
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
     if (p <= 156.8) return '#10b981';                
@@ -642,6 +669,14 @@ function getMarkerColor(p) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
+    // Mobile Layout Setup: Collapse menu by default on smaller mobile displays
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.add('collapsed');
+        const icon = document.getElementById('toggleIcon');
+        if (icon) icon.innerText = "→";
+    }
+
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
     setupTab1Autocomplete();
