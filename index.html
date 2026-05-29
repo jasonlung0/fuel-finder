@@ -45,6 +45,96 @@
         /* Drag and Drop Visual Indicators */
         .dragging { opacity: 0.4; background-color: #f1f5f9; }
         .drag-over { border-top: 2px solid #0f172a; }
+
+        /* --- Gemini-Style Smooth Sidebar Transitions --- */
+        #sidebar {
+            width: 340px;
+            height: 100vh;
+            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: width;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #sidebar.collapsed {
+            width: 64px; /* Minimal icon-only footprints */
+        }
+        
+        /* Smoothly hide text labels when menu collapses */
+        #sidebar.collapsed .menu-text-label,
+        #sidebar.collapsed #waypointContainer,
+        #sidebar.collapsed .tab-content,
+        #sidebar.collapsed #topStationsContainer {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+        }
+        
+        #sidebar:not(.collapsed) .menu-text-label,
+        #sidebar:not(.collapsed) #waypointContainer,
+        #sidebar:not(.collapsed) .tab-content {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.25s ease 0.1s;
+        }
+        
+        /* Map adjustment wrapper */
+        #map {
+            flex-grow: 1;
+            height: 100vh;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* --- Mobile View Overrides --- */
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                z-index: 9999;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            }
+            #sidebar.collapsed {
+                width: 0px; /* Completely hide on mobile unless toggled open */
+            }
+        }
+        
+        /* --- Horizontal One-Line Fuel Markers --- */
+        .inline-fuel-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px 2px 3px;
+            border-radius: 9999px; /* Pill Shape */
+            border: 1.5px solid #ffffff;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 11px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            overflow: hidden;
+            height: 28px;
+            box-sizing: border-box;
+        }
+        
+        .marker-logo-container {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        
+        .marker-logo-container svg, 
+        .marker-logo-container img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body class="flex h-full w-full overflow-hidden text-slate-900 antialiased font-sans relative">
