@@ -366,6 +366,23 @@ async function filterFuelStationsRouteMode(routeData) {
     }
 }
 
+// Brand identifier helper to retrieve high-fidelity graphic emoji icons inside marker boxes
+function getBrandLogoIcon(brandName) {
+    if (!brandName) return "⛽";
+    const name = brandName.toLowerCase();
+    if (name.includes("tesco")) return "🛒";
+    if (name.includes("asda")) return "💚";
+    if (name.includes("sainsbury")) return "🟠";
+    if (name.includes("morrison")) return "🟡";
+    if (name.includes("bp")) return "🟢";
+    if (name.includes("shell")) return "🐚";
+    if (name.includes("esso")) return "🔴";
+    if (name.includes("texaco")) return "⭐";
+    if (name.includes("jet")) return "⚡";
+    if (name.includes("applegreen")) return "🍏";
+    return "⛽";
+}
+
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     const statusDiv = document.getElementById('status');
     const requiresUnleaded = document.getElementById('filterUnleaded').checked;
@@ -393,7 +410,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         if (!coords) return;
 
         station.brand = station['forecourts.brand_name'] || station.brand || "Independent";
-        station.address = station['forecourts.location.address_line_1'] || station.address || station.Address || "";
+        station.address = station['forecourts.address_line_1'] || station['forecourts.location.address_line_1'] || station.address || station.Address || "";
 
         if (requiresUnleaded) {
             const hasE10 = extractPriceByMetricType(station, 'price_e10');
@@ -437,11 +454,19 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const labelText = (!isNaN(badgeValue)) ? badgeValue.toFixed(1) + 'p' : 'N/A';
         
         const color = getMarkerColor(badgeValue);
+        const logo = getBrandLogoIcon(station.brand);
 
+        // Map marker structure updated to 44px height incorporating a dynamic brand identifier
         const icon = L.divIcon({
             className: 'price-badge-container',
-            html: `<div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: 600; padding: 2px 5px; border-radius: 6px; font-size: 10px; text-align:center; box-shadow: 0 1px 2px rgba(0,0,0,0.15);">${labelText}</div>`,
-            iconSize: [46, 22]
+            html: `
+                <div style="background-color: ${color}; border: 1px solid white; color: white; font-weight: 700; border-radius: 6px; font-size: 11px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); height: 44px; width: 48px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; padding: 2px 0;">
+                    <span style="font-size: 13px; line-height: 1; margin-bottom: 2px;">${logo}</span>
+                    <span style="line-height: 1; font-size: 11px;">${labelText}</span>
+                </div>
+            `,
+            iconSize: [48, 44],
+            iconAnchor: [24, 22]
         });
 
         L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
@@ -498,7 +523,7 @@ function displayiOSModalSheet(station, coords, e10, b7, e5, b7p) {
     applyBoxPricingColor('boxB7', 'labelB7', 'sheetB7', b7);
     applyBoxPricingColor('boxE5', 'labelE5', 'sheetE5', e5);
 
-    // Optional layout hooks for Premium Diesel row inside your modal view
+    // Contextual handling for Premium Diesel layout node
     const premiumEl = document.getElementById('sheetB7P');
     if (premiumEl) {
         premiumEl.innerText = (!isNaN(b7p)) ? b7p.toFixed(1) + 'p' : 'N/A';
@@ -565,7 +590,6 @@ function getCoordinates(station) {
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase();
     
-    // 1. Direct mapping check for new dot-notated objects
     if (target.includes('e10') && station['forecourts.fuel_price.E10']) {
         const val = parseFloat(station['forecourts.fuel_price.E10']);
         if (!isNaN(val) && val > 0) return val;
@@ -583,7 +607,6 @@ function extractPriceByMetricType(station, fuelType) {
         if (!isNaN(val) && val > 0) return val;
     }
 
-    // 2. Fallback string-matching iteration loop
     const targetNorm = target.replace(/[^a-z0-9]/g, '');
     for (let key in station) {
         const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -610,10 +633,11 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
     return 7918 * Math.asin(Math.sqrt(a)); 
 }
 
+// Custom configuration bracket: Green (150.9 - 156.8), Blue (156.9 - 162.8), Red (162.9+)
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
-    if (p < 135.0) return '#10b981';                
-    if (p >= 135.0 && p <= 148.0) return '#3b82f6'; 
+    if (p <= 156.8) return '#10b981';                
+    if (p >= 156.9 && p <= 162.8) return '#3b82f6'; 
     return '#ef4444';                               
 }
 
