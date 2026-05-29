@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UK Fuel Corridor Finder</title>
     
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
+    <link class="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -41,53 +41,27 @@
         .dragging { opacity: 0.4; background-color: #f1f5f9; }
         .drag-over { border-top: 2px solid #0f172a; }
 
-        /* --- Gemini-Style Smooth Sidebar Transitions --- */
+        /* --- Gemini / Maps Multi-Panel Sidebar Transitions --- */
         #sidebar {
-            width: 390px;
-            height: 100vh;
-            transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            will-change: width;
-            display: flex;
-            overflow: hidden;
+            width: 340px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: width, padding, opacity;
         }
         
+        /* Smooth collapsing effect leaving the icon rail fully functional */
         #sidebar.collapsed {
-            width: 68px; /* Collapses to show only the slim action icon rail */
-        }
-        
-        /* Smoothly hide content area when sidebar is collapsed */
-        #sidebar.collapsed .main-action-workspace,
-        #sidebar.collapsed .menu-text-label {
+            width: 0px;
+            padding-left: 0px;
+            padding-right: 0px;
             opacity: 0;
-            visibility: hidden;
+            border-right-width: 0px;
             pointer-events: none;
-            transition: opacity 0.15s ease;
-        }
-        
-        #sidebar:not(.collapsed) .main-action-workspace,
-        #sidebar:not(.collapsed) .menu-text-label {
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.25s ease 0.1s;
         }
         
         /* Map adjustment wrapper */
         #map {
             flex-grow: 1;
             height: 100vh;
-            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        /* --- Mobile View Overrides --- */
-        @media (max-width: 768px) {
-            #sidebar {
-                position: absolute;
-                z-index: 9999;
-                box-shadow: 4px 0 20px rgba(0,0,0,0.15);
-            }
-            #sidebar.collapsed {
-                width: 0px; /* Completely hidden on mobile viewports until toggled */
-            }
         }
         
         /* --- Horizontal One-Line Fuel Markers --- */
@@ -96,7 +70,7 @@
             align-items: center;
             gap: 4px;
             padding: 2px 6px 2px 3px;
-            border-radius: 9999px; /* Pill Shape */
+            border-radius: 9999px;
             border: 1.5px solid #ffffff;
             color: #ffffff;
             font-weight: 700;
@@ -130,167 +104,156 @@
 </head>
 <body class="flex h-full w-full overflow-hidden text-slate-900 antialiased font-sans relative">
 
-    <button onclick="toggleSidebar()" class="absolute top-4 left-4 z-[3000] bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-9 w-9 rounded-md shadow-sm flex items-center justify-center font-medium transition-transform active:scale-95 focus:outline-none">
-        <span id="toggleIcon" class="text-sm font-bold">←</span>
-    </button>
-
-    <div id="sidebar" class="fixed md:static inset-y-0 left-0 h-full bg-white border-r border-slate-200 z-[2500] shadow-lg md:shadow-sm shrink-0">
-        
-        <div class="w-[68px] h-full bg-slate-50 border-r border-slate-200 flex flex-col items-center pt-16 pb-4 justify-between shrink-0">
-            <nav class="w-full px-2 space-y-2">
-                <button onclick="switchNavMenu('search')" id="nav-btn-search" class="nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-900 bg-white shadow-xs border border-slate-200/60 transition-all">
-                    <span class="text-lg">🔍</span>
-                    <span class="text-[9px] font-bold tracking-tight">Search</span>
-                </button>
-                <button onclick="switchNavMenu('home')" id="nav-btn-home" class="nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200/50 transition-all">
-                    <span class="text-lg">🏠</span>
-                    <span class="text-[9px] font-medium tracking-tight">Home</span>
-                </button>
-                <button onclick="switchNavMenu('starred')" id="nav-btn-starred" class="nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200/50 transition-all">
-                    <span class="text-lg">⭐</span>
-                    <span class="text-[9px] font-medium tracking-tight">Starred</span>
-                </button>
-                <button onclick="switchNavMenu('routes')" id="nav-btn-routes" class="nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200/50 transition-all">
-                    <span class="text-lg">🗺️</span>
-                    <span class="text-[9px] font-medium tracking-tight">Routes</span>
-                </button>
-            </nav>
+    <div class="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-4 justify-between shrink-0 h-full z-[2600] select-none">
+        <div class="flex flex-col items-center gap-6 w-full">
+            <button onclick="toggleSidebar()" class="bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-9 w-9 rounded-md shadow-xs flex items-center justify-center font-medium transition-transform active:scale-95 focus:outline-none">
+                <span id="toggleIcon" class="text-sm font-bold">←</span>
+            </button>
             
-            <div class="text-lg select-none filter grayscale opacity-60 hover:opacity-100 transition-opacity">⛽</div>
+            <button class="flex flex-col items-center justify-center text-slate-900 transition-colors focus:outline-none" onclick="switchTab('local-tab')">
+                <span class="text-xl">🔍</span>
+                <span class="text-[10px] font-semibold text-slate-500 mt-1">Search</span>
+            </button>
+            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none">
+                <span class="text-xl">🏠</span>
+                <span class="text-[10px] font-medium text-slate-400 mt-0.5">Home</span>
+            </button>
+            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none">
+                <span class="text-xl">⭐</span>
+                <span class="text-[10px] font-medium text-slate-400 mt-0.5">Starred</span>
+            </button>
+            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="switchTab('route-tab')">
+                <span class="text-xl">🗺️</span>
+                <span class="text-[10px] font-medium text-slate-400 mt-0.5">Routes</span>
+            </button>
+        </div>
+        <div>
+            <button class="flex flex-col items-center justify-center text-slate-300 hover:text-red-500 transition-colors focus:outline-none" onclick="location.reload()">
+                <span class="text-lg">🗑️</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="sidebar" class="h-full bg-white border-r border-slate-200 flex flex-col z-[2500] p-5 shadow-sm overflow-y-auto shrink-0">
+        
+        <div class="mb-5">
+            <h2 class="text-base font-bold tracking-tight text-slate-900">Search Fuel Price</h2>
+            <p class="text-[11px] text-slate-400 font-medium mt-0.5">Live parameters lookup control</p>
+        </div>
+        
+        <div class="p-1 bg-slate-100 rounded-lg flex gap-1 mb-5">
+            <button class="tab-btn active flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('local-tab')">
+                📍 Local Area
+            </button>
+            <button class="tab-btn flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('route-tab')">
+                🛣️ Route Corridor
+            </button>
         </div>
 
-        <div class="main-action-workspace flex-1 h-full flex flex-col p-4 pt-16 overflow-y-auto">
-            
-            <div class="mb-4 pb-3 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                    <h2 id="workspace-title" class="text-sm font-bold text-slate-900 tracking-tight">Search Fuel Price</h2>
-                    <p id="workspace-subtitle" class="text-[10px] text-slate-400 font-medium">Live parameters lookup control</p>
-                </div>
-            </div>
-
-            <div id="core-search-box" class="space-y-4 block">
-                <div class="p-1 bg-slate-100 rounded-lg flex gap-1">
-                    <button class="tab-btn active flex-1 text-[11px] font-bold py-1.5 px-2 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('local-tab')">
-                        📍 Local Area
-                    </button>
-                    <button class="tab-btn flex-1 text-[11px] font-bold py-1.5 px-2 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('route-tab')">
-                        🛣️ Route Corridor
-                    </button>
+        <div class="space-y-4 flex-grow">
+            <div id="local-tab" class="tab-content block [&:not(.active)]:hidden active space-y-4">
+                <div class="relative">
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Search Area Location</label>
+                    <input type="text" id="localSearchInput" placeholder="Enter town, city or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    <div id="localSuggestions" class="absolute top-[62px] left-0 w-full bg-white border border-slate-200 z-[9999] hidden max-h-[150px] overflow-y-auto rounded-md shadow-md divide-y divide-slate-100"></div>
                 </div>
 
-                <div id="local-tab" class="tab-content block space-y-3.5">
-                    <div class="relative">
-                        <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Search Area Location</label>
-                        <input type="text" id="localSearchInput" placeholder="Enter town, city or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
-                        <div id="localSuggestions" class="absolute top-[62px] left-0 w-full bg-white border border-slate-200 z-[9999] hidden max-h-[150px] overflow-y-auto rounded-md shadow-md divide-y divide-slate-100"></div>
-                    </div>
-
-                    <div class="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5">
-                        <label class="flex justify-between items-center text-xs font-semibold text-slate-700 mb-2">
-                            <span>🎯 Scan Window Radius</span>
-                            <span class="bg-slate-200 text-slate-900 font-bold px-2 py-0.5 rounded text-[10px]"><span id="localRadiusVal">5</span> Miles</span>
-                        </label>
-                        <input type="range" id="localRadiusSlider" min="1" max="10" value="5" step="1" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateLocalRadiusLabel(this.value)">
-                    </div>
-                </div>
-
-                <div id="route-tab" class="tab-content hidden space-y-3.5">
-                    <div id="waypointContainer" class="space-y-2"></div>
-                    
-                    <button class="w-full text-xs font-medium py-1.5 px-3 rounded-md border border-dashed border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center justify-center gap-1.5" onclick="addNewWaypointField('Stop')">
-                        <span>➕</span> Add Interim Waypoint
-                    </button>
-                    
-                    <div id="bufferRadiusContainer" class="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 hidden">
-                        <label class="flex justify-between items-center text-xs font-semibold text-slate-700 mb-2">
-                            <span>🛣️ Corridor Lookup Buffer</span>
-                            <span class="bg-slate-200 text-slate-900 font-bold px-2 py-0.5 rounded text-[10px]"><span id="radiusVal">2</span> Miles</span>
-                        </label>
-                        <input type="range" id="bufferRadius" min="0.5" max="10" value="2" step="0.5" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateRadiusLabel(this.value)">
-                    </div>
-
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Fuel Economy (MPG)</label>
-                        <input type="number" id="mpg" value="45" min="10" max="100" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950">
-                    </div>
-
-                    <button class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 px-4 rounded-md shadow-sm transition-colors flex items-center justify-center gap-2" onclick="calculateJourney()">
-                        🚀 Map Route Corridor
-                    </button>
-                </div>
-            </div>
-
-            <div id="aux-panes-container" class="flex-1 mt-4 space-y-4">
-                
-                <div id="pane-home" class="pane-content hidden bg-slate-50 border border-slate-200/60 rounded-xl p-4 py-5 text-center">
-                    <span class="text-2xl block mb-1">👋</span>
-                    <h3 class="text-xs font-bold text-slate-900">Welcome to Fuel Corridor</h3>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">Adjust your targeted search fields above at any time to trace localized retail gas trends or long-distance logistics maps.</p>
-                </div>
-
-                <div id="pane-search" class="pane-content block space-y-4">
-                    <div id="costSummary" class="p-3.5 bg-emerald-50 text-emerald-950 border border-emerald-200 rounded-xl text-xs hidden shadow-xs space-y-1">
-                        <div class="font-bold text-emerald-900 flex items-center gap-1"><span>📊</span> Financial Analytics:</div>
-                        <div class="text-[11px] text-emerald-800 pt-0.5">Track Distance: <span id="summaryDistance" class="font-bold text-emerald-950">0</span> miles</div>
-                        <div class="text-[11px] text-emerald-800">Est. Fuel Cost: <span id="summaryCost" class="font-bold text-emerald-950 text-xs">£0.00</span></div>
-                    </div>
-
-                    <div id="topStationsContainer" class="hidden border border-slate-200 rounded-xl p-3.5 bg-slate-50/60 shadow-xs">
-                        <strong class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">🥇 Cheapest Retail Choices:</strong>
-                        <ol id="topStationsList" class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 font-medium"></ol>
-                    </div>
-                </div>
-
-                <div id="pane-starred" class="pane-content hidden border border-dashed border-slate-200 rounded-xl p-4 py-6 text-center text-slate-400">
-                    <span class="text-xl block mb-1">⭐</span>
-                    <h4 class="text-xs font-bold text-slate-700">No Bookmarked Forecourts</h4>
-                    <p class="text-[10px] max-w-[200px] mx-auto mt-0.5 leading-normal">Pill markers on your active coordinate canvas can be toggled as favorites.</p>
-                </div>
-
-                <div id="pane-routes" class="pane-content hidden border border-dashed border-slate-200 rounded-xl p-4 py-6 text-center text-slate-400">
-                    <span class="text-xl block mb-1">🗺️</span>
-                    <h4 class="text-xs font-bold text-slate-700">No Saved Tracks</h4>
-                    <p class="text-[10px] max-w-[200px] mx-auto mt-0.5 leading-normal">Store completed transit runs for quick monitoring options.</p>
-                </div>
-            </div>
-
-            <div class="global-options-container mt-auto pt-3 border-t border-slate-100 space-y-3 shrink-0">
-                <div>
-                    <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Fuel Formulation Variant</label>
-                    <select id="fuelType" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950">
-                        <option value="price_e10">Petrol Unleaded (E10)</option>
-                        <option value="price_e5">Super Unleaded (E5)</option>
-                        <option value="price_diesel">Standard Diesel (B7)</option>
-                    </select>
-                </div>
-
-                <div class="border border-slate-200/80 rounded-xl p-2.5 bg-slate-50/40">
-                    <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer select-none">
-                        <input type="checkbox" id="filterUnleaded" class="rounded border-slate-300 text-slate-900 focus:ring-slate-950 h-3.5 w-3.5 accent-slate-950">
-                        <span>Traditional Pumps Only</span>
+                <div class="bg-slate-50 border border-slate-200/60 rounded-xl p-4">
+                    <label class="flex justify-between items-center text-xs font-medium text-slate-700 mb-2">
+                        <span class="text-slate-500 font-semibold text-[11px] uppercase tracking-wide">Scan Window Radius</span>
+                        <span class="bg-white border border-slate-200 text-slate-900 font-bold px-2 py-0.5 rounded text-[10px] shadow-2xs"><span id="localRadiusVal">5</span> Miles</span>
                     </label>
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Basemap Overlay Canvas</label>
-                    <select id="mapThemeSelect" onchange="changeMapTheme(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-xs text-slate-900 shadow-sm focus:outline-none focus:ring-1 focus:ring-slate-950">
-                        <option value="light">Standard Light Canvas</option>
-                        <option value="dark">Night Mode Dark Interface</option>
-                        <option value="satellite">Detailed Satellite Imagery</option>
-                    </select>
-                </div>
-
-                <div id="status" class="text-[10px] text-slate-400 text-center font-bold tracking-wide italic pt-1">
-                    Connecting system components...
+                    <input type="range" id="localRadiusSlider" min="1" max="10" value="5" step="1" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateLocalRadiusLabel(this.value)">
                 </div>
             </div>
 
+            <div id="route-tab" class="tab-content block [&:not(.active)]:hidden space-y-4">
+                
+                <div id="waypointContainer" class="space-y-2.5">
+                    <div class="relative">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🟢 Starting Location</label>
+                        <input type="text" id="startInput" placeholder="Enter departure town or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    </div>
+                    <div class="relative">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🔴 Destination</label>
+                        <input type="text" id="endInput" placeholder="Enter target town or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    </div>
+                </div>
+                
+                <button class="w-full text-xs font-semibold py-2 px-4 rounded-md border border-dashed border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center justify-center gap-1.5 focus:outline-none" onclick="addNewWaypointField('Stop')">
+                    <span>➕</span> Add Interim Stop
+                </button>
+                
+                <div id="bufferRadiusContainer" class="bg-slate-50 border border-slate-200/60 rounded-xl p-4">
+                    <label class="flex justify-between items-center text-xs font-medium text-slate-700 mb-2">
+                        <span class="text-slate-500 font-semibold text-[11px] uppercase tracking-wide">🛣️ Route Journey Radius</span>
+                        <span class="bg-white border border-slate-200 text-slate-900 font-bold px-2 py-0.5 rounded text-[10px] shadow-2xs"><span id="radiusVal">2</span> miles</span>
+                    </label>
+                    <input type="range" id="bufferRadius" min="0.5" max="10" value="2" step="0.5" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" oninput="updateRadiusLabel(this.value)">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Vehicle Efficiency (MPG)</label>
+                    <input type="number" id="mpg" value="45" min="10" max="100" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-xs focus:outline-none focus:ring-1 focus:ring-slate-950">
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button class="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs py-2.5 px-4 rounded-md shadow transition-colors flex items-center justify-center gap-1.5 focus:outline-none" onclick="calculateJourney()">
+                        🚀 Search Route
+                    </button>
+                    <button id="btnClearRoute" onclick="if(typeof clearJourney === 'function') { clearJourney(); } else { location.reload(); }" class="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-medium py-2.5 px-4 rounded-md text-xs shadow-xs transition-colors focus:outline-none">
+                        Clear Route
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-4 pt-4 border-t border-slate-100 mt-4">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Fuel Formulation Variant</label>
+                <select id="fuelType" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-xs text-slate-900 shadow-xs focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    <option value="price_e10">Petrol Unleaded (E10)</option>
+                    <option value="price_e5">Super Unleaded (E5)</option>
+                    <option value="price_diesel">Standard Diesel (B7)</option>
+                </select>
+            </div>
+
+            <div class="bg-slate-50/50 border border-slate-200/60 rounded-xl p-3.5">
+                <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer select-none">
+                    <input type="checkbox" id="filterUnleaded" class="rounded border-slate-300 text-slate-900 focus:ring-slate-950 h-4 w-4 accent-slate-950">
+                    <span>Traditional Pumps Only</span>
+                </label>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Basemap Overlay Canvas</label>
+                <select id="mapThemeSelect" onchange="changeMapTheme(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-xs text-slate-900 shadow-xs focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    <option value="light">Standard Light Canvas</option>
+                    <option value="dark">Night Mode Dark Interface</option>
+                    <option value="satellite">Detailed Satellite Imagery</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="costSummary" class="p-4 bg-emerald-50 text-emerald-950 border border-emerald-200 rounded-xl text-sm hidden mt-4 shadow-2xs space-y-1">
+            <div class="font-semibold text-emerald-900 flex items-center gap-1.5"><span>📍</span> Financial Calculations Summary:</div>
+            <div class="text-xs text-emerald-800 pt-1">Total Route Distance: <span id="summaryDistance" class="font-bold text-emerald-950">0</span> miles</div>
+            <div class="text-xs text-emerald-800">Minimum Fuel Cost: <span id="summaryCost" class="font-bold text-emerald-950 text-sm">£0.00</span></div>
+        </div>
+
+        <div id="topStationsContainer" class="hidden border border-slate-200 rounded-xl p-4 mt-4 bg-slate-50 shadow-2xs">
+            <strong class="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-2">🥇 Cheapest Selection Choices:</strong>
+            <ol id="topStationsList" class="list-decimal list-inside space-y-1.5 text-xs text-slate-700 font-medium mb-1"></ol>
+        </div>
+
+        <div id="status" class="pt-6 mt-4 text-[10px] text-slate-400 text-center font-bold tracking-wider uppercase border-t border-slate-100/80">
+            Components connected...
         </div>
     </div>
 
     <div id="map-container" class="flex-grow h-full w-full relative bg-slate-100">
-        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none pl-12 md:pl-0">
-            <button id="searchAreaBtn" onclick="searchThisArea()" class="pointer-events-auto bg-white hover:bg-slate-50 text-slate-900 font-semibold text-xs py-2 px-4 rounded-full border border-slate-200 shadow-lg flex items-center gap-1.5 transition-all active:scale-[0.98]">
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+            <button id="searchAreaBtn" onclick="searchThisArea()" class="pointer-events-auto bg-white hover:bg-slate-50 text-slate-900 font-semibold text-xs py-2 px-4 rounded-full border border-slate-200 shadow-md flex items-center gap-1.5 transition-all active:scale-[0.98] focus:outline-none">
                 <span>🔍</span> Scan This Viewport Area
             </button>
         </div>
@@ -302,7 +265,7 @@
             <div class="w-10 h-1 bg-slate-200 rounded-full self-center mb-4"></div>
             <div class="flex justify-between items-start mb-4">
                 <div>
-                    <h3 id="sheetBrand" class="text-base font-bold text-slate-950 leading-tight">Forecourt Brand Name</h3>
+                    <h3 id="sheetBrand" class="text-base font-semibold text-slate-950 leading-tight">Forecourt Brand Name</h3>
                     <p id="sheetAddress" class="text-xs text-slate-500 mt-1 max-w-[320px] break-words">Forecourt Address</p>
                 </div>
                 <button onclick="closeiOSModalSheet()" class="text-slate-400 hover:text-slate-600 hover:bg-slate-100 h-7 w-7 rounded-full flex items-center justify-center transition-colors text-lg font-medium">×</button>
@@ -310,15 +273,15 @@
             <hr class="border-slate-100 my-1" />
             
             <div class="grid grid-cols-3 gap-2.5 my-4">
-                <div id="boxE10" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs transition-colors duration-200">
+                <div id="boxE10" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-2xs transition-colors duration-200">
                     <span id="labelE10" class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Petrol (E10)</span>
                     <strong id="sheetE10" class="text-base font-bold block mt-1 text-slate-900">-</strong>
                 </div>
-                <div id="boxB7" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs transition-colors duration-200">
+                <div id="boxB7" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-2xs transition-colors duration-200">
                     <span id="labelB7" class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Diesel (B7)</span>
                     <strong id="sheetB7" class="text-base font-bold block mt-1 text-slate-900">-</strong>
                 </div>
-                <div id="boxE5" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-xs transition-colors duration-200">
+                <div id="boxE5" class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-center shadow-2xs transition-colors duration-200">
                     <span id="labelE5" class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Super (E5)</span>
                     <strong id="sheetE5" class="text-base font-bold block mt-1 text-slate-900">-</strong>
                 </div>
@@ -327,57 +290,6 @@
         </div>
     </div>
 
-    <script>
-        function switchNavMenu(targetPaneId) {
-            // Context header configurations
-            const titles = {
-                'search': { main: 'Search Fuel Price', sub: 'Live parameters lookup control' },
-                'home': { main: 'Home Dashboard', sub: 'System overview & welcome information' },
-                'starred': { main: 'Starred Stations', sub: 'Your bookmarked quick-access locations' },
-                'routes': { main: 'Saved Routes', sub: 'Managed corridor track profiles' }
-            };
-
-            // Reset dynamic link styling across the utility rail
-            document.querySelectorAll('.nav-menu-btn').forEach(function(btn) {
-                btn.className = "nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-400 hover:text-slate-800 hover:bg-slate-200/50 transition-all";
-            });
-            
-            // Assign active target highlight
-            const activeBtn = document.getElementById('nav-btn-' + targetPaneId);
-            if (activeBtn) {
-                activeBtn.className = "nav-menu-btn w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 text-slate-900 bg-white shadow-xs border border-slate-200/60 transition-all";
-            }
-
-            // Dynamically update workspace headers
-            if (titles[targetPaneId]) {
-                document.getElementById('workspace-title').innerText = titles[targetPaneId].main;
-                document.getElementById('workspace-subtitle').innerText = titles[targetPaneId].sub;
-            }
-
-            // Hide or display primary configuration inputs as appropriate
-            const coreSearchBox = document.getElementById('core-search-box');
-            if (targetPaneId === 'search') {
-                coreSearchBox.classList.replace('hidden', 'block');
-            } else {
-                coreSearchBox.classList.replace('block', 'hidden');
-            }
-
-            // Toggle sub-layer visibility views
-            document.querySelectorAll('.pane-content').forEach(function(pane) {
-                pane.classList.replace('block', 'hidden');
-            });
-            const activePane = document.getElementById('pane-' + targetPaneId);
-            if (activePane) {
-                activePane.classList.replace('hidden', 'block');
-            }
-
-            // Seamless auto-expansion when clicked while menu is minimized
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar && sidebar.classList.contains('collapsed') && window.innerWidth > 768) {
-                toggleSidebar();
-            }
-        }
-    </script>
     <script src="app.js"></script>
 </body>
 </html>
