@@ -392,7 +392,6 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        // Support both new dot-notated data structures and legacy fallback formats
         station.brand = station['forecourts.brand_name'] || station.brand || "Independent";
         station.address = station['forecourts.location.address_line_1'] || station.address || station.Address || "";
 
@@ -422,6 +421,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const e10Price = extractPriceByMetricType(station, 'price_e10');
         const b7Price = extractPriceByMetricType(station, 'price_diesel'); 
         const e5Price = extractPriceByMetricType(station, 'price_e5');
+        const b7pPrice = extractPriceByMetricType(station, 'price_premium_diesel');
 
         const currentSelectedPrice = extractPriceByMetricType(station, chosenFuelType);
         if (!isNaN(currentSelectedPrice)) {
@@ -445,7 +445,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         });
 
         L.marker([coords.lat, coords.lon], { icon: icon }).on('click', function() {
-            displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price);
+            displayiOSModalSheet(station, coords, e10Price, b7Price, e5Price, b7pPrice);
         }).addTo(stationMarkers);
     });
 
@@ -485,7 +485,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
     }
 }
 
-function displayiOSModalSheet(station, coords, e10, b7, e5) {
+function displayiOSModalSheet(station, coords, e10, b7, e5, b7p) {
     document.getElementById('sheetBrand').innerText = station.brand;
     const targetAddress = station.address || station.Address;
     document.getElementById('sheetAddress').innerText = targetAddress || `Forecourt Coordinates: [${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}]`;
@@ -497,6 +497,13 @@ function displayiOSModalSheet(station, coords, e10, b7, e5) {
     applyBoxPricingColor('boxE10', 'labelE10', 'sheetE10', e10);
     applyBoxPricingColor('boxB7', 'labelB7', 'sheetB7', b7);
     applyBoxPricingColor('boxE5', 'labelE5', 'sheetE5', e5);
+
+    // Optional layout hooks for Premium Diesel row inside your modal view
+    const premiumEl = document.getElementById('sheetB7P');
+    if (premiumEl) {
+        premiumEl.innerText = (!isNaN(b7p)) ? b7p.toFixed(1) + 'p' : 'N/A';
+        applyBoxPricingColor('boxB7P', 'labelB7P', 'sheetB7P', b7p);
+    }
 
     const backdrop = document.getElementById('iosModalBackdrop');
     const sheet = document.getElementById('stationDetailSheet');
@@ -540,14 +547,12 @@ function applyBoxPricingColor(boxId, labelId, textId, price) {
 }
 
 function getCoordinates(station) {
-    // 1. Direct lookup for flattened government CSV keys
     if (station['forecourts.location.latitude'] && station['forecourts.location.longitude']) {
         const lat = parseFloat(station['forecourts.location.latitude']);
         const lon = parseFloat(station['forecourts.location.longitude']);
         if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
     }
 
-    // 2. Fallback loop for legacy or simple key mappings
     let lat = null, lon = null;
     for (let key in station) {
         const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -560,7 +565,7 @@ function getCoordinates(station) {
 function extractPriceByMetricType(station, fuelType) {
     const target = (fuelType || 'price_e10').toLowerCase();
     
-    // 1. Direct mapping check for new dot-notated pricing objects from worker KV
+    // 1. Direct mapping check for new dot-notated objects
     if (target.includes('e10') && station['forecourts.fuel_price.E10']) {
         const val = parseFloat(station['forecourts.fuel_price.E10']);
         if (!isNaN(val) && val > 0) return val;
@@ -569,7 +574,11 @@ function extractPriceByMetricType(station, fuelType) {
         const val = parseFloat(station['forecourts.fuel_price.E5']);
         if (!isNaN(val) && val > 0) return val;
     }
-    if ((target.includes('diesel') || target.includes('b7')) && station['forecourts.fuel_price.B7']) {
+    if ((target.includes('premium') || target.includes('b7p')) && station['forecourts.fuel_price.B7P']) {
+        const val = parseFloat(station['forecourts.fuel_price.B7P']);
+        if (!isNaN(val) && val > 0) return val;
+    }
+    if ((target.includes('diesel') || target.includes('b7')) && !target.includes('b7p') && !target.includes('premium') && station['forecourts.fuel_price.B7']) {
         const val = parseFloat(station['forecourts.fuel_price.B7']);
         if (!isNaN(val) && val > 0) return val;
     }
@@ -584,7 +593,10 @@ function extractPriceByMetricType(station, fuelType) {
         if (targetNorm.includes('e5') && normalizedKey.includes('e5')) {
             const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
-        if ((targetNorm.includes('diesel') || targetNorm.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7'))) {
+        if ((targetNorm.includes('b7p') || targetNorm.includes('premium')) && (normalizedKey.includes('b7p') || normalizedKey.includes('premium'))) {
+            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
+        }
+        if ((targetNorm.includes('diesel') || targetNorm.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7')) && !normalizedKey.includes('b7p') && !normalizedKey.includes('premium')) {
             const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
         }
     }
