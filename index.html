@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UK Fuel Corridor Finder</title>
     
-    <link class="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
+    <link rel="rel" id="favicon-link" href="">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -37,18 +38,23 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         
-        /* Drag and Drop Visual Indicators */
         .dragging { opacity: 0.4; background-color: #f1f5f9; }
         .drag-over { border-top: 2px solid #0f172a; }
 
-        /* --- Gemini / Maps Multi-Panel Sidebar Transitions --- */
+        /* --- FIX: Standard CSS fallback ensuring Tab Selected UI is visually apparent --- */
+        .tab-btn.active {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
+        }
+
+        /* --- Gemini / Maps Sidebar Transitions --- */
         #sidebar {
             width: 340px;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             will-change: width, padding, opacity;
         }
         
-        /* Smooth collapsing effect leaving the icon rail fully functional */
         #sidebar.collapsed {
             width: 0px;
             padding-left: 0px;
@@ -58,13 +64,27 @@
             pointer-events: none;
         }
         
-        /* Map adjustment wrapper */
         #map {
             flex-grow: 1;
             height: 100vh;
         }
         
-        /* --- Horizontal One-Line Fuel Markers --- */
+        /* --- Responsive Layout Rules (Mobile View Fixes) --- */
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                left: 64px;
+                top: 0;
+                height: 100%;
+                z-index: 2500;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            }
+            #sidebar.collapsed {
+                transform: translateX(-120%);
+                width: 340px;
+            }
+        }
+        
         .inline-fuel-badge {
             display: flex;
             align-items: center;
@@ -106,30 +126,31 @@
 
     <div class="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-4 justify-between shrink-0 h-full z-[2600] select-none">
         <div class="flex flex-col items-center gap-6 w-full">
-            <button onclick="toggleSidebar()" class="bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-9 w-9 rounded-md shadow-xs flex items-center justify-center font-medium transition-transform active:scale-95 focus:outline-none">
+            <button onclick="toggleSidebar()" class="bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 h-9 w-9 rounded-md shadow-xs flex items-center justify-center font-medium transition-all active:scale-95 focus:outline-none">
                 <span id="toggleIcon" class="text-sm font-bold">←</span>
             </button>
             
-            <button class="flex flex-col items-center justify-center text-slate-900 transition-colors focus:outline-none" onclick="switchTab('local-tab')">
+            <button id="navBtnSearch" class="flex flex-col items-center justify-center text-slate-900 transition-colors focus:outline-none" onclick="switchTab('local-tab')">
                 <span class="text-xl">🔍</span>
                 <span class="text-[10px] font-semibold text-slate-500 mt-1">Search</span>
             </button>
-            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none">
+            <button id="navBtnHome" class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="switchTab('home-tab')">
                 <span class="text-xl">🏠</span>
                 <span class="text-[10px] font-medium text-slate-400 mt-0.5">Home</span>
             </button>
-            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none">
+            <button id="navBtnStarred" class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="switchTab('starred-tab')">
                 <span class="text-xl">⭐</span>
                 <span class="text-[10px] font-medium text-slate-400 mt-0.5">Starred</span>
             </button>
-            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="switchTab('route-tab')">
+            <button id="navBtnRoutes" class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="switchTab('route-tab')">
                 <span class="text-xl">🗺️</span>
                 <span class="text-[10px] font-medium text-slate-400 mt-0.5">Routes</span>
             </button>
         </div>
         <div>
-            <button class="flex flex-col items-center justify-center text-slate-300 hover:text-red-500 transition-colors focus:outline-none" onclick="location.reload()">
-                <span class="text-lg">🗑️</span>
+            <button class="flex flex-col items-center justify-center text-slate-400 hover:text-slate-900 transition-colors focus:outline-none" onclick="location.reload()">
+                <span class="text-lg">🔄</span>
+                <span class="text-[10px] font-medium text-slate-400 mt-0.5">Refresh</span>
             </button>
         </div>
     </div>
@@ -139,13 +160,17 @@
         <div class="mb-5">
             <h2 class="text-base font-bold tracking-tight text-slate-900">Search Fuel Price</h2>
             <p class="text-[11px] text-slate-400 font-medium mt-0.5">Live parameters lookup control</p>
+            
+            <p class="text-[10px] bg-slate-100 text-slate-600 inline-block px-2 py-0.5 rounded-md font-medium mt-2">
+                ⏰ Prices updated: <span id="lastUpdatedTime" class="font-semibold">Today, 12:15 AM</span>
+            </p>
         </div>
         
         <div class="p-1 bg-slate-100 rounded-lg flex gap-1 mb-5">
-            <button class="tab-btn active flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('local-tab')">
+            <button id="modeTabLocal" class="tab-btn active flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent" onclick="switchTab('local-tab')">
                 📍 Local Area
             </button>
-            <button class="tab-btn flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent [&.active]:bg-white [&.active]:text-slate-950 [&.active]:shadow-xs" onclick="switchTab('route-tab')">
+            <button id="modeTabRoute" class="tab-btn flex-1 text-xs font-semibold py-1.5 px-3 rounded-md transition-all text-slate-600 bg-transparent" onclick="switchTab('route-tab')">
                 🛣️ Route Corridor
             </button>
         </div>
@@ -169,16 +194,13 @@
 
             <div id="route-tab" class="tab-content block [&:not(.active)]:hidden space-y-4">
                 
-                <div id="waypointContainer" class="space-y-2.5">
-                    <div class="relative">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🟢 Starting Location</label>
-                        <input type="text" id="startInput" placeholder="Enter departure town or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
-                    </div>
-                    <div class="relative">
-                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">🔴 Destination</label>
-                        <input type="text" id="endInput" placeholder="Enter target town or postcode..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-2 px-3 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
-                    </div>
+                <div class="hidden">
+                    <input type="text" id="startInput" value="">
+                    <input type="text" id="endInput" value="">
                 </div>
+                
+                <div id="waypointContainer" class="space-y-2.5">
+                    </div>
                 
                 <button class="w-full text-xs font-semibold py-2 px-4 rounded-md border border-dashed border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center justify-center gap-1.5 focus:outline-none" onclick="addNewWaypointField('Stop')">
                     <span>➕</span> Add Interim Stop
@@ -204,6 +226,22 @@
                     <button id="btnClearRoute" onclick="if(typeof clearJourney === 'function') { clearJourney(); } else { location.reload(); }" class="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-medium py-2.5 px-4 rounded-md text-xs shadow-xs transition-colors focus:outline-none">
                         Clear Route
                     </button>
+                </div>
+            </div>
+
+            <div id="home-tab" class="tab-content block [&:not(.active)]:hidden space-y-3">
+                <div class="p-4 bg-slate-50 border border-slate-200/70 rounded-xl text-center">
+                    <span class="text-2xl block mb-1">🏠</span>
+                    <h3 class="text-xs font-bold text-slate-800">Saved Home Base</h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Quick-launch stations near default base parameters context.</p>
+                </div>
+            </div>
+
+            <div id="starred-tab" class="tab-content block [&:not(.active)]:hidden space-y-3">
+                <div class="p-4 bg-slate-50 border border-slate-200/70 rounded-xl text-center">
+                    <span class="text-2xl block mb-1">⭐</span>
+                    <h3 class="text-xs font-bold text-slate-800">Favorite Forecourts</h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">No starred filling stations saved yet. Tap any marker to bookmark.</p>
                 </div>
             </div>
         </div>
@@ -289,6 +327,46 @@
             <p class="text-[10px] text-slate-400 text-center font-medium">ℹ️ Pricing streams update live from central repository.</p>
         </div>
     </div>
+
+    <script>
+        function switchTab(tabId) {
+            // Hide all tabs & remove focus states
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Activate target sub-panel elements
+            const targetedTab = document.getElementById(tabId);
+            if(targetedTab) targetedTab.classList.add('active');
+            
+            // Synchronize active classes with control headers
+            if (tabId === 'local-tab') {
+                document.getElementById('modeTabLocal')?.classList.add('active');
+            } else if (tabId === 'route-tab') {
+                document.getElementById('modeTabRoute')?.classList.add('active');
+            }
+            
+            // Map rail icon focus feedback highlights
+            const navBtnSearch = document.getElementById('navBtnSearch');
+            const navBtnHome = document.getElementById('navBtnHome');
+            const navBtnStarred = document.getElementById('navBtnStarred');
+            const navBtnRoutes = document.getElementById('navBtnRoutes');
+            
+            [navBtnSearch, navBtnHome, navBtnStarred, navBtnRoutes].forEach(btn => {
+                if(btn) { btn.classList.remove('text-slate-900'); btn.classList.add('text-slate-400'); }
+            });
+            
+            if (tabId === 'local-tab' && navBtnSearch) { navBtnSearch.classList.add('text-slate-900'); navBtnSearch.classList.remove('text-slate-400'); }
+            if (tabId === 'home-tab' && navBtnHome) { navBtnHome.classList.add('text-slate-900'); navBtnHome.classList.remove('text-slate-400'); }
+            if (tabId === 'starred-tab' && navBtnStarred) { navBtnStarred.classList.add('text-slate-900'); navBtnStarred.classList.remove('text-slate-400'); }
+            if (tabId === 'route-tab' && navBtnRoutes) { navBtnRoutes.classList.add('text-slate-900'); navBtnRoutes.classList.remove('text-slate-400'); }
+
+            // Slide out sidebar panel drawer if collapsed
+            const sb = document.getElementById('sidebar');
+            if(sb && sb.classList.contains('collapsed')) {
+                toggleSidebar();
+            }
+        }
+    </script>
 
     <script src="app.js"></script>
 </body>
