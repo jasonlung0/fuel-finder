@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuel Optimization Corridor & Routing Dashboard</title>
+    <title>Fuel Pipeline Optimization Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -18,16 +18,16 @@
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: #2563eb;
             cursor: pointer;
             border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
         }
 
-        /* Fix 1: Premium Marker Layout Styles & Interactive CSS Scaling Animations */
+        /* Marker Badges Anchoring & Scale Interactions */
         .custom-leaflet-pin {
             background: transparent !important;
             border: none !important;
@@ -38,8 +38,8 @@
             backface-visibility: hidden;
         }
         .marker-badge-pulse:hover {
-            transform: scale(1.12) translateY(-2px);
-            box-shadow: 0 12px 20px -4px rgba(0, 0, 0, 0.25);
+            transform: scale(1.15) translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
             z-index: 99999 !important;
         }
 
@@ -48,14 +48,14 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-50 font-sans overflow-hidden select-none">
+<body class="bg-slate-900 font-sans overflow-hidden select-none">
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Mock Station Matrix Pipeline
+        // Mock Forecourt Simulation Pipeline Data
         const generateMockForecourts = (centerLat, centerLng, count = 25) => {
             const brands = ['ASDA', 'SAINSBURYS', 'MORRISONS', 'GULF', 'JET', 'BP', 'SHELL'];
             const labels = {
@@ -73,11 +73,10 @@
                 const addressList = labels[brand];
                 const address = `${Math.floor(Math.random() * 45) + 1} ${addressList[Math.floor(Math.random() * addressList.length)]}`;
                 
-                // Safe localized clustering offsets to avoid map drifting anomalies
-                const offsetLat = (Math.random() - 0.5) * 0.12;
-                const offsetLng = (Math.random() - 0.5) * 0.16;
+                const offsetLat = (Math.random() - 0.5) * 0.14;
+                const offsetLng = (Math.random() - 0.5) * 0.18;
                 
-                const basePrice = parseFloat((148.5 + Math.random() * 15).toFixed(1));
+                const basePrice = parseFloat((144.5 + Math.random() * 14).toFixed(1));
                 return {
                     id: `st-${i}-${Math.random().toString(36).substr(2, 4)}`,
                     brand,
@@ -86,65 +85,64 @@
                     lng: centerLng + offsetLng,
                     prices: {
                         e10: basePrice,
-                        e5: parseFloat((basePrice + 18.0).toFixed(1)),
-                        b7: parseFloat((basePrice + 24.0).toFixed(1))
+                        e5: parseFloat((basePrice + 14.0).toFixed(1)),
+                        b7: parseFloat((basePrice + 18.0).toFixed(1))
                     }
                 };
             });
         };
 
         function App() {
-            // Application Control Modes
-            const [searchMode, setSearchMode] = useState('route'); // 'local' or 'route'
+            // Fix: Local area search is selected by default
+            const [searchMode, setSearchMode] = useState('local'); 
             
-            // Text Input Fields Coordinates Targets
+            // Text Input Fields
             const [startInput, setStartInput] = useState('Dunfermline');
             const [destInput, setDestInput] = useState('Edinburgh');
             const [interimInput, setInterimInput] = useState('Moffat');
             const [localSearch, setLocalSearch] = useState('City of Edinburgh, Scotland');
             
-            // Live Reactive Filter Configurations
-            const [radius, setRadius] = useState(5);
-            const [efficiency, setEfficiency] = useState(45);
+            // Config Parameters
+            const [radius, setRadius] = useState(8);
+            const [efficiency, setEfficiency] = useState(48);
             const [fuelVariant, setFuelVariant] = useState('Petrol Unleaded (E10)');
             const [traditionalPumps, setTraditionalPumps] = useState(false);
 
-            // Active State Data Records
+            // Active Datastream Status Records
             const [forecourts, setForecourts] = useState([]);
             const [selectedStation, setSelectedStation] = useState(null);
             const [suggestions, setSuggestions] = useState([]);
             const [activeSuggestionField, setActiveSuggestionField] = useState(null);
             
-            // Drawer & Overlay UI Visual Controls
+            // Overlay Layout Windows
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [isPoolsOpen, setIsPoolsOpen] = useState(false);
 
-            // Leaflet Instance Engineering References
+            // Mapping References
             const mapRef = useRef(null);
             const routeGroupRef = useRef(null);
             const markerGroupRef = useRef(null);
             const activeCircleOverlayRef = useRef(null);
 
-            // Core Layout Map Framework Construction Mount
+            // Core Map Engine Initializer
             useEffect(() => {
                 if (!mapRef.current) {
-                    mapRef.current = L.map('map', { zoomControl: false }).setView([56.015, -3.40], 11);
+                    // zoomControl: false to allow our custom pill-styled zoom block
+                    mapRef.current = L.map('map', { zoomControl: false }).setView([55.9533, -3.1883], 11);
                     
                     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                         attribution: '© OpenStreetMap contributors'
                     }).addTo(mapRef.current);
 
-                    L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
-
                     markerGroupRef.current = L.layerGroup().addTo(mapRef.current);
                     routeGroupRef.current = L.layerGroup().addTo(mapRef.current);
 
-                    // Seed initial localized telemetry positions
-                    setForecourts(generateMockForecourts(55.9533, -3.1883, 22));
+                    // Seed starting telemetry rows
+                    setForecourts(generateMockForecourts(55.9533, -3.1883, 20));
                 }
             }, []);
 
-            // Fix 1: Accurate Multi-Level Marker Anchor Point Management Pipeline
+            // Precise Marker Rendering Configuration
             useEffect(() => {
                 if (markerGroupRef.current && mapRef.current) {
                     markerGroupRef.current.clearLayers();
@@ -152,22 +150,20 @@
                     forecourts.forEach(station => {
                         const price = station.prices.e10;
                         let colorVariantClass = 'bg-blue-600'; 
-                        if (price < 153) colorVariantClass = 'bg-emerald-500';
-                        if (price > 161) colorVariantClass = 'bg-red-500';
+                        if (price < 149) colorVariantClass = 'bg-emerald-500';
+                        if (price > 155) colorVariantClass = 'bg-rose-500';
 
                         const generatedHtmlContent = `
-                            <div class="marker-badge-pulse ${colorVariantClass} text-white text-[11px] font-black px-2.5 py-1 rounded-xl shadow-lg border-2 border-white flex items-center justify-center gap-1 cursor-pointer">
-                                <span class="w-1 h-1 rounded-full bg-white/90"></span>
+                            <div class="marker-badge-pulse ${colorVariantClass} text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-md border border-white flex items-center justify-center gap-1 cursor-pointer">
                                 ${price}p
                             </div>
                         `;
 
-                        // iconSize paired with iconAnchor centers the marker directly over coordinates
                         const premiumIconInstance = L.divIcon({
                             className: 'custom-leaflet-pin',
                             html: generatedHtmlContent,
-                            iconSize: [56, 24],
-                            iconAnchor: [28, 12]
+                            iconSize: [52, 22],
+                            iconAnchor: [26, 11]
                         });
 
                         const leafletMarkerObject = L.marker([station.lat, station.lng], { icon: premiumIconInstance });
@@ -177,7 +173,7 @@
                 }
             }, [forecourts]);
 
-            // Fix 4: Continuous Tracking Mapping for Radius Circle Elements
+            // Preserved Implementation: Smooth Geolocation Radius Blue Circle Mapping
             useEffect(() => {
                 if (searchMode === 'local' && mapRef.current) {
                     if (activeCircleOverlayRef.current) {
@@ -185,12 +181,12 @@
                     }
                     const visibleCenterCoord = mapRef.current.getCenter();
                     activeCircleOverlayRef.current = L.circle(visibleCenterCoord, {
-                        radius: radius * 1609.34, // Miles metric mapping converter
-                        color: '#2563eb',
-                        fillColor: '#3b82f6',
-                        fillOpacity: 0.07,
-                        weight: 2,
-                        dashArray: '6, 8'
+                        radius: radius * 1609.34, 
+                        color: '#3b82f6',
+                        fillColor: '#2563eb',
+                        fillOpacity: 0.06,
+                        weight: 1.5,
+                        dashArray: '4, 6'
                     }).addTo(mapRef.current);
                 } else {
                     if (activeCircleOverlayRef.current && mapRef.current) {
@@ -200,7 +196,7 @@
                 }
             }, [radius, searchMode]);
 
-            // Real-Time Asynchronous Location Geocoding Engine
+            // Auto-complete Geocoding Services
             const executeGeocodeLookup = async (textVal, fieldIdentifier) => {
                 if (fieldIdentifier === 'start') setStartInput(textVal);
                 if (fieldIdentifier === 'dest') setDestInput(textVal);
@@ -214,60 +210,46 @@
 
                 setActiveSuggestionField(fieldIdentifier);
                 try {
-                    const queryUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textVal)}&countrycodes=gb&limit=5`;
+                    const queryUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textVal)}&countrycodes=gb&limit=4`;
                     const networkResponse = await fetch(queryUrl, { headers: { 'Accept-Language': 'en' } });
                     const returnedDataset = await networkResponse.json();
                     setSuggestions(returnedDataset);
                 } catch (err) {
-                    console.error("Geocoding network processing fault:", err);
+                    console.error("Geocoding lookup exception:", err);
                 }
             };
 
             const confirmSuggestionAssignment = (selectedItem, fieldIdentifier) => {
-                const cleanedTitleString = selectedItem.display_name.split(',')[0] + ', ' + (selectedItem.display_name.split(',')[1] || '').trim();
+                const titleStr = selectedItem.display_name.split(',')[0] + ', ' + (selectedItem.display_name.split(',')[1] || '').trim();
                 
-                if (fieldIdentifier === 'start') setStartInput(cleanedTitleString);
-                if (fieldIdentifier === 'dest') setDestInput(cleanedTitleString);
-                if (fieldIdentifier === 'interim') setInterimInput(cleanedTitleString);
+                if (fieldIdentifier === 'start') setStartInput(titleStr);
+                if (fieldIdentifier === 'dest') setDestInput(titleStr);
+                if (fieldIdentifier === 'interim') setInterimInput(titleStr);
                 if (fieldIdentifier === 'local') {
-                    setLocalSearch(cleanedTitleString);
-                    const latitudeVal = parseFloat(selectedItem.lat);
-                    const longitudeVal = parseFloat(selectedItem.lon);
-                    mapRef.current.setView([latitudeVal, longitudeVal], 12);
-                    setForecourts(generateMockForecourts(latitudeVal, longitudeVal, 26));
+                    setLocalSearch(titleStr);
+                    const latVal = parseFloat(selectedItem.lat);
+                    const lonVal = parseFloat(selectedItem.lon);
+                    mapRef.current.setView([latVal, lonVal], 12);
+                    setForecourts(generateMockForecourts(latVal, lonVal, 22));
                 }
 
                 setSuggestions([]);
                 setActiveSuggestionField(null);
             };
 
-            // Device Location Acquisition Protocol
             const acquireHardwareCoordinates = () => {
-                if (!navigator.geolocation) {
-                    alert("Hardware tracking environment missing geolocation query permissions.");
-                    return;
-                }
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        mapRef.current.setView([latitude, longitude], 13);
-                        setLocalSearch("Device Telemetry Centerpoint");
-                        setForecourts(generateMockForecourts(latitude, longitude, 20));
-                    },
-                    () => {
-                        alert("Device sensor coordinate fetch dropped. Utilizing fallback region vector frameworks.");
-                        mapRef.current.setView([55.9533, -3.1883], 12);
-                    }
-                );
+                if (!navigator.geolocation) return;
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const { latitude, longitude } = position.coords;
+                    mapRef.current.setView([latitude, longitude], 12);
+                    setLocalSearch("Device Telemetry Position");
+                    setForecourts(generateMockForecourts(latitude, longitude, 18));
+                });
             };
 
-            // Premium OSRM Road-Network Snapped Mapping Integration Routing Engine
+            // Road Network Route Corridor Calculation
             const computeNetworkRoadCorridor = async () => {
-                if (!startInput || !destInput) {
-                    alert("Please establish clear baseline start and final point values.");
-                    return;
-                }
-
+                if (!startInput || !destInput) return;
                 routeGroupRef.current.clearLayers();
 
                 try {
@@ -295,21 +277,16 @@
 
                         const interactiveRouteLine = L.polyline(formattedLeafletLatLngs, {
                             color: '#2563eb',
-                            weight: 5,
-                            opacity: 0.9,
-                            lineCap: 'round',
-                            lineJoin: 'round'
-                        });
+                            weight: 4.5,
+                            opacity: 0.85
+                        }).addTo(routeGroupRef.current);
 
-                        interactiveRouteLine.addTo(routeGroupRef.current);
-                        mapRef.current.fitBounds(interactiveRouteLine.getBounds(), { padding: [45, 45] });
-
-                        // Distribute pricing indicators strictly inside computed corridor zone
+                        mapRef.current.fitBounds(interactiveRouteLine.getBounds(), { padding: [40, 40] });
                         const medianPathNode = formattedLeafletLatLngs[Math.floor(formattedLeafletLatLngs.length / 2)];
-                        setForecourts(generateMockForecourts(medianPathNode[0], medianPathNode[1], 32));
+                        setForecourts(generateMockForecourts(medianPathNode[0], medianPathNode[1], 28));
                     }
                 } catch (error) {
-                    console.error("OSRM pipeline corridor engine mapping error:", error);
+                    console.error("OSRM pipeline corridor mapping layer crash:", error);
                 }
             };
 
@@ -320,65 +297,89 @@
                 routeGroupRef.current.clearLayers();
             };
 
-            // Spatial Map Viewport Scan Engine
+            // Manual Map Bounding Scan Trigger
             const scanMapBoundingViewport = () => {
                 if (!mapRef.current) return;
                 const dynamicViewCenter = mapRef.current.getCenter();
-                const totalMarkersCount = Math.floor(18 + Math.random() * 15);
-                setForecourts(generateMockForecourts(dynamicViewCenter.lat, dynamicViewCenter.lng, totalMarkersCount));
+                setForecourts(generateMockForecourts(dynamicViewCenter.lat, dynamicViewCenter.lng, 24));
             };
 
+            // Sort logic to identify target tier categories
             const calculatedOptimalListings = [...forecourts]
                 .sort((x, y) => x.prices.e10 - y.prices.e10)
                 .slice(0, 3);
 
             return (
-                <div className="relative w-full h-full flex overflow-hidden">
+                <div className="relative w-full h-full flex overflow-hidden bg-slate-50">
                     
-                    {/* Primary Spatial Leaflet Layer Anchor */}
+                    {/* Map Node Container */}
                     <div id="map"></div>
 
-                    {/* Fix 3: Top Right Main Navigation Menu Bar */}
-                    <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl z-[1000] border border-slate-200/60 flex items-center p-1 gap-1.5 pointer-events-auto">
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 font-bold text-xs text-slate-700 transition" title="Dashboard Home">🏠</button>
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 font-bold text-xs text-slate-700 transition" title="Saved Route Bookmarks">⭐</button>
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 font-bold text-xs text-slate-700 transition" title="Global System Infrastructure Analytics">📊</button>
-                        <div className="w-px h-5 bg-slate-200 my-1 mx-0.5"></div>
-                        <button className="p-2.5 rounded-xl hover:bg-slate-100 font-bold text-xs text-slate-700 transition" title="System Infrastructure Parameters Config">⚙️</button>
+                    {/* Fix: Restored Premium Top-Right Navigation Pill Menu Bar */}
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg z-[1000] border border-slate-200/80 flex items-center gap-5 text-xs font-semibold text-slate-700">
+                        <div className="flex items-center gap-1.5 text-emerald-600 font-bold uppercase tracking-wider">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            System Live
+                        </div>
+                        <div className="w-px h-3 bg-slate-200"></div>
+                        <button className="hover:text-blue-600 transition">Dashboard</button>
+                        <button className="hover:text-blue-600 transition flex items-center gap-1.5">
+                            Saved Routes 
+                            <span className="bg-blue-100 text-blue-600 font-extrabold px-1.5 py-0.5 rounded text-[10px]">12</span>
+                        </button>
+                        <button className="hover:text-blue-600 transition flex items-center gap-1.5">
+                            Starred Forecourts
+                            <span className="bg-amber-100 text-amber-700 font-extrabold px-1.5 py-0.5 rounded text-[10px]">4</span>
+                        </button>
                     </div>
 
-                    {/* Legacy Sidebar Control Dashboard Block Layout */}
-                    <div className="absolute top-4 left-4 bottom-4 w-[380px] bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl z-[1000] flex flex-col overflow-hidden border border-slate-200/50 pointer-events-auto">
+                    {/* Fix: Beautiful Custom Zoom Controls Pill Group (Bottom Right) */}
+                    <div className="absolute bottom-24 right-4 z-[1000] flex flex-col gap-1 shadow-lg rounded-xl overflow-hidden border border-slate-200 bg-white">
+                        <button 
+                            onClick={() => mapRef.current?.zoomIn()} 
+                            className="w-10 h-10 bg-white hover:bg-slate-50 flex items-center justify-center font-bold text-slate-700 border-b border-slate-100 text-base transition"
+                        >
+                            ＋
+                        </button>
+                        <button 
+                            onClick={() => mapRef.current?.zoomOut()} 
+                            className="w-10 h-10 bg-white hover:bg-slate-50 flex items-center justify-center font-bold text-slate-700 text-base transition"
+                        >
+                            －
+                        </button>
+                    </div>
+
+                    {/* Fix: Restored Holistic Sidebar Styling & Typography Frame */}
+                    <div className="absolute top-4 left-4 bottom-4 w-[390px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl z-[1000] flex flex-col overflow-hidden border border-slate-200/60 pointer-events-auto">
                         <div className="p-5 flex flex-col gap-4 overflow-y-auto no-scrollbar flex-1">
                             
-                            {/* Dashboard Heading Context Banner */}
+                            {/* Standard Sidebar Top Branding Section Header */}
                             <div>
-                                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Search Fuel Price</h1>
-                                <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    SYSTEM TELEMETRY LIVE • 2026 Core Engine
+                                <h1 className="text-xl font-black text-slate-900 tracking-tight">Fuel Optimization</h1>
+                                <p className="text-[9px] text-emerald-500 font-bold tracking-widest uppercase mt-0.5">
+                                    CORRIDOR TRACK COMPUTATIONAL PIPELINE ACTIVE
                                 </p>
                             </div>
 
-                            {/* Core Search Scope Toggle Widgets */}
+                            {/* Main Context Layout Mode Toggles */}
                             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/40">
                                 <button 
                                     onClick={() => setSearchMode('local')} 
-                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     📍 Local Area Map
                                 </button>
                                 <button 
                                     onClick={() => setSearchMode('route')} 
-                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     🏎️ Route Corridor
                                 </button>
                             </div>
 
-                            {/* Local Area Context Layout UI Panels */}
+                            {/* Local Area Section Component */}
                             {searchMode === 'local' && (
-                                <div className="flex flex-col gap-3.5 animate-in fade-in duration-200">
+                                <div className="flex flex-col gap-3.5 animate-in fade-in duration-150">
                                     <div className="relative">
                                         <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Search Center Location</label>
                                         <div className="relative flex items-center">
@@ -386,22 +387,18 @@
                                                 type="text" 
                                                 value={localSearch} 
                                                 onChange={(e) => executeGeocodeLookup(e.target.value, 'local')} 
-                                                className="w-full text-xs font-semibold border border-slate-200 rounded-xl pl-3.5 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                                className="w-full text-xs font-semibold border border-slate-200 rounded-xl pl-3.5 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800 bg-slate-50/50" 
                                                 placeholder="e.g. Edinburgh, Scotland" 
                                             />
-                                            <button 
-                                                onClick={acquireHardwareCoordinates} 
-                                                className="absolute right-2.5 p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition active:scale-95" 
-                                                title="Fetch current device location coordinates"
-                                            >
+                                            <button onClick={acquireHardwareCoordinates} className="absolute right-2.5 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition" title="Get device coordinates">
                                                 🎯
                                             </button>
                                         </div>
 
                                         {activeSuggestionField === 'local' && suggestions.length > 0 && (
-                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-48 overflow-y-auto">
+                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-44 overflow-y-auto">
                                                 {suggestions.map((s, idx) => (
-                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'local')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
+                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'local')} className="p-2.5 text-xs hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700 font-medium">{s.display_name}</div>
                                                 ))}
                                             </div>
                                         )}
@@ -410,13 +407,10 @@
                                     <div>
                                         <div className="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">
                                             <span>Scan Window Radius</span>
-                                            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-bold normal-case text-xs">{radius} Miles Context</span>
+                                            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-bold text-xs">{radius} Miles Scope</span>
                                         </div>
                                         <input 
-                                            type="range" 
-                                            min="1" 
-                                            max="25" 
-                                            value={radius} 
+                                            type="range" min="1" max="25" value={radius} 
                                             onChange={(e) => setRadius(parseInt(e.target.value))} 
                                             className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider border border-slate-200/40" 
                                         />
@@ -424,149 +418,129 @@
                                 </div>
                             )}
 
-                            {/* Route Corridor Input Configurations Form Sheets */}
+                            {/* Fix: Restored Unified Route Planner Vertical Stacking Input Connectors Style */}
                             {searchMode === 'route' && (
-                                <div className="flex flex-col gap-3 animate-in fade-in duration-200">
-                                    <div className="relative">
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🟢 Starting Location</label>
-                                        <input 
-                                            type="text" 
-                                            value={startInput} 
-                                            onChange={(e) => executeGeocodeLookup(e.target.value, 'start')} 
-                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
-                                            placeholder="e.g. Dunfermline" 
-                                        />
-                                        {activeSuggestionField === 'start' && suggestions.length > 0 && (
-                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
-                                                {suggestions.map((s, idx) => (
-                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'start')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
-                                                ))}
-                                            </div>
-                                        )}
+                                <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl flex flex-col gap-3 relative animate-in fade-in duration-150">
+                                    {/* Left margin dotted pipeline vertical line */}
+                                    <div className="absolute left-[25px] top-7 bottom-7 w-px border-l-2 border-dashed border-blue-200 z-0"></div>
+                                    
+                                    {/* Start Node Row */}
+                                    <div className="flex items-center gap-3 relative z-10">
+                                        <span className="w-4 h-4 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center text-[9px] text-blue-500 font-bold shadow-sm">○</span>
+                                        <div className="flex-1 relative">
+                                            <input 
+                                                type="text" value={startInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'start')} 
+                                                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none text-slate-800" placeholder="Starting Location" 
+                                            />
+                                            {activeSuggestionField === 'start' && suggestions.length > 0 && (
+                                                <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-lg shadow-xl z-[5000] max-h-36 overflow-y-auto">
+                                                    {suggestions.map((s, idx) => (
+                                                        <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'start')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700">{s.display_name}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <div className="relative">
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🔵 Add Interim Stop (Optional)</label>
-                                        <input 
-                                            type="text" 
-                                            value={interimInput} 
-                                            onChange={(e) => executeGeocodeLookup(e.target.value, 'interim')} 
-                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
-                                            placeholder="e.g. Moffat" 
-                                        />
-                                        {activeSuggestionField === 'interim' && suggestions.length > 0 && (
-                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
-                                                {suggestions.map((s, idx) => (
-                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'interim')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
-                                                ))}
-                                            </div>
-                                        )}
+                                    {/* Interim Node Row */}
+                                    <div className="flex items-center gap-3 relative z-10">
+                                        <span className="w-4 h-4 rounded-full bg-white border-2 border-blue-400 flex items-center justify-center text-[9px] text-blue-400 font-bold shadow-sm">○</span>
+                                        <div className="flex-1 relative">
+                                            <input 
+                                                type="text" value={interimInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'interim')} 
+                                                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none text-slate-800" placeholder="Interim Stop (Optional)" 
+                                            />
+                                            {activeSuggestionField === 'interim' && suggestions.length > 0 && (
+                                                <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-lg shadow-xl z-[5000] max-h-36 overflow-y-auto">
+                                                    {suggestions.map((s, idx) => (
+                                                        <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'interim')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700">{s.display_name}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <div className="relative">
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🔴 Destination</label>
-                                        <input 
-                                            type="text" 
-                                            value={destInput} 
-                                            onChange={(e) => executeGeocodeLookup(e.target.value, 'dest')} 
-                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
-                                            placeholder="e.g. Edinburgh" 
-                                        />
-                                        {activeSuggestionField === 'dest' && suggestions.length > 0 && (
-                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
-                                                {suggestions.map((s, idx) => (
-                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'dest')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-2 mt-1">
-                                        <button onClick={computeNetworkRoadCorridor} className="bg-slate-900 text-white text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition active:scale-[0.98] shadow-md flex items-center justify-center gap-1">
-                                            🚀 Search Route
-                                        </button>
-                                        <button onClick={clearActiveRoutingLayers} className="bg-slate-100 text-slate-600 text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-200 transition active:scale-[0.98]">
-                                            Clear Path
-                                        </button>
+                                    {/* Destination Node Row */}
+                                    <div className="flex items-center gap-3 relative z-10">
+                                        <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold shadow-sm">📍</span>
+                                        <div className="flex-1 relative">
+                                            <input 
+                                                type="text" value={destInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'dest')} 
+                                                className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none text-slate-800" placeholder="Destination Point" 
+                                            />
+                                            {activeSuggestionField === 'dest' && suggestions.length > 0 && (
+                                                <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-lg shadow-xl z-[5000] max-h-36 overflow-y-auto">
+                                                    {suggestions.map((s, idx) => (
+                                                        <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'dest')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700">{s.display_name}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             <hr className="border-slate-100" />
 
-                            {/* Additional Secondary Settings Parameters panel row elements */}
+                            {/* Configurations Management Cards */}
                             <div className="flex flex-col gap-3">
                                 <div>
-                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Vehicle Fuel Consumption (MPG)</label>
+                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Vehicle Consumption Efficiency (MPG)</label>
                                     <input 
-                                        type="number" 
-                                        value={efficiency} 
-                                        onChange={(e) => setEfficiency(e.target.value)} 
-                                        className="w-full text-xs font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                        type="number" value={efficiency} onChange={(e) => setEfficiency(e.target.value)} 
+                                        className="w-full text-xs font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none text-slate-800 bg-slate-50/50" 
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Fuel Core Variant Formulation</label>
+                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Fuel Core Variant Composition</label>
                                     <select 
-                                        value={fuelVariant} 
-                                        onChange={(e) => setFuelVariant(e.target.value)} 
-                                        className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                        value={fuelVariant} onChange={(e) => setFuelVariant(e.target.value)} 
+                                        className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2.5 bg-white text-slate-700 focus:outline-none"
                                     >
                                         <option>Petrol Unleaded (E10)</option>
                                         <option>Super Unleaded (E5)</option>
                                         <option>Diesel (B7)</option>
                                     </select>
                                 </div>
-
-                                <div className="flex items-center gap-2 mt-1 p-0.5">
-                                    <input 
-                                        id="filter-mech-only" 
-                                        type="checkbox" 
-                                        checked={traditionalPumps} 
-                                        onChange={(e) => setTraditionalPumps(e.target.checked)}
-                                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" 
-                                    />
-                                    <label htmlFor="filter-mech-only" className="text-xs font-semibold text-slate-600 cursor-pointer select-none">Traditional Mechanical Pumps Only</label>
-                                </div>
                             </div>
 
-                            {/* Fix 5: Conditional Visibility Logic for Financial Overview Card Block */}
+                            {/* Conditional Display Logic: Financial Summary Block */}
                             {searchMode === 'route' && (
-                                <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 flex flex-col gap-2 mt-1 animate-in fade-in duration-200">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 flex items-center gap-1">
-                                            📊 Financial Calculations Summary
-                                        </span>
-                                    </div>
+                                <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-4 flex flex-col gap-2 mt-1 animate-in fade-in duration-150">
+                                    <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block">📊 Financial Calculations Summary</span>
                                     <div className="text-xs font-semibold text-slate-600 flex justify-between">
                                         <span>Total Track: <strong className="text-slate-900">18.5 miles</strong></span>
                                         <span>Optimal Expenses: <strong className="text-emerald-600">£2.86</strong></span>
                                     </div>
                                     <button 
                                         onClick={() => setIsModalOpen(true)} 
-                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-between shadow-sm active:scale-[0.98] mt-1"
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-3 rounded-lg transition flex items-center justify-between mt-1 shadow-sm"
                                     >
-                                        <span>📋 View Pricing Info</span>
-                                        <span className="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full border border-white/20">£ Live</span>
+                                        <span>📋 Open Full Analysis</span>
+                                        <span>→</span>
                                     </button>
                                 </div>
                             )}
 
-                            {/* Highest Rank Options Sidebar Lists Mapping Block */}
+                            {/* Render System Listings */}
                             {calculatedOptimalListings.length > 0 && (
                                 <div className="flex flex-col gap-2 mt-1">
                                     <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block">🏆 Cheapest Selection Choices</span>
                                     {calculatedOptimalListings.map((station, index) => (
-                                        <div key={station.id} onClick={() => { mapRef.current.setView([station.lat, station.lng], 14); setSelectedStation(station); }} className="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center hover:border-blue-300 hover:shadow-sm cursor-pointer transition active:scale-[0.99]">
+                                        <div 
+                                            key={station.id} 
+                                            onClick={() => { mapRef.current.setView([station.lat, station.lng], 13); setSelectedStation(station); }} 
+                                            className="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center hover:border-blue-300 shadow-sm cursor-pointer transition"
+                                        >
                                             <div className="flex items-center gap-2.5">
-                                                <span className="text-xs font-bold text-amber-500 bg-amber-50 w-6 h-6 rounded-lg flex items-center justify-center border border-amber-100">#{index + 1}</span>
+                                                <span className="text-xs font-bold text-amber-600 bg-amber-50 w-6 h-6 rounded flex items-center justify-center border border-amber-100">#{index + 1}</span>
                                                 <div>
-                                                    <h4 className="text-xs font-extrabold text-slate-800">{station.brand}</h4>
-                                                    <p className="text-[9px] text-slate-400 font-bold tracking-wider uppercase truncate max-w-[180px]">{station.address}</p>
+                                                    <h4 className="text-xs font-black text-slate-800">{station.brand}</h4>
+                                                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide truncate max-w-[180px]">{station.address}</p>
                                                 </div>
                                             </div>
-                                            <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">{station.prices.e10}p</span>
+                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{station.prices.e10}p</span>
                                         </div>
                                     ))}
                                 </div>
@@ -574,72 +548,80 @@
 
                         </div>
 
-                        {/* Slide-Over Pools Configuration Trigger Footer Module Bar */}
-                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
-                            <button onClick={() => setIsPoolsOpen(true)} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition active:scale-95 flex items-center justify-between px-4 text-slate-700 shadow-sm">
-                                <span>🗄️ Fetch Remote Pool</span>
-                                <span className="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-md text-[10px]">Rows Mapped: {forecourts.length}</span>
+                        {/* Fix: Restored Sidebar Action Bottom Deck (Pools + Primary Execution Split) */}
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2">
+                            <button 
+                                onClick={() => setIsPoolsOpen(true)} 
+                                className="px-4 py-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 font-bold text-xs text-slate-700 shadow-sm flex items-center gap-2 transition active:scale-95 shrink-0"
+                            >
+                                📊 Pools
+                            </button>
+                            
+                            <button 
+                                onClick={searchMode === 'route' ? computeNetworkRoadCorridor : scanMapBoundingViewport}
+                                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition active:scale-[0.98] shadow-md text-center"
+                            >
+                                {searchMode === 'route' ? '🔎 Search Route Corridor' : '🔍 Scan Local Region'}
                             </button>
                         </div>
                     </div>
 
-                    {/* Viewport Boundary Area Scanning Trigger Control Module Widget */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
+                    {/* Viewport Boundary Floating Scanner Button */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
                         <button 
                             onClick={scanMapBoundingViewport} 
-                            className="bg-slate-900 text-white border border-slate-800 px-6 py-3 rounded-full text-xs font-bold shadow-2xl hover:bg-slate-800 tracking-wider uppercase flex items-center gap-2 transition active:scale-95 whitespace-nowrap"
+                            className="bg-slate-900 text-white border border-slate-800 px-5 py-2.5 rounded-full text-[11px] font-bold tracking-wider uppercase shadow-2xl hover:bg-slate-800 transition active:scale-95"
                         >
-                            🔍 Scan This Viewport Area
+                            🔄 Sync Viewport Area
                         </button>
                     </div>
 
-                    {/* Floating Detailed Station Meta Parameter Data Frame Card Overlays */}
+                    {/* Fix: Color-Coded Stations Details Overlay Panel (Emulating Build 02.10.17) */}
                     {selectedStation && (
-                        <div className="absolute bottom-6 right-16 z-[1000] bg-white rounded-3xl shadow-2xl p-5 w-80 border border-slate-200/60 flex flex-col gap-3.5 animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto">
+                        <div className="absolute bottom-6 right-16 z-[1000] bg-white rounded-2xl shadow-2xl p-5 w-80 border border-slate-200/80 flex flex-col gap-3.5 animate-in slide-in-from-bottom-4 duration-200">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <h3 className="text-base font-black text-slate-900 tracking-tight">{selectedStation.brand}</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{selectedStation.address}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{selectedStation.address}</p>
                                 </div>
-                                <button onClick={() => setSelectedStation(null)} className="text-slate-400 hover:text-slate-600 text-xs p-1.5 rounded-xl hover:bg-slate-100 transition font-black">✕</button>
+                                <button onClick={() => setSelectedStation(null)} className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1">✕</button>
                             </div>
+                            
+                            {/* Color-coded tier boxes layout row matching previous parameters */}
                             <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unleaded E10</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e10}p</p>
+                                <div className="bg-emerald-50 text-emerald-800 border border-emerald-200/60 p-2 rounded-xl text-center">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide opacity-80">Unleaded</p>
+                                    <p className="text-sm font-black mt-0.5">{selectedStation.prices.e10}p</p>
                                 </div>
-                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Super E5</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e5}p</p>
+                                <div className="bg-blue-50 text-blue-800 border border-blue-200/60 p-2 rounded-xl text-center">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide opacity-80">Super E5</p>
+                                    <p className="text-sm font-black mt-0.5">{selectedStation.prices.e5}p</p>
                                 </div>
-                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Diesel B7</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.b7}p</p>
+                                <div className="bg-amber-50 text-amber-800 border border-amber-200/60 p-2 rounded-xl text-center">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide opacity-80">Diesel B7</p>
+                                    <p className="text-sm font-black mt-0.5">{selectedStation.prices.b7}p</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Interactive Sliding Pools List Drawer Layer Overlay Panel components */}
+                    {/* Remote Clusters Slide Drawer Layer Sheet */}
                     {isPoolsOpen && (
-                        <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md z-[2000] border-l border-slate-200/80 shadow-2xl p-5 flex flex-col gap-4 animate-in slide-in-from-right duration-300 pointer-events-auto">
+                        <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md z-[2000] border-l border-slate-200 shadow-2xl p-5 flex flex-col gap-4 animate-in slide-in-from-right duration-200">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Cluster Database Pool</h2>
-                                <button onClick={() => setIsPoolsOpen(false)} className="text-slate-400 font-bold hover:text-slate-600 p-1">✕</button>
+                                <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Cluster Rows Array</h2>
+                                <button onClick={() => setIsPoolsOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
                             </div>
-                            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">Displaying total generated cluster parameters generated within current bounds scope framework context.</p>
-                            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 no-scrollbar">
+                            <div className="flex-1 overflow-y-auto flex flex-col gap-2 no-scrollbar">
                                 {forecourts.map((station) => (
                                     <div 
-                                        key={station.id} 
-                                        onClick={() => { mapRef.current.setView([station.lat, station.lng], 14); setSelectedStation(station); }}
-                                        className="p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-500 hover:shadow-sm cursor-pointer transition active:scale-[0.98]"
+                                        key={station.id} onClick={() => { mapRef.current.setView([station.lat, station.lng], 13); setSelectedStation(station); }}
+                                        className="p-2.5 bg-white border border-slate-100 rounded-lg hover:border-blue-400 cursor-pointer transition text-xs font-semibold text-slate-700"
                                     >
-                                        <div className="flex justify-between font-bold text-xs text-slate-800">
+                                        <div className="flex justify-between">
                                             <span>{station.brand}</span>
-                                            <span className="text-blue-600">{station.prices.e10}p</span>
+                                            <span className="text-emerald-600 font-bold">{station.prices.e10}p</span>
                                         </div>
-                                        <p className="text-[9px] text-slate-400 font-bold tracking-wider mt-0.5 uppercase truncate">{station.address}</p>
                                     </div>
                                 ))}
                             </div>
@@ -648,36 +630,29 @@
 
                     {/* Pricing Calculation High-Fidelity Details Analytics Modal Overlay Window */}
                     {isModalOpen && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 pointer-events-auto">
-                            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-200/50 animate-in zoom-in-95 duration-150 flex flex-col gap-4">
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[99999] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 border border-slate-200 flex flex-col gap-4 animate-in zoom-in-95 duration-100">
                                 <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-base">📊</span>
-                                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Financial Analysis Summary</h3>
-                                    </div>
-                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1">✕</button>
+                                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Financial Analysis Breakdown</h3>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 font-bold hover:text-slate-600">✕</button>
                                 </div>
 
-                                <div className="flex flex-col gap-2.5">
-                                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <span className="text-xs font-semibold text-slate-500">Route Scan Scope Path Range</span>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex justify-between items-center p-2.5 bg-slate-50 rounded-lg">
+                                        <span className="text-xs text-slate-500 font-medium">Path Range</span>
                                         <span className="text-xs font-bold text-slate-800">18.5 miles</span>
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <span className="text-xs font-semibold text-slate-500">Target Benchmark Fuel Price</span>
-                                        <span className="text-xs font-bold text-emerald-600">152.7p / Liter</span>
+                                    <div className="flex justify-between items-center p-2.5 bg-emerald-50 text-emerald-800 rounded-lg">
+                                        <span className="text-xs font-medium">Benchmark Fuel Price</span>
+                                        <span className="text-xs font-bold">146.2p / L</span>
                                     </div>
-                                    <div className="flex justify-between items-center p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                        <span className="text-xs font-bold text-emerald-800">Projected Run Expenses Target</span>
-                                        <span className="text-xs font-black text-emerald-700">£2.86 Total</span>
+                                    <div className="flex justify-between items-center p-2.5 bg-blue-50 text-blue-800 rounded-lg">
+                                        <span className="text-xs font-medium">Projected Cost Run Target</span>
+                                        <span className="text-xs font-black">£2.86 Total</span>
                                     </div>
                                 </div>
 
-                                <div className="text-[11px] text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium">
-                                    <strong>Calculations Model Parameters:</strong> Assumes a continuous consumption efficiency profile metric of <strong>{efficiency} MPG</strong> calculated dynamically against current cluster API data matrices.
-                                </div>
-
-                                <button onClick={() => setIsModalOpen(false)} className="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-slate-800 transition active:scale-95 shadow-md">
+                                <button onClick={() => setIsModalOpen(false)} className="w-full bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">
                                     Dismiss Analysis
                                 </button>
                             </div>
