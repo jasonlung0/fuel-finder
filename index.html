@@ -144,7 +144,7 @@
         <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition cursor-pointer" data-tooltip="Home" onclick="console.log('Navigate Home')">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
         </button>
-        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-amber-500 hover:bg-amber-50/50 rounded-full transition cursor-pointer" data-tooltip="Starred" onclick="toggleStarredDropdown()">
+        <button id="nav-starred-trigger" class="nav-tooltip-trigger p-2 text-slate-500 hover:text-amber-500 hover:bg-amber-50/50 rounded-full transition cursor-pointer" data-tooltip="Starred" onclick="toggleStarredDropdown()">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
         </button>
         <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 rounded-full transition cursor-pointer" data-tooltip="Saved" onclick="console.log('View Saved Filters')">
@@ -160,12 +160,12 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         </button>
 
-        <div id="starred-dropdown-panel" class="absolute top-14 right-0 w-85 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl p-4 hidden flex flex-col max-h-[70vh] max-md:right-[-12px]">
+        <div id="starred-dropdown-panel" class="absolute top-14 right-0 w-96 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl p-4 hidden flex flex-col max-h-[75vh] max-md:right-[-12px] max-md:w-85">
             <div class="flex justify-between items-center pb-2 border-b border-slate-100 mb-2 shrink-0">
                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">⭐ Starred Forecourts</h4>
                 <span id="starred-count-badge" class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">0</span>
             </div>
-            <div id="starred-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
+            <div id="starred-list-container" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
                 </div>
         </div>
     </nav>
@@ -369,7 +369,7 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Compute a unique hash key signature identification token string for individual forecourt assets
+        // Compute unique identification signature string for individual forecourt assets
         function getStationUniqueSignature(s) {
             if (!s) return '';
             return s.site_id || `${s.brand_name}-${s.postcode || ''}-${parseFloat(s.latitude || s.lat).toFixed(4)}-${parseFloat(s.longitude || s.lng).toFixed(4)}`;
@@ -616,7 +616,7 @@
             return '⛽';
         }
 
-        // Setup DOM Event UI Binding Hook Adjustments
+        // Setup DOM Event UI Binding Hooks
         const slider = document.getElementById('radius-slider');
         const sliderVal = document.getElementById('radius-val');
         if (slider) {
@@ -632,7 +632,12 @@
             rSlider.addEventListener('input', (e) => { rSliderVal.textContent = `${e.target.value} Miles`; });
         }
         
-        document.getElementById('fuel-type')?.addEventListener('change', () => refreshViewportViewFilter());
+        document.getElementById('fuel-type')?.addEventListener('change', () => {
+            refreshViewportViewFilter();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) {
+                renderStarredDropdownDashboard();
+            }
+        });
 
         document.addEventListener('click', (e) => {
             ['location-suggestions', 'start-suggestions', 'end-suggestions'].forEach(id => {
@@ -642,9 +647,8 @@
                 }
             });
             
-            // Auto close navigation dropdown panels when clicking out on the map canvas
             const dropdown = document.getElementById('starred-dropdown-panel');
-            const starredTrigger = document.querySelector('[data-tooltip="Starred"]');
+            const starredTrigger = document.getElementById('nav-starred-trigger');
             if (dropdown && !dropdown.contains(e.target) && starredTrigger && !starredTrigger.contains(e.target)) {
                 dropdown.classList.add('hidden');
             }
@@ -672,19 +676,17 @@
                 
                 refreshViewportViewFilter();
             } catch (error) {
-                console.error("Ingestion data stream processing error stack tracker:", error);
+                console.error("Ingestion data stream processing error:", error);
                 if (counterElement) counterElement.textContent = "Data Link Error";
             }
         }
 
-        // Interactively jump and zoom into a clean map marker node anchor context
+        // Jump and focus map canvas to marker location layout view
         function focusAndHighlightMapMarker(lat, lon) {
             if (isNaN(lat) || isNaN(lon)) return;
             
-            // Recenter canvas smoothly
             map.setView([lat, lon], 14, { animate: true, duration: 0.6 });
             
-            // Look up station inside active subset, or fallback to index directory registry
             const selectedStation = currentlyVisibleStations.find(s => 
                 parseFloat(s.latitude || s.lat) === lat && 
                 parseFloat(s.longitude || s.lng) === lon
@@ -700,7 +702,7 @@
             }
         }
 
-        // Viewport & Strict Radius Filter Rules Layout Grid Matrix
+        // Viewport & Radius Filter Compilation Engine Rules
         function refreshViewportViewFilter(routeDistanceContext = null, manualScanTriggered = false) {
             if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
 
@@ -749,7 +751,7 @@
             generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
         }
 
-        // Compute and compile the top 3 cheapest locations matching active view filters
+        // Top 3 cheapest choices processing compiler logic
         function generateCheapestRankingListDeck(pool, fuelVariant) {
             const block = document.getElementById('cheapest-ranking-block');
             const container = document.getElementById('cheapest-cards-stack');
@@ -799,7 +801,7 @@
             block.classList.remove('hidden');
         }
 
-        // Dynamic local range styling generator engine strategy
+        // Relative pricing context dynamic styling engine assignment
         function assignPricingTierColorStyles(valueRaw, variantKey) {
             const fallbackClasses = "bg-slate-50 border-slate-200 text-slate-400";
             if (!valueRaw) return fallbackClasses;
@@ -832,7 +834,7 @@
             }
         }
 
-        // Render Pricing Nodes to Map View
+        // Render Price Bubbles to Map
         function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
             markerLayerGroup.clearLayers();
 
@@ -913,27 +915,22 @@
             const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
 
             if (matchingIndex > -1) {
-                // Remove if already starred
                 starredStations.splice(matchingIndex, 1);
             } else {
-                // Add to array
                 starredStations.push(activeSheetStation);
             }
 
-            // Save to localStorage
             localStorage.setItem('uk_fuel_starred_stations', JSON.stringify(starredStations));
-            
-            // Re-render completely synchronized state triggers across both elements
             updateAllStarUIStates();
         }
 
-        // Synchronize star graphic styling attributes across both sidebar and modal sheet detail frameworks
+        // Synchronize star graphic styling attributes across all views globally
         function updateAllStarUIStates() {
             if (!activeSheetStation) return;
 
             const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
             
-            // 1. Sync Bottom/Detail Sheet Control Layout Elements
+            // 1. Sync Bottom Sheet Details Elements
             const sheetIcon = document.getElementById('sheet-star-icon');
             const sheetBtn = document.getElementById('sheet-star-btn');
             if (sheetIcon && sheetBtn) {
@@ -948,7 +945,7 @@
                 }
             }
 
-            // 2. Sync Left Sidebar Quick-View Control Layout Elements
+            // 2. Sync Left Sidebar Quick-View Card Elements
             const sidebarIcon = document.getElementById('sidebar-star-icon');
             const sidebarBtn = document.getElementById('sidebar-star-btn');
             if (sidebarIcon && sidebarBtn) {
@@ -963,13 +960,13 @@
                 }
             }
 
-            // 3. Keep drop panel updated live if visible
+            // 3. Re-render list live if open
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) {
                 renderStarredDropdownDashboard();
             }
         }
 
-        // Toggle Visibility of Top-Right Floating Starred Modal
+        // Toggle Visibility of Top-Right Floating Starred Modal Dropdown
         function toggleStarredDropdown() {
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
@@ -983,7 +980,7 @@
             }
         }
 
-        // Populate Floating Dropdown Node Stack rows
+        // Populate Floating Dropdown Stack with high-fidelity pricing blocks matching modal sheet layout
         function renderStarredDropdownDashboard() {
             const container = document.getElementById('starred-list-container');
             const badge = document.getElementById('starred-count-badge');
@@ -1009,12 +1006,17 @@
                 const cleanBrand = (station.brand_name || 'Independent').replace(/['"]/g, '');
                 const cleanAddress = (station.address || '').replace(/['"]/g, '');
 
-                const valE10 = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : '-';
-                const valE5 = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : '-';
-                const valB7 = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : '-';
+                const valE10 = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A';
+                const valE5 = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A';
+                const valB7 = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A';
+
+                // Fetch real-time relative pricing tier color configuration strings
+                const styleE10 = assignPricingTierColorStyles(station.E10, 'E10');
+                const styleE5 = assignPricingTierColorStyles(station.E5, 'E5');
+                const styleB7 = assignPricingTierColorStyles(station.B7, 'B7');
 
                 const cardRow = document.createElement('div');
-                cardRow.className = "p-2.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition cursor-pointer mt-1.5 first:mt-0 active:scale-[0.99]";
+                cardRow.className = "p-3 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
                 cardRow.onclick = () => {
                     focusAndHighlightMapMarker(lat, lon);
                     if (window.innerWidth < 768) {
@@ -1023,24 +1025,24 @@
                 };
 
                 cardRow.innerHTML = `
-                    <div class="min-w-0 mb-2">
-                        <div class="text-xs font-extrabold text-slate-800 truncate flex items-center gap-1">
+                    <div class="min-w-0">
+                        <div class="text-xs font-black text-slate-900 truncate flex items-center gap-1.5">
                             <span>${emoji}</span> ${cleanBrand}
                         </div>
                         <div class="text-[10px] font-semibold text-slate-400 truncate mt-0.5">${cleanAddress}</div>
                     </div>
-                    <div class="grid grid-cols-3 gap-1 text-center">
-                        <div class="bg-white rounded-lg py-1 px-1.5 border border-slate-200/60 shadow-xs">
-                            <div class="text-[7.5px] font-bold text-slate-400 uppercase tracking-tight">E10</div>
-                            <div class="text-[11px] font-black text-slate-700">${valE10}</div>
+                    <div class="grid grid-cols-3 gap-1.5 pt-0.5">
+                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleE10}">
+                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">E10</div>
+                            <div class="text-[11px] font-black mt-0.5">${valE10}</div>
                         </div>
-                        <div class="bg-white rounded-lg py-1 px-1.5 border border-slate-200/60 shadow-xs">
-                            <div class="text-[7.5px] font-bold text-slate-400 uppercase tracking-tight">Super E5</div>
-                            <div class="text-[11px] font-black text-slate-700">${valE5}</div>
+                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleE5}">
+                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Super E5</div>
+                            <div class="text-[11px] font-black mt-0.5">${valE5}</div>
                         </div>
-                        <div class="bg-white rounded-lg py-1 px-1.5 border border-slate-200/60 shadow-xs">
-                            <div class="text-[7.5px] font-bold text-slate-400 uppercase tracking-tight">Diesel B7</div>
-                            <div class="text-[11px] font-black text-slate-700">${valB7}</div>
+                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleB7}">
+                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Diesel B7</div>
+                            <div class="text-[11px] font-black mt-0.5">${valB7}</div>
                         </div>
                     </div>
                 `;
@@ -1048,7 +1050,7 @@
             });
         }
 
-        // Open Unified High-Fidelity Modal Sheet Interface Layout
+        // Open Unified Interactive Forecourt Sheet Layout View
         function openForecourtDetailSheet(stationData) {
             const sheet = document.getElementById('global-detail-sheet');
             const title = document.getElementById('sheet-brand-title');
