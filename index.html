@@ -3,681 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fuel Pipeline Optimization Engine</title>
-    
-    <link rel="icon" type="image/x-icon" href="./favicon.ico" />
-    
+    <title>Search Fuel Price - Combined Premium Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
-        #map { height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 1; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
         
-        .custom-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #2563eb;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        .sortable-item.dragging {
+            opacity: 0.5;
+            transform: scale(0.97);
+            border-style: dashed;
+            border-color: #3b82f6;
         }
-
-        /* High-Fidelity Pill-Style Marker Layout resets */
-        .custom-leaflet-pin { background: transparent !important; border: none !important; }
-        .pill-marker-container {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-origin: bottom center;
-        }
-        .pill-marker-container:hover {
-            transform: scale(1.1) translateY(-2px);
-            z-index: 99999 !important;
-        }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-900 font-sans overflow-hidden select-none">
+<body class="bg-slate-100 font-sans h-screen w-screen overflow-hidden select-none relative">
 
-    <div id="root"></div>
+    <main class="absolute inset-0 z-0 bg-slate-900/5">
+        <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-60 pointer-events-none"></div>
+        
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400 pointer-events-none">
+            <i class="fa-solid fa-map-location-dot text-7xl text-slate-300 mb-3"></i>
+            <h3 class="text-sm font-bold text-slate-400 tracking-wide uppercase">Spatial Geometry Frame Layer</h3>
+        </div>
+        
+        <div class="absolute bottom-6 right-6 z-40 bg-white shadow-xl rounded-xl flex flex-col overflow-hidden border border-slate-200/60 pointer-events-auto">
+            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold border-b border-slate-100 transition-colors"><i class="fa-solid fa-plus"></i></button>
+            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold transition-colors"><i class="fa-solid fa-minus"></i></button>
+        </div>
+    </main>
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
 
-        // Fix: Explicitly mapped real terrestrial coordinates along primary roads to prevent any water placements
-        const REAL_TERRESTRIAL_STATIONS = [
-            { id: 'st-1', brand: 'ASDA', address: 'Halbeath Road, Dunfermline', lat: 56.0812, lng: -3.4145, prices: { e10: 141.7, e5: 155.9, b7: 159.2 } },
-            { id: 'st-2', brand: 'SHELL', address: 'Bothwell Street, Dunfermline', lat: 56.0645, lng: -3.4498, prices: { e10: 149.9, e5: 163.9, b7: 165.4 } },
-            { id: 'st-3', brand: 'BP', address: 'Fife Leisure Park, Dunfermline', lat: 56.0844, lng: -3.4021, prices: { e10: 151.2, e5: 164.9, b7: 166.2 } },
-            { id: 'st-4', brand: 'JET', address: 'Link Road, Cowdenbeath', lat: 56.1089, lng: -3.3541, prices: { e10: 142.4, e5: 156.4, b7: 158.9 } },
-            { id: 'st-5', brand: 'MORRISONS', address: 'Grange Road, Cowdenbeath', lat: 56.1132, lng: -3.3412, prices: { e10: 141.9, e5: 155.4, b7: 159.4 } },
-            { id: 'st-6', brand: 'GULF', address: 'Main Street, Inverkeithing', lat: 56.0351, lng: -3.4018, prices: { e10: 144.5, e5: 158.9, b7: 161.2 } },
-            { id: 'st-7', brand: 'SHELL', address: 'Ferrytoll Rdb, Inverkeithing', lat: 56.0232, lng: -3.4111, prices: { e10: 148.9, e5: 162.9, b7: 164.9 } },
-            { id: 'st-8', brand: 'BP', address: 'M90 Moto Services, Kinross', lat: 56.2045, lng: -3.4312, prices: { e10: 154.9, e5: 168.9, b7: 169.9 } },
-            { id: 'st-9', brand: 'SAINSBURYS', address: 'Craigleith Retail Park, Edinburgh', lat: 55.9592, lng: -3.2351, prices: { e10: 143.2, e5: 157.2, b7: 160.4 } },
-            { id: 'st-10', brand: 'MORRISONS', address: 'Gyle Muir Road, Edinburgh', lat: 55.9391, lng: -3.2915, prices: { e10: 142.9, e5: 156.9, b7: 159.9 } },
-            { id: 'st-11', brand: 'SHELL', address: 'Maybury Road, Edinburgh', lat: 55.9465, lng: -3.2988, prices: { e10: 150.4, e5: 164.4, b7: 165.9 } },
-            { id: 'st-12', brand: 'BP', address: 'Angus Tavern, Corstorphine', lat: 55.9412, lng: -3.2711, prices: { e10: 151.9, e5: 165.9, b7: 166.9 } },
-            { id: 'st-13', brand: 'ASDA', address: 'Chesser Suburban Route, Edinburgh', lat: 55.9254, lng: -3.2452, prices: { e10: 141.4, e5: 155.4, b7: 158.4 } },
-            { id: 'st-14', brand: 'TEXACO', address: 'Slateford Road, Edinburgh', lat: 55.9288, lng: -3.2312, prices: { e10: 145.9, e5: 159.9, b7: 162.9 } },
-            { id: 'st-15', brand: 'JET', address: 'Restalrig Road, Edinburgh', lat: 55.9641, lng: -3.1512, prices: { e10: 143.7, e5: 157.4, b7: 160.2 } }
+    <nav id="topNav" class="absolute top-4 right-4 z-50 bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl shadow-slate-900/5 border border-slate-200/40 flex items-center gap-6 pointer-events-auto transition-all">
+        <div class="flex items-center gap-1.5 border-r border-slate-200 pr-4">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">System Live</span>
+        </div>
+        <div class="flex items-center gap-5">
+            <a href="#" class="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors flex items-center gap-2"><i class="fa-solid fa-chart-line text-xs"></i> Dashboard</a>
+            <a href="#" class="text-sm font-bold text-blue-600 flex items-center gap-2 bg-blue-50/60 px-3 py-1.5 rounded-xl"><i class="fa-solid fa-route text-xs"></i> Route Planner</a>
+            <a href="#" class="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors flex items-center gap-2"><i class="fa-solid fa-gas-pump text-xs"></i> Fuel Stations</a>
+        </div>
+    </nav>
+
+
+    <aside id="sidebarPanel" class="absolute top-4 left-4 bottom-4 w-[390px] bg-white z-50 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200/50 flex flex-col overflow-hidden pointer-events-auto transition-all">
+        
+        <div class="p-5 pb-4 border-b border-slate-100">
+            <h1 class="text-lg font-extrabold text-slate-800 tracking-tight">Search Fuel Price</h1>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">Corridor Route optimization & planning engine</p>
+            
+            <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-500 mt-4">
+                <button class="flex-1 py-2 text-center rounded-lg transition-all">Local Area</button>
+                <button class="flex-1 py-2 text-center rounded-lg bg-white text-slate-800 shadow-sm transition-all">Route Corridor</button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar space-y-5">
+            
+            <div class="relative flex items-start gap-3">
+                <div class="absolute left-3.5 top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-200 z-0 pointer-events-none"></div>
+                
+                <div id="routeFieldsContainer" class="w-full space-y-3 z-10">
+                    </div>
+
+                <div class="h-full flex items-center justify-center pt-3 self-stretch">
+                    <button onclick="reverseEntireRoute()" class="p-2 text-slate-300 hover:text-blue-500 hover:bg-slate-50 rounded-lg transition-colors" title="Reverse full path structure">
+                        <i class="fa-solid fa-arrows-up-down text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Vehicle Efficiency (MPG)</label>
+                    <input type="number" value="45" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Fuel Variant Preference</label>
+                    <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
+                        <option>Petrol Unleaded (E10)</option>
+                        <option>Premium Diesel (B7)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="togglePricingModal(true)" class="w-full py-3 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/60 rounded-xl flex items-center justify-between transition-all group">
+                <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-calculator text-emerald-600 animate-pulse"></i> View Pricing Info
+                </span>
+                <span class="text-xs font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-md group-hover:scale-105 transition-transform">£ Live</span>
+            </button>
+        </div>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2.5">
+            <button class="px-3 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors whitespace-nowrap">
+                <i class="fa-solid fa-layer-group text-slate-400 mr-1"></i> Pools
+            </button>
+            <button onclick="executeRouteGenerationPipeline()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-md transition-colors tracking-wide uppercase">
+                Search Route
+            </button>
+        </div>
+    </aside>
+
+
+    <div id="pricingModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-all">
+        <div class="bg-white rounded-2xl p-6 shadow-2xl border border-slate-200/80 w-full max-w-md mx-4 transform scale-95 opacity-0 transition-all duration-200" id="modalCard">
+            
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xs">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h3 class="font-extrabold text-slate-800 text-base">Financial Calculations Summary</h3>
+                </div>
+                <button onclick="togglePricingModal(false)" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Route Scope</span>
+                        <span class="text-base font-black text-slate-700 mt-0.5 block">18.5 miles</span>
+                    </div>
+                    <div class="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/50">
+                        <span class="block text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">Lowest Target</span>
+                        <span class="text-base font-black text-emerald-600 mt-0.5 block">£2.86</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-500 space-y-2">
+                    <div class="flex justify-between"><span class="font-medium">Estimated Fuel Burn:</span><span class="font-bold text-slate-700">1.87 Litres</span></div>
+                    <div class="flex justify-between"><span class="font-medium">Average Price Variant:</span><span class="font-bold text-slate-700">142.9p / L</span></div>
+                    <div class="flex justify-between pt-2 border-t border-slate-200/60"><span class="font-bold text-slate-600">Net Cost Deviation Window:</span><span class="font-bold text-emerald-600">-£0.42 Saved</span></div>
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+                <button onclick="togglePricingModal(false)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors uppercase tracking-wider">
+                    Close Sheet
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // Internal application states storage mapping layout track definitions
+        let routeNodes = [
+            { id: "start-node", type: "start", placeholder: "Starting location...", value: "Dunfermline, Fife, Scotland" },
+            { id: "interim-1", type: "interim", placeholder: "Add interim stop location...", value: "Moffat" },
+            { id: "dest-node", type: "destination", placeholder: "Destination location...", value: "Blackpool, Lancashire, England" }
         ];
 
-        function App() {
-            const [searchMode, setSearchMode] = useState('local'); 
-            const [startInput, setStartInput] = useState('');
-            const [destInput, setDestInput] = useState('');
-            const [interimInput, setInterimInput] = useState('');
-            const [showInterimField, setShowInterimField] = useState(false);
-            const [localSearch, setLocalSearch] = useState('Dunfermline, Fife');
+        document.addEventListener("DOMContentLoaded", () => {
+            renderRouteStack();
+            isolateComponentPointerEvents();
+        });
+
+        /**
+         * Isolate user touch/click events inside floating containers so they don't leak to the map.
+         */
+        function isolateComponentPointerEvents() {
+            const elementsToIsolate = [
+                document.getElementById("sidebarPanel"),
+                document.getElementById("topNav"),
+                document.getElementById("pricingModal")
+            ];
             
-            const [radius, setRadius] = useState(6);
-            const [efficiency, setEfficiency] = useState(46);
-            const [fuelVariant, setFuelVariant] = useState('Petrol Unleaded (E10)');
-
-            const [visibleMarkers, setVisibleMarkers] = useState([]);
-            const [selectedStation, setSelectedStation] = useState(null);
-            const [suggestions, setSuggestions] = useState([]);
-            const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+            const operationalEvents = ['mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'touchmove', 'pointerdown', 'pointerup'];
             
-            // Saved Pools and State Toggles
-            const [savedRoutes, setSavedRoutes] = useState([
-                { id: 'r1', title: 'Dunfermline Corridor Bypass', info: '14.5 miles · 4 stations' }
-            ]);
-            const [starredIds, setStarredIds] = useState(['st-1']);
-            const [activeHeaderDropdown, setActiveHeaderDropdown] = useState(null); 
-
-            // Mapping Framework Refs
-            const mapRef = useRef(null);
-            const routeGroupRef = useRef(null);
-            const markerGroupRef = useRef(null);
-            const activeCircleOverlayRef = useRef(null);
-            const activeRouteCoordinatesRef = useRef(null);
-
-            useEffect(() => {
-                if (!mapRef.current) {
-                    mapRef.current = L.map('map', { zoomControl: false }).setView([56.0712, -3.43], 11);
-                    
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                        attribution: '© OpenStreetMap'
-                    }).addTo(mapRef.current);
-
-                    markerGroupRef.current = L.layerGroup().addTo(mapRef.current);
-                    routeGroupRef.current = L.layerGroup().addTo(mapRef.current);
-
-                    syncMarkersWithMapViewport();
-                }
-            }, []);
-
-            // Distance helper matching standard geographic rules
-            const computeDistanceMiles = (lat1, lon1, lat2, lon2) => {
-                const R = 3958.8; // Earth radius in miles
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLon = (lon2 - lon1) * Math.PI / 180;
-                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                          Math.sin(dLon/2) * Math.sin(dLon/2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                return R * c;
-            };
-
-            // Fix: Intelligent proximity locator matching station paths against polyline coordinates
-            const syncMarkersWithMapViewport = () => {
-                if (!mapRef.current) return;
-
-                if (searchMode === 'route' && activeRouteCoordinatesRef.current) {
-                    const matchedStations = REAL_TERRESTRIAL_STATIONS.filter(station => {
-                        return activeRouteCoordinatesRef.current.some(coord => {
-                            const dist = computeDistanceMiles(station.lat, station.lng, coord[0], coord[1]);
-                            return dist <= radius;
-                        });
-                    });
-                    setVisibleMarkers(matchedStations);
-                } else {
-                    const bounds = mapRef.current.getBounds();
-                    const matchedStations = REAL_TERRESTRIAL_STATIONS.filter(station => {
-                        return bounds.contains([station.lat, station.lng]);
-                    });
-                    setVisibleMarkers(matchedStations);
-                }
-            };
-
-            // Fix: Restored High-Fidelity Pill Style Price Markers
-            useEffect(() => {
-                if (markerGroupRef.current && mapRef.current) {
-                    markerGroupRef.current.clearLayers();
-
-                    visibleMarkers.forEach(station => {
-                        const price = fuelVariant.includes('E5') ? station.prices.e5 : (fuelVariant.includes('B7') ? station.prices.b7 : station.prices.e10);
-                        
-                        let badgeColor = 'bg-blue-600';
-                        if (price <= 143.5) badgeColor = 'bg-emerald-600';
-                        if (price >= 151.0) badgeColor = 'bg-rose-600';
-
-                        const htmlContent = `
-                            <div class="pill-marker-container flex flex-col items-center">
-                                <div class="flex items-stretch bg-white rounded-full shadow-lg border border-slate-200/80 overflow-hidden pr-2.5 h-7">
-                                    <div class="${badgeColor} text-white text-[10px] font-black px-2 flex items-center justify-center min-w-[38px]">
-                                        ${price}p
-                                    </div>
-                                    <div class="text-[10px] font-bold text-slate-800 flex items-center pl-2 tracking-tight">
-                                        ${station.brand}
-                                    </div>
-                                </div>
-                                <div class="w-1.5 h-1.5 bg-white border-r border-b border-slate-200 shadow-xs rotate-45 -mt-[4px] z-0"></div>
-                            </div>
-                        `;
-
-                        const customIcon = L.divIcon({
-                            className: 'custom-leaflet-pin',
-                            html: htmlContent,
-                            iconSize: [90, 32],
-                            iconAnchor: [45, 32]
-                        });
-
-                        const marker = L.marker([station.lat, station.lng], { icon: customIcon });
-                        marker.on('click', () => setSelectedStation(station));
-                        markerGroupRef.current.addLayer(marker);
-                    });
-                }
-            }, [visibleMarkers, fuelVariant]);
-
-            useEffect(() => {
-                if (searchMode === 'local' && mapRef.current) {
-                    if (activeCircleOverlayRef.current) mapRef.current.removeLayer(activeCircleOverlayRef.current);
-                    
-                    const center = mapRef.current.getCenter();
-                    activeCircleOverlayRef.current = L.circle(center, {
-                        radius: radius * 1609.34, 
-                        color: '#2563eb',
-                        fillColor: '#2563eb',
-                        fillOpacity: 0.04,
-                        weight: 1.5,
-                        dashArray: '3, 5'
-                    }).addTo(mapRef.current);
-                } else {
-                    if (activeCircleOverlayRef.current && mapRef.current) {
-                        mapRef.current.removeLayer(activeCircleOverlayRef.current);
-                        activeCircleOverlayRef.current = null;
-                    }
-                }
-            }, [radius, searchMode]);
-
-            const executeGeocodeLookup = async (textVal, fieldIdentifier) => {
-                if (fieldIdentifier === 'start') setStartInput(textVal);
-                if (fieldIdentifier === 'dest') setDestInput(textVal);
-                if (fieldIdentifier === 'interim') setInterimInput(textVal);
-                if (fieldIdentifier === 'local') setLocalSearch(textVal);
-
-                if (textVal.trim().length < 3) {
-                    setSuggestions([]);
-                    return;
-                }
-
-                setActiveSuggestionField(fieldIdentifier);
-                try {
-                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textVal)}&countrycodes=gb&limit=4`;
-                    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-                    const data = await res.json();
-                    setSuggestions(data);
-                } catch (err) {
-                    console.error("Geocoding service down", err);
-                }
-            };
-
-            const confirmSuggestionAssignment = (selectedItem, fieldIdentifier) => {
-                const titleStr = selectedItem.display_name.split(',')[0] + ', ' + (selectedItem.display_name.split(',')[1] || '').trim();
-                
-                if (fieldIdentifier === 'start') setStartInput(titleStr);
-                if (fieldIdentifier === 'dest') setDestInput(titleStr);
-                if (fieldIdentifier === 'interim') setInterimInput(titleStr);
-                if (fieldIdentifier === 'local') {
-                    setLocalSearch(titleStr);
-                    mapRef.current.setView([parseFloat(selectedItem.lat), parseFloat(selectedItem.lon)], 12);
-                    setTimeout(syncMarkersWithMapViewport, 400);
-                }
-
-                setSuggestions([]);
-                setActiveSuggestionField(null);
-            };
-
-            // Fix: High-Fidelity Router Layer with Corridor Optimization Analysis
-            const computeNetworkRoadCorridor = async () => {
-                if (!startInput || !destInput) return;
-                routeGroupRef.current.clearLayers();
-
-                try {
-                    const locations = [startInput, showInterimField ? interimInput : '', destInput].filter(str => str && str.trim() !== '');
-                    const coords = [];
-
-                    for (let address of locations) {
-                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=gb&limit=1`;
-                        const res = await fetch(url);
-                        const dataset = await res.json();
-                        if (dataset && dataset.length > 0) {
-                            coords.push(`${dataset[0].lon},${dataset[0].lat}`);
-                        }
-                    }
-
-                    if (coords.length < 2) return;
-
-                    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coords.join(';')}?overview=full&geometries=geojson`;
-                    const response = await fetch(osrmUrl);
-                    const routePayload = await response.json();
-
-                    if (routePayload.routes && routePayload.routes.length > 0) {
-                        const geom = routePayload.routes[0].geometry;
-                        const leafletLatLngs = geom.coordinates.map(node => [node[1], node[0]]);
-
-                        activeRouteCoordinatesRef.current = leafletLatLngs;
-
-                        const line = L.polyline(leafletLatLngs, {
-                            color: '#2563eb',
-                            weight: 5,
-                            opacity: 0.85
-                        }).addTo(routeGroupRef.current);
-
-                        mapRef.current.fitBounds(line.getBounds(), { padding: [50, 50] });
-                        
-                        // Populate stations surrounding the computed path layout
-                        setTimeout(syncMarkersWithMapViewport, 500);
-                    }
-                } catch (error) {
-                    console.error("Routing pipeline error", error);
-                }
-            };
-
-            // Fix: Implemented clear route functionality
-            const handleClearRouteAction = () => {
-                setStartInput('');
-                setDestInput('');
-                setInterimInput('');
-                setShowInterimField(false);
-                activeRouteCoordinatesRef.current = null;
-                routeGroupRef.current.clearLayers();
-                syncMarkersWithMapViewport();
-            };
-
-            // Fix: Journey tracker action mapping
-            const handleSaveJourneyAction = () => {
-                if (!startInput || !destInput) return;
-                const newRoute = {
-                    id: `r-${Date.now()}`,
-                    title: `${startInput.split(',')[0]} → ${destInput.split(',')[0]}`,
-                    info: `${radius} Mi Radius Buffer · ${visibleMarkers.length} Stations`
-                };
-                setSavedRoutes([...savedRoutes, newRoute]);
-                alert("Journey pathway locked into local storage memory.");
-            };
-
-            // Fix: Forecourt bookmark action mapping
-            const toggleStarredStation = (id) => {
-                if (starredIds.includes(id)) {
-                    setStarredIds(starredIds.filter(item => item !== id));
-                } else {
-                    setStarredIds([...starredIds, id]);
-                }
-            };
-
-            const clearField = (field) => {
-                if (field === 'start') setStartInput('');
-                if (field === 'dest') setDestInput('');
-                if (field === 'interim') setInterimInput('');
-                if (field === 'local') setLocalSearch('');
-                setSuggestions([]);
-            };
-
-            const currentActivePriceVariant = (station) => {
-                if (fuelVariant.includes('E5')) return station.prices.e5;
-                if (fuelVariant.includes('B7')) return station.prices.b7;
-                return station.prices.e10;
-            };
-
-            const sortedCheapestSelection = [...visibleMarkers].sort((a, b) => currentActivePriceVariant(a) - currentActivePriceVariant(b));
-
-            return (
-                <div className="relative w-full h-full flex overflow-hidden bg-slate-50" onClick={() => setActiveHeaderDropdown(null)}>
-                    
-                    {/* Leaflet Canvas */}
-                    <div id="map"></div>
-
-                    {/* Navigation Pills Header Panel */}
-                    <div className="absolute top-4 right-4 z-[2000] flex flex-col items-end gap-1">
-                        <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-5 text-xs font-semibold text-slate-700" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1.5 text-emerald-600 font-bold uppercase tracking-wider">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Pipeline Connected
-                            </div>
-                            <div className="w-px h-3 bg-slate-200"></div>
-                            
-                            {/* Saved Journeys Pill */}
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setActiveHeaderDropdown(activeHeaderDropdown === 'saved' ? null : 'saved')}
-                                    className={`hover:text-blue-600 transition flex items-center gap-1.5 ${activeHeaderDropdown === 'saved' ? 'text-blue-600' : ''}`}
-                                >
-                                    Saved Journeys 
-                                    <span className="bg-blue-100 text-blue-600 font-extrabold px-1.5 py-0.5 rounded text-[10px]">{savedRoutes.length}</span>
-                                </button>
-                                
-                                {activeHeaderDropdown === 'saved' && (
-                                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 p-2 flex flex-col gap-1 z-[3000]">
-                                        <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">Stored Paths Pool</div>
-                                        {savedRoutes.map(r => (
-                                            <div key={r.id} className="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition">
-                                                <div className="text-xs font-bold text-slate-800">{r.title}</div>
-                                                <div className="text-[10px] text-slate-400 font-semibold">{r.info}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Starred Stations Pill */}
-                            <div className="relative">
-                                <button 
-                                    onClick={() => setActiveHeaderDropdown(activeHeaderDropdown === 'starred' ? null : 'starred')}
-                                    className={`hover:text-blue-600 transition flex items-center gap-1.5 ${activeHeaderDropdown === 'starred' ? 'text-blue-600' : ''}`}
-                                >
-                                    Starred Forecourts
-                                    <span className="bg-amber-100 text-amber-700 font-extrabold px-1.5 py-0.5 rounded text-[10px]">{starredIds.length}</span>
-                                </button>
-
-                                {activeHeaderDropdown === 'starred' && (
-                                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 p-2 flex flex-col gap-1 z-[3000]">
-                                        <div className="p-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50">Monitored Fuel Forecourts</div>
-                                        {REAL_TERRESTRIAL_STATIONS.filter(s => starredIds.includes(s.id)).map(f => (
-                                            <div key={f.id} className="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition flex justify-between items-center">
-                                                <div className="text-xs font-bold text-slate-800 truncate pr-2">{f.brand} - {f.address.split(',')[0]}</div>
-                                                <span className="bg-emerald-50 text-emerald-600 font-bold text-[10px] px-1.5 py-0.5 rounded">{f.prices.e10}p</span>
-                                            </div>
-                                        ))}
-                                        {starredIds.length === 0 && <div className="text-[11px] p-3 text-slate-400 text-center font-medium">No starred forecourts selected.</div>}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Holistic Control Layout Sidebar Deck */}
-                    {/* Fix: Modified layout structure from overflow-y-auto to allow autocomplete popups to escape clipping fields cleanly */}
-                    <div className="absolute top-4 left-4 bottom-4 w-[390px] bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl z-[1000] flex flex-col overflow-visible border border-slate-200/60">
-                        <div className="p-5 flex flex-col gap-4 flex-1 overflow-y-visible">
-                            
-                            <div>
-                                <h1 className="text-xl font-black text-slate-900 tracking-tight">Fuel Pipeline</h1>
-                                <p className="text-[9px] text-emerald-500 font-bold tracking-widest uppercase mt-0.5">TERRESTRIAL DEPLOYMENT MODULE STABLE</p>
-                            </div>
-
-                            {/* Section Context Selectors */}
-                            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/40 shrink-0">
-                                <button onClick={() => { setSearchMode('local'); handleClearRouteAction(); }} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>📍 Local Search</button>
-                                <button onClick={() => setSearchMode('route')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>🏎️ Route Corridor</button>
-                            </div>
-
-                            {/* Local Search Input Area */}
-                            {searchMode === 'local' && (
-                                <div className="flex flex-col gap-3.5 relative z-[50]">
-                                    <div className="relative">
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Search Center Point</label>
-                                        <div className="relative flex items-center">
-                                            <input 
-                                                type="text" value={localSearch} onChange={(e) => executeGeocodeLookup(e.target.value, 'local')} 
-                                                className="w-full text-xs font-semibold border border-slate-200 rounded-xl pl-3.5 pr-10 py-3 focus:outline-none text-slate-800 bg-slate-50/50" 
-                                                placeholder="Enter UK City or Town..." 
-                                            />
-                                            {localSearch && <button onClick={() => clearField('local')} className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs">✕</button>}
-                                        </div>
-
-                                        {/* Fix: High absolute layer positioning elements to avoid falling behind structural text lists */}
-                                        {activeSuggestionField === 'local' && suggestions.length > 0 && (
-                                            <div className="absolute left-0 right-0 bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[9999] max-h-44 overflow-y-auto">
-                                                {suggestions.map((s, idx) => (
-                                                    <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'local')} className="p-2.5 text-xs hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700 font-medium">{s.display_name}</div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Route Planner Workspace */}
-                            {searchMode === 'route' && (
-                                <div className="flex flex-col gap-3 relative z-[50]">
-                                    <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-xl flex flex-col gap-3.5 relative">
-                                        <div className="absolute left-[31px] top-8 bottom-8 w-0.5 border-l-2 border-dashed border-slate-200 z-0"></div>
-                                        
-                                        {/* Start point row */}
-                                        <div className="flex items-center gap-2 relative z-10">
-                                            <div className="text-slate-300 font-bold select-none text-xs flex flex-col justify-center cursor-grab px-1"><div>⋮</div><div>⋮</div></div>
-                                            <span className="w-4 h-4 rounded-full bg-white border-2 border-slate-400 flex items-center justify-center text-[8px] text-slate-400 font-extrabold shadow-2xs">○</span>
-                                            <div className="flex-1 relative flex items-center">
-                                                <input 
-                                                    type="text" value={startInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'start')} 
-                                                    className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2.5 focus:outline-none text-slate-800" 
-                                                    placeholder="Start location..." 
-                                                />
-                                                {startInput && <button onClick={() => clearField('start')} className="absolute right-2.5 text-slate-400 text-[10px]">✕</button>}
-                                            </div>
-                                            {activeSuggestionField === 'start' && suggestions.length > 0 && (
-                                                <div className="absolute top-11 left-12 right-0 bg-white border border-slate-200 rounded-lg shadow-2xl z-[9999] max-h-36 overflow-y-auto">
-                                                    {suggestions.map((s, idx) => (
-                                                        <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'start')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700 border-b border-slate-50">{s.display_name}</div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Dynamic interim row */}
-                                        {showInterimField ? (
-                                            <div className="flex items-center gap-2 relative z-10">
-                                                <div className="text-slate-300 font-bold select-none text-xs flex flex-col justify-center px-1"><div>⋮</div><div>⋮</div></div>
-                                                <span className="w-4 h-4 rounded-full bg-white border-2 border-blue-400 flex items-center justify-center text-[8px] text-blue-500 font-extrabold shadow-2xs">○</span>
-                                                <div className="flex-1 relative flex items-center">
-                                                    <input 
-                                                        type="text" value={interimInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'interim')} 
-                                                        className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2.5 focus:outline-none text-slate-800" 
-                                                        placeholder="Interim stop..." 
-                                                    />
-                                                    <button onClick={() => { setShowInterimField(false); clearField('interim'); }} className="absolute right-2.5 text-rose-400 font-bold text-[10px]">✕</button>
-                                                </div>
-                                                {activeSuggestionField === 'interim' && suggestions.length > 0 && (
-                                                    <div className="absolute top-11 left-12 right-0 bg-white border border-slate-200 rounded-lg shadow-2xl z-[9999] max-h-36 overflow-y-auto">
-                                                        {suggestions.map((s, idx) => (
-                                                            <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'interim')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700 border-b border-slate-50">{s.display_name}</div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="pl-14 relative z-10">
-                                                <button type="button" onClick={() => setShowInterimField(true)} className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 transition flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100/40">+ Add interim stop</button>
-                                            </div>
-                                        )}
-
-                                        {/* Destination point row */}
-                                        <div className="flex items-center gap-2 relative z-10">
-                                            <div className="text-slate-300 font-bold select-none text-xs flex flex-col justify-center cursor-grab px-1"><div>⋮</div><div>⋮</div></div>
-                                            <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] text-white font-black shadow-2xs">📍</span>
-                                            <div className="flex-1 relative flex items-center">
-                                                <input 
-                                                    type="text" value={destInput} onChange={(e) => executeGeocodeLookup(e.target.value, 'dest')} 
-                                                    className="w-full text-xs font-bold bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2.5 focus:outline-none text-slate-800" 
-                                                    placeholder="Destination point..." 
-                                                />
-                                                {destInput && <button onClick={() => clearField('dest')} className="absolute right-2.5 text-slate-400 text-[10px]">✕</button>}
-                                            </div>
-                                            {activeSuggestionField === 'dest' && suggestions.length > 0 && (
-                                                <div className="absolute top-11 left-12 right-0 bg-white border border-slate-200 rounded-lg shadow-2xl z-[9999] max-h-36 overflow-y-auto">
-                                                    {suggestions.map((s, idx) => (
-                                                        <div key={idx} onClick={() => confirmSuggestionAssignment(s, 'dest')} className="p-2 text-xs hover:bg-slate-50 cursor-pointer text-slate-700 border-b border-slate-50">{s.display_name}</div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Bidirectional row flipper link */}
-                                        <button 
-                                            type="button" onClick={() => { const tmp = startInput; setStartInput(destInput); setDestInput(tmp); }}
-                                            className="absolute right-[-14px] top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full border border-slate-200 shadow-md flex items-center justify-center text-slate-500 hover:text-blue-600 z-20 font-bold text-xs"
-                                        >
-                                            ⇅
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Global Parametric Threshold Sliders */}
-                            <div className="flex flex-col gap-3 relative z-10 mt-1 shrink-0">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Vehicle MPG</label>
-                                        <input type="number" value={efficiency} onChange={(e) => setEfficiency(e.target.value)} className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 bg-slate-50/50 focus:outline-none" />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Corridor Radius</label>
-                                        <div className="flex items-center justify-between border border-slate-200 rounded-xl px-2.5 py-2 bg-slate-50/50">
-                                            <input type="number" value={radius} onChange={(e) => setRadius(parseInt(e.target.value) || 0)} className="w-10 bg-transparent text-xs font-bold focus:outline-none text-slate-800" />
-                                            <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{radius} Mi width</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {searchMode === 'local' && (
-                                    <div>
-                                        <div className="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">
-                                            <span>Scan Scope Radius</span>
-                                        </div>
-                                        <input type="range" min="1" max="25" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider border border-slate-200" />
-                                    </div>
-                                )}
-
-                                <div>
-                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Fuel Core Variant Composition</label>
-                                    <select value={fuelVariant} onChange={(e) => setFuelVariant(e.target.value)} className="w-full text-xs font-bold border border-slate-200 rounded-xl px-3 py-2.5 bg-white text-slate-700 focus:outline-none">
-                                        <option>Petrol Unleaded (E10)</option>
-                                        <option>Super Unleaded (E5)</option>
-                                        <option>Diesel (B7)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Active Corridor Analytics Card */}
-                            {searchMode === 'route' && activeRouteCoordinatesRef.current && (
-                                <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-4 flex flex-col gap-2 mt-1 animate-in fade-in shrink-0">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-700">📊 Optimized Analysis Run</span>
-                                        {/* Fix: Added active journey storage capture button */}
-                                        <button onClick={handleSaveJourneyAction} className="text-[11px] font-extrabold text-blue-600 bg-white border border-blue-200 shadow-2xs px-2 py-0.5 rounded hover:bg-blue-50 transition">💾 Save Journey</button>
-                                    </div>
-                                    <div className="text-xs font-semibold text-slate-600 flex justify-between">
-                                        <span>Visible Pool: <strong className="text-slate-900">{visibleMarkers.length} forecourts</strong></span>
-                                        <span>Optimal Match: <strong className="text-emerald-700">{sortedCheapestSelection[0]?.prices.e10 || '0'}p</strong></span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Target Cluster Feed Deck */}
-                            <div className="flex-1 overflow-y-auto no-scrollbar min-h-[140px] flex flex-col gap-2 border-t border-slate-100 pt-3">
-                                <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block">🏆 Identified Stations Pool</span>
-                                {sortedCheapestSelection.length > 0 ? (
-                                    sortedCheapestSelection.map((station, index) => (
-                                        <div 
-                                            key={station.id} 
-                                            onClick={() => { mapRef.current.setView([station.lat, station.lng], 14); setSelectedStation(station); }} 
-                                            className="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center hover:border-blue-300 shadow-xs cursor-pointer transition"
-                                        >
-                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                <span className="text-xs font-bold text-slate-500 bg-slate-50 w-5 h-5 rounded flex items-center justify-center shrink-0">{index + 1}</span>
-                                                <div className="min-w-0">
-                                                    <h4 className="text-xs font-black text-slate-800 truncate">{station.brand}</h4>
-                                                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide truncate max-w-[190px]">{station.address}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{currentActivePriceVariant(station)}p</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-[11px] text-slate-400 font-semibold bg-slate-50 rounded-xl p-4 text-center border border-dashed border-slate-200">No stations local to path configuration bounds.</p>
-                                )}
-                            </div>
-
-                        </div>
-
-                        {/* Control Layout Board Action Handles */}
-                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center gap-2 shrink-0 rounded-b-2xl">
-                            {/* Fix: Unified structural action dashboard button containing pipeline clearing functions */}
-                            {searchMode === 'route' && activeRouteCoordinatesRef.current && (
-                                <button onClick={handleClearRouteAction} className="px-3 py-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl hover:bg-rose-100 font-bold text-xs transition active:scale-95">✕ Clear</button>
-                            )}
-                            <button 
-                                onClick={searchMode === 'route' ? computeNetworkRoadCorridor : syncMarkersWithMapViewport}
-                                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition active:scale-95 shadow-md text-center"
-                            >
-                                {searchMode === 'route' ? '🔎 Optimize Route Pathway' : '🔍 Scan Grid Area'}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Central Floating Viewport Sync Engine Button Control */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000]">
-                        <button onClick={syncMarkersWithMapViewport} className="bg-slate-900 text-white border border-slate-800 px-5 py-2.5 rounded-full text-[11px] font-bold tracking-wider uppercase shadow-2xl hover:bg-slate-800 transition active:scale-95">🔄 Sync Map Area</button>
-                    </div>
-
-                    {/* Pop-up Station Inspection Module */}
-                    {selectedStation && (
-                        <div className="absolute bottom-6 right-6 z-[1000] bg-white rounded-2xl shadow-2xl p-5 w-80 border border-slate-200 flex flex-col gap-3.5 animate-in slide-in-from-bottom-4 duration-200">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-base font-black text-slate-900 tracking-tight">{selectedStation.brand}</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{selectedStation.address}</p>
-                                </div>
-                                <button onClick={() => setSelectedStation(null)} className="text-slate-400 hover:text-slate-600 font-bold text-xs p-1">✕</button>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">E10</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e10}p</p>
-                                </div>
-                                <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Super E5</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e5}p</p>
-                                </div>
-                                <div className="bg-slate-50 border border-slate-100 p-2 rounded-xl text-center">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Diesel</p>
-                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.b7}p</p>
-                                </div>
-                            </div>
-
-                            {/* Fix: Added active structural starring interface handle inside popup inspector card */}
-                            <div className="border-t border-slate-100 pt-3 flex justify-between items-center">
-                                <button 
-                                    onClick={() => toggleStarredStation(selectedStation.id)}
-                                    className={`w-full py-2 rounded-xl text-xs font-bold border transition text-center flex items-center justify-center gap-1.5 ${starredIds.includes(selectedStation.id) ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    ⭐ {starredIds.includes(selectedStation.id) ? 'Starred' : 'Star Station'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-            );
+            elementsToIsolate.forEach(element => {
+                if(!element) return;
+                operationalEvents.forEach(evtType => {
+                    element.addEventListener(evtType, (e) => {
+                        e.stopPropagation();
+                    }, { passive: true });
+                });
+            });
         }
 
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
-        root.render(<App />);
+        /**
+         * Render layout framework nodes inside the sidebar stack matching Google Maps rules.
+         */
+        function renderRouteStack() {
+            const container = document.getElementById("routeFieldsContainer");
+            container.innerHTML = "";
+
+            routeNodes.forEach((node, index) => {
+                const itemRow = document.createElement("div");
+                itemRow.className = "sortable-item flex items-center gap-2.5 group bg-white rounded-xl transition-all";
+                itemRow.setAttribute("draggable", "true");
+                itemRow.setAttribute("data-id", node.id);
+                itemRow.setAttribute("data-index", index);
+
+                // Wire up standard drag and drop mechanics hooks
+                itemRow.addEventListener("dragstart", handleDragStart);
+                itemRow.addEventListener("dragover", handleDragOver);
+                itemRow.addEventListener("drop", handleDrop);
+                itemRow.addEventListener("dragend", handleDragEnd);
+
+                // Set node icons dynamically based on position
+                let nodeVisualIcon = '<div class="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-white flex-shrink-0"></div>';
+                if (index === 0) {
+                    nodeVisualIcon = '<div class="w-3 h-3 rounded-full border-2 border-blue-500 bg-white flex-shrink-0 ring-4 ring-blue-50"></div>';
+                } else if (index === routeNodes.length - 1) {
+                    nodeVisualIcon = '<div class="text-rose-500 text-xs flex-shrink-0"><i class="fa-solid fa-location-dot"></i></div>';
+                }
+
+                itemRow.innerHTML = `
+                    <div class="w-4 flex justify-center items-center">${nodeVisualIcon}</div>
+                    
+                    <div class="flex-1 flex items-center gap-1.5 bg-slate-50 border border-slate-200/70 rounded-xl px-2.5 py-1.5 transition-colors">
+                        <input type="text" 
+                               value="${node.value}" 
+                               placeholder="${node.placeholder}" 
+                               oninput="updateNodeValue('${node.id}', this.value)"
+                               class="w-full bg-transparent text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none border-none">
+                        
+                        ${node.type === 'interim' ? `
+                            <button onclick="removeInterimStop('${node.id}')" class="text-slate-400 hover:text-rose-500 px-1 text-[10px] transition-colors">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <div class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-400 p-0.5 flex-shrink-0 flex items-center">
+                        <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
+                        <i class="fa-solid fa-ellipsis-vertical text-[10px] ml-0.5"></i>
+                    </div>
+                `;
+
+                container.appendChild(itemRow);
+            });
+
+            injectAddStopTriggerLink(container);
+        }
+
+        function injectAddStopTriggerLink(container) {
+            const actionRow = document.createElement("div");
+            actionRow.className = "flex items-center gap-2.5 pt-0.5";
+            actionRow.innerHTML = `
+                <div class="w-4 flex justify-center"><div class="w-1 h-1 rounded-full bg-slate-300"></div></div>
+                <button onclick="addNewInterimStop()" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-all">
+                    <i class="fa-solid fa-plus text-[9px]"></i> Add interim stop
+                </button>
+            `;
+            container.insertBefore(actionRow, container.lastChild);
+        }
+
+        function addNewInterimStop() {
+            const dynamicId = `interim-${Date.now()}`;
+            routeNodes.splice(routeNodes.length - 1, 0, {
+                id: dynamicId,
+                type: "interim",
+                placeholder: "Enter stop point...",
+                value: ""
+            });
+            renderRouteStack();
+            setTimeout(() => {
+                const targetInput = document.querySelector(`[data-id="${dynamicId}"] input`);
+                if(targetInput) targetInput.focus();
+            }, 30);
+        }
+
+        function removeInterimStop(id) {
+            routeNodes = routeNodes.filter(n => n.id !== id);
+            renderRouteStack();
+        }
+
+        function updateNodeValue(id, val) {
+            const element = routeNodes.find(n => n.id === id);
+            if(element) element.value = val;
+        }
+
+        function reverseEntireRoute() {
+            routeNodes.reverse();
+            routeNodes.forEach((node, idx) => {
+                if(idx === 0) node.type = "start";
+                else if (idx === routeNodes.length - 1) node.type = "destination";
+                else node.type = "interim";
+            });
+            renderRouteStack();
+        }
+
+        // --- CALCULATION OVERLAY DIALOG SYSTEM TIMINGS CONTROLLER ---
+        function togglePricingModal(shouldShow) {
+            const modalMask = document.getElementById("pricingModal");
+            const modalBox = document.getElementById("modalCard");
+
+            if(shouldShow) {
+                modalMask.classList.remove("hidden");
+                modalMask.classList.add("flex");
+                setTimeout(() => {
+                    modalBox.classList.remove("scale-95", "opacity-0");
+                    modalBox.classList.add("scale-100", "opacity-100");
+                }, 10);
+            } else {
+                modalBox.classList.remove("scale-100", "opacity-100");
+                modalBox.classList.add("scale-95", "opacity-0");
+                setTimeout(() => {
+                    modalMask.classList.remove("flex");
+                    modalMask.classList.add("hidden");
+                }, 150);
+            }
+        }
+
+        // --- REORDER LIST LIFECYCLE EVENT HANDLERS ---
+        let srcElem = null;
+
+        function handleDragStart(e) {
+            srcElem = this;
+            this.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", this.getAttribute("data-index"));
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) e.preventDefault();
+            return false;
+        }
+
+        function handleDrop(e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            if (srcElem !== this) {
+                const originPos = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                const targetedPos = parseInt(this.getAttribute("data-index"), 10);
+
+                const itemToShift = routeNodes.splice(originPos, 1)[0];
+                routeNodes.splice(targetedPos, 0, itemToShift);
+
+                routeNodes.forEach((n, idx) => {
+                    if(idx === 0) n.type = "start";
+                    else if (idx === routeNodes.length - 1) n.type = "destination";
+                    else n.type = "interim";
+                });
+
+                renderRouteStack();
+            }
+            return false;
+        }
+
+        function handleDragEnd() {
+            document.querySelectorAll('.sortable-item').forEach(i => i.classList.remove('dragging'));
+        }
+
+        function executeRouteGenerationPipeline() {
+            // Trigger calculation window modal popup on complete
+            togglePricingModal(true);
+        }
     </script>
 </body>
 </html>
