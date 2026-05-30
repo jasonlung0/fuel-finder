@@ -68,39 +68,63 @@
         .bg-fuel-blue { background-color: #2563eb !important; }
         .bg-fuel-red { background-color: #ef4444 !important; }
 
-        /* Multi-Stage Interactive Bottom Sheet Layout Engine */
+        /* Control Sidebar Transitions */
         .adaptive-control-sidebar {
             transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), height 0.35s cubic-bezier(0.25, 1, 0.5, 1);
         }
-        
         @media (max-width: 767px) {
-            .adaptive-control-sidebar.state-minimal {
-                height: 70px;
-                transform: translateY(0);
+            .adaptive-control-sidebar.state-minimal { height: 70px; transform: translateY(0); }
+            .adaptive-control-sidebar.state-mid { height: 50vh; transform: translateY(0); }
+            .adaptive-control-sidebar.state-full { height: 90vh; transform: translateY(0); }
+        }
+
+        /* Responsive 3-Stage Detent Mechanical Engine for Forecourt Sheet */
+        @media (max-width: 767px) {
+            .detail-sheet-mobile {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 999;
+                background-color: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(20px);
+                border-top-left-radius: 2rem;
+                border-top-right-radius: 2rem;
+                border-top: 1px solid #e2e8f0;
+                box-shadow: 0 -10px 35px rgba(0,0,0,0.15);
+                transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             }
-            .adaptive-control-sidebar.state-mid {
-                height: 50vh;
-                transform: translateY(0);
+            .detail-sheet-mobile.state-hidden { transform: translateY(110%); }
+            .detail-sheet-mobile.state-minimal { height: 75px; transform: translateY(0); overflow: hidden; }
+            .detail-sheet-mobile.state-mid { height: 42vh; transform: translateY(0); }
+            .detail-sheet-mobile.state-full { height: 88vh; transform: translateY(0); }
+        }
+        @media (min-width: 768px) {
+            .detail-sheet-mobile {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                width: 400px;
+                background-color: rgba(255, 255, 255, 0.96);
+                backdrop-filter: blur(16px);
+                border-radius: 1.25rem;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+                z-index: 999;
+                transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.25s ease;
+                transform: translateY(120%);
+                opacity: 0;
+                pointer-events: none;
             }
-            .adaptive-control-sidebar.state-full {
-                height: 90vh;
+            .detail-sheet-mobile.active-desktop {
                 transform: translateY(0);
+                opacity: 1;
+                pointer-events: auto;
             }
         }
 
-        /* Generic Modal Detent Sheet Structural Animations */
-        .modal-sheet-layer {
-            transform: translateY(110%);
-            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        .modal-sheet-layer.active {
-            transform: translateY(0);
-        }
-
-        /* Pure CSS Tooltip Architecture Blueprint Setup */
-        .nav-tooltip-trigger {
-            position: relative;
-        }
+        /* Pure CSS Tooltip Setup */
+        .nav-tooltip-trigger { position: relative; }
         .nav-tooltip-trigger::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -120,20 +144,10 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             z-index: 1000;
         }
-        .nav-tooltip-trigger:hover::after {
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-        }
+        .nav-tooltip-trigger:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
 
-        .leaflet-top.leaflet-left {
-            top: 90px !important;
-        }
-        @media (min-width: 768px) {
-            .leaflet-top.leaflet-left {
-                left: 415px !important;
-                top: 20px !important;
-            }
-        }
+        .leaflet-top.leaflet-left { top: 90px !important; }
+        @media (min-width: 768px) { .leaflet-top.leaflet-left { left: 415px !important; top: 20px !important; } }
     </style>
 </head>
 <body class="bg-slate-900 antialiased">
@@ -165,8 +179,7 @@
                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">⭐ Starred Forecourts</h4>
                 <span id="starred-count-badge" class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">0</span>
             </div>
-            <div id="starred-list-container" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
-                </div>
+            <div id="starred-list-container" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin"></div>
         </div>
     </nav>
 
@@ -179,23 +192,16 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-6 pb-6 pt-6 md:pt-9 space-y-5">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
-                    <p id="live-timestamp-label" class="text-xs text-slate-400 mt-0.5 font-semibold flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        Checking price update sync logs...
-                    </p>
-                </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
+                <p id="live-timestamp-label" class="text-xs text-slate-400 mt-0.5 font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Checking price logs...
+                </p>
             </div>
 
             <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold tracking-wide uppercase select-none">
-                <button id="tab-local-btn" onclick="toggleSearchTab('local')" class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition">
-                    📍 Local Area
-                </button>
-                <button id="tab-route-btn" onclick="toggleSearchTab('route')" class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition">
-                    🚖 Route Corridor
-                </button>
+                <button id="tab-local-btn" onclick="toggleSearchTab('local')" class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition">📍 Local Area</button>
+                <button id="tab-route-btn" onclick="toggleSearchTab('route')" class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition">🚖 Route Corridor</button>
             </div>
 
             <div id="panel-local" class="space-y-4">
@@ -211,16 +217,14 @@
                     <div id="location-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                 </div>
 
-                <div id="sidebar-active-station-box" class="hidden border border-slate-200/80 bg-slate-50 p-3 rounded-xl flex items-center justify-between transition-all duration-200 animate-fadeIn">
+                <div id="sidebar-active-station-box" class="hidden border border-slate-200/80 bg-slate-50 p-3 rounded-xl flex items-center justify-between transition-all duration-200">
                     <div class="min-w-0 pr-2">
-                        <div class="text-[9px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">
-                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span> Selected Station
-                        </div>
-                        <div id="sidebar-active-brand" class="text-xs font-extrabold text-slate-800 truncate mt-0.5">Forecourt Brand</div>
-                        <div id="sidebar-active-address" class="text-[10px] font-medium text-slate-400 truncate">Address details...</div>
+                        <div class="text-[9px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">📍 Selected Station</div>
+                        <div id="sidebar-active-brand" class="text-xs font-extrabold text-slate-800 truncate mt-0.5">Brand</div>
+                        <div id="sidebar-active-address" class="text-[10px] font-medium text-slate-400 truncate">Address...</div>
                     </div>
-                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2 text-slate-300 hover:text-amber-500 rounded-full hover:bg-white border border-transparent hover:border-slate-200 hover:shadow-xs transition cursor-pointer shrink-0" title="Star Station">
-                        <svg id="sidebar-star-icon" class="w-4 h-4 fill-none stroke-currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
+                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0" title="Star Station">
+                        <svg id="sidebar-star-icon" class="w-4 h-4 fill-none stroke-currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
                     </button>
                 </div>
 
@@ -236,12 +240,12 @@
             <div id="panel-route" class="space-y-4 hidden">
                 <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-3">
                     <div class="space-y-1 relative">
-                        <label class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase flex items-center gap-1">🟢 Starting Location</label>
+                        <label class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase">🟢 Starting Location</label>
                         <input type="text" id="route-start" placeholder="e.g. Dunfermline" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'start-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
                         <div id="start-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                     </div>
                     <div class="space-y-1 relative">
-                        <label class="text-[10px] font-bold tracking-wider text-red-600 uppercase flex items-center gap-1">🔴 Destination</label>
+                        <label class="text-[10px] font-bold tracking-wider text-red-600 uppercase">🔴 Destination</label>
                         <input type="text" id="route-end" placeholder="e.g. Edinburgh" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'end-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
                         <div id="end-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                     </div>
@@ -267,9 +271,7 @@
             </div>
 
             <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/40 border border-emerald-100 p-4 rounded-xl space-y-2 hidden">
-                <div class="text-[11px] font-bold text-emerald-800 tracking-wider uppercase flex items-center gap-1.5">
-                    📊 Financial Calculations Summary
-                </div>
+                <div class="text-[11px] font-bold text-emerald-800 tracking-wider uppercase">📊 Calculations Summary</div>
                 <div class="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
                     <div>Scope / Route: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
                     <div>Lowest Target: <span id="summary-cost" class="font-extrabold text-emerald-600">0.0p</span></div>
@@ -277,9 +279,8 @@
             </div>
 
             <div id="cheapest-ranking-block" class="space-y-2 hidden">
-                <label class="text-[10px] font-black tracking-wider text-amber-600 uppercase flex items-center gap-1">🏆 Cheapest Selection Choices</label>
-                <div id="cheapest-cards-stack" class="space-y-2">
-                    </div>
+                <label class="text-[10px] font-black tracking-wider text-amber-600 uppercase">🏆 Cheapest Selection Choices</label>
+                <div id="cheapest-cards-stack" class="space-y-2"></div>
             </div>
 
             <div class="space-y-1.5">
@@ -290,40 +291,32 @@
                     <option value="B7">Diesel (B7)</option>
                 </select>
             </div>
-
-            <label class="flex items-center gap-2.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 p-3 rounded-xl border border-slate-100 hover:bg-slate-100/60 transition">
-                <input type="checkbox" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20" />
-                <span>Traditional Mechanical Pumps Only</span>
-            </label>
         </div>
 
         <div class="p-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl flex items-center justify-between text-xs text-slate-500 shrink-0 select-none max-md:hidden">
-            <button onclick="forceReloadRemotePipelineData()" class="flex items-center gap-1 text-slate-600 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">
-                🔄 Fetch Remote Pool
-            </button>
+            <button onclick="forceReloadRemotePipelineData()" class="flex items-center gap-1 text-slate-600 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">🔄 Fetch Pool</button>
             <span id="station-counter" class="font-bold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200/80 shadow-xs">Forecourts: 0</span>
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="modal-sheet-layer fixed bottom-0 z-[999] bg-white/95 backdrop-blur-xl rounded-t-[2rem] border border-slate-200 shadow-[0_-10px_35px_rgba(0,0,0,0.12)]
-        max-md:left-0 max-md:right-0 max-md:max-h-[45vh]
-        md:bottom-6 md:right-6 md:w-[400px] md:rounded-2xl">
+    <div id="global-detail-sheet" class="detail-sheet-mobile state-hidden">
         
-        <div class="w-full py-3.5 flex justify-center cursor-pointer" onclick="closeForecourtDetailSheet()">
-            <div class="w-10 h-1 bg-slate-300 rounded-full"></div>
+        <div id="sheet-drag-handle" class="w-full py-3.5 flex flex-col items-center justify-center cursor-row-resize select-none shrink-0 touch-none">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 md:hidden">Swipe to Resize</div>
         </div>
         
-        <div class="px-6 pb-8 space-y-4">
+        <div class="px-6 pb-8 space-y-4 overflow-y-auto max-h-[calc(100%-40px)]">
             <div class="flex justify-between items-start">
                 <div class="space-y-0.5 min-w-0 pr-2">
                     <h3 id="sheet-brand-title" class="text-xl font-black text-slate-900 tracking-tight truncate">Forecourt Brand</h3>
-                    <p id="sheet-address-details" class="text-xs font-semibold text-slate-400 leading-relaxed truncate">Loading location data logs...</p>
+                    <p id="sheet-address-details" class="text-xs font-semibold text-slate-400 leading-relaxed truncate">Loading data logs...</p>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
-                    <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2 text-slate-300 hover:text-amber-500 rounded-full hover:bg-slate-100 transition cursor-pointer" title="Star Station">
-                        <svg id="sheet-star-icon" class="w-5 h-5 fill-none stroke-currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
+                <div class="flex items-center gap-2 shrink-0 select-none">
+                    <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center" title="Star Station">
+                        <svg id="sheet-star-icon" class="w-5 h-5 fill-none stroke-currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
                     </button>
-                    <button onclick="closeForecourtDetailSheet()" class="bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full p-2 text-xs font-bold transition cursor-pointer">✕</button>
+                    <button onclick="closeForecourtDetailSheet()" class="bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-500 rounded-full p-2.5 text-xs font-bold transition cursor-pointer flex items-center justify-center shadow-xs">✕</button>
                 </div>
             </div>
             
@@ -347,7 +340,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // Memory Registries
+        // Core Registries
         let rawGlobalStationsPool = [];
         let currentlyVisibleStations = []; 
         let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_stations')) || [];
@@ -358,9 +351,10 @@
         let plottedRouteCoordinates = [];
         let mapSearchAnchorCoordinates = [56.07, -3.45]; 
         let autocompleteDebounceTimer = null;
-        let currentMobileDetentState = 'mid'; 
+        let currentMobileSidebarState = 'mid'; 
+        let currentMobileSheetState = 'mid'; // Engine Track Variable: minimal, mid, full
         
-        // Initializing Map Layout Canvas
+        // Setup Map View Canvas
         const map = L.map('map', { zoomControl: false }).setView(mapSearchAnchorCoordinates, 12);
         L.control.zoom({ position: 'topleft' }).addTo(map);
         markerLayerGroup.addTo(map);
@@ -369,41 +363,91 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Compute unique identification signature string for individual forecourt assets
+        // Core Event Rule: Clicking map architecture area dismisses all active modals
+        map.on('click', () => {
+            closeForecourtDetailSheet();
+            document.getElementById('starred-dropdown-panel').classList.add('hidden');
+        });
+
+        // Block UI events from passing to Leaflet layer underneath
+        function initializeClickIsolationBubbling() {
+            const panels = [
+                document.getElementById('control-sidebar'),
+                document.getElementById('global-detail-sheet'),
+                document.getElementById('starred-dropdown-panel'),
+                document.getElementById('nav-starred-trigger').parentNode
+            ];
+            panels.forEach(node => {
+                if (node) {
+                    L.DomEvent.disableClickPropagation(node);
+                    L.DomEvent.disableScrollPropagation(node);
+                }
+            });
+        }
+
+        // Get Unique Identifiers for Forecourts
         function getStationUniqueSignature(s) {
             if (!s) return '';
             return s.site_id || `${s.brand_name}-${s.postcode || ''}-${parseFloat(s.latitude || s.lat).toFixed(4)}-${parseFloat(s.longitude || s.lng).toFixed(4)}`;
         }
 
-        // Collapse Mobile Side Drawer to Peek View Interface
         function forceMobileSidebarMinimalState() {
             const sidebar = document.getElementById('control-sidebar');
             if (window.innerWidth < 768 && sidebar) {
                 sidebar.classList.remove('state-minimal', 'state-mid', 'state-full');
                 sidebar.classList.add('state-minimal');
-                currentMobileDetentState = 'minimal';
+                currentMobileSidebarState = 'minimal';
             }
         }
 
-        // Mobile Sidebar Drawer Snap State Handler Cycle
         function cycleMobileSidebarDetents() {
             const sidebar = document.getElementById('control-sidebar');
             if (!sidebar) return;
-
             sidebar.classList.remove('state-minimal', 'state-mid', 'state-full');
-            
-            if (currentMobileDetentState === 'minimal') {
-                currentMobileDetentState = 'mid';
-            } else if (currentMobileDetentState === 'mid') {
-                currentMobileDetentState = 'full';
-            } else {
-                currentMobileDetentState = 'minimal';
-            }
-            
-            sidebar.classList.add(`state-${currentMobileDetentState}`);
+            if (currentMobileSidebarState === 'minimal') currentMobileSidebarState = 'mid';
+            else if (currentMobileSidebarState === 'mid') currentMobileSidebarState = 'full';
+            else currentMobileSidebarState = 'minimal';
+            sidebar.classList.add(`state-${currentMobileSidebarState}`);
         }
 
-        // Toggle Control Panels Filter Layout Tab Deck
+        // 3-Stage Touch Gesture Processing System
+        function setForecourtSheetState(targetState) {
+            if (window.innerWidth >= 768) return; 
+            const sheet = document.getElementById('global-detail-sheet');
+            if (!sheet) return;
+
+            sheet.classList.remove('state-hidden', 'state-minimal', 'state-mid', 'state-full');
+            currentMobileSheetState = targetState;
+            sheet.classList.add(`state-${targetState}`);
+        }
+
+        function initializeGestureTrackEngine() {
+            const handleZone = document.getElementById('sheet-drag-handle');
+            let initialTouchPointY = 0;
+
+            handleZone.addEventListener('touchstart', (e) => {
+                initialTouchPointY = e.touches[0].clientY;
+            }, { passive: true });
+
+            handleZone.addEventListener('touchend', (e) => {
+                const finishingTouchPointY = e.changedTouches[0].clientY;
+                const movementDisplacementDeltaY = initialTouchPointY - finishingTouchPointY; // positive = up, negative = down
+                const swipeSensitivityThreshold = 45;
+
+                if (Math.abs(movementDisplacementDeltaY) > swipeSensitivityThreshold) {
+                    if (movementDisplacementDeltaY > 0) {
+                        // Swiped Upwards
+                        if (currentMobileSheetState === 'minimal') setForecourtSheetState('mid');
+                        else if (currentMobileSheetState === 'mid') setForecourtSheetState('full');
+                    } else {
+                        // Swiped Downwards
+                        if (currentMobileSheetState === 'full') setForecourtSheetState('mid');
+                        else if (currentMobileSheetState === 'mid') setForecourtSheetState('minimal');
+                    }
+                }
+            }, { passive: true });
+        }
+
         function toggleSearchTab(targetTab) {
             activeTabContext = targetTab;
             const localBtn = document.getElementById('tab-local-btn');
@@ -426,13 +470,12 @@
             refreshViewportViewFilter();
         }
 
-        // Native Geolocation Hardware Capture Pipeline
         function checkNativeHardwarePositionMatrix() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         mapSearchAnchorCoordinates = [position.coords.latitude, position.coords.longitude];
-                        document.getElementById('location-input').placeholder = "📍 Using Device Current Location";
+                        document.getElementById('location-input').placeholder = "📍 Using Device Location";
                         map.setView(mapSearchAnchorCoordinates, 12);
                         refreshViewportViewFilter();
                     },
@@ -444,7 +487,6 @@
             }
         }
 
-        // Autocomplete Live Search Thread Logic Layer
         function handleAutocompleteDebounce(inputField, suggestionContainerId) {
             clearTimeout(autocompleteDebounceTimer);
             const textQuery = inputField.value.trim();
@@ -486,16 +528,14 @@
                     });
                     matchingBox.classList.remove('hidden');
                 } catch (e) {
-                    console.error("Autocomplete exception mapping thread logs:", e);
+                    console.error(e);
                 }
             }, 350);
         }
 
-        // Execute Geocode Input Field Search Coordinates Lookup
         async function executeAddressGeocodeLookup() {
             const searchString = document.getElementById('location-input').value.trim();
             if (!searchString) return;
-
             try {
                 const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
                 const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
@@ -506,35 +546,24 @@
                     map.setView(mapSearchAnchorCoordinates, 12);
                     forceMobileSidebarMinimalState();
                     refreshViewportViewFilter();
-                } else {
-                    alert("Location context coordinate matrices match not verified.");
                 }
             } catch (err) {
-                console.error("Geocoding service mapping engine fallback failure:", err);
+                console.error(err);
             }
         }
 
-        // Live Road Tracking Corridor Router Compilation Engine Pipeline
         async function executeRouteGenerationPipeline() {
             const startVal = document.getElementById('route-start').value.trim();
             const endVal = document.getElementById('route-end').value.trim();
-
-            if (!startVal || !endVal) {
-                alert("Please complete both route tracking parameters setup inputs.");
-                return;
-            }
+            if (!startVal || !endVal) return;
 
             try {
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
                 const startNodes = await startRes.json();
-                
                 const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
                 const endNodes = await endRes.json();
 
-                if (!startNodes.length || !endNodes.length) {
-                    alert("Mapping link system tracing failure. Verify query spelling parameters.");
-                    return;
-                }
+                if (!startNodes.length || !endNodes.length) return;
 
                 const sLat = startNodes[0].lat, sLon = startNodes[0].lon;
                 const eLat = endNodes[0].lat, eLon = endNodes[0].lon;
@@ -543,40 +572,26 @@
                 const routeRes = await fetch(osrmQuery);
                 const routeData = await routeRes.json();
 
-                if (!routeData.routes || !routeData.routes.length) {
-                    alert("No direct open highway channels resolved between locations.");
-                    return;
-                }
+                if (!routeData.routes || !routeData.routes.length) return;
 
                 const routeLineGeometry = routeData.routes[0].geometry;
-                const pathDistanceMeters = routeData.routes[0].distance;
-                const distanceMiles = pathDistanceMeters * 0.000621371;
+                const distanceMiles = routeData.routes[0].distance * 0.000621371;
 
                 plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 
-                routePolylineLayer = L.polyline(plottedRouteCoordinates, {
-                    color: '#2563eb',
-                    weight: 5,
-                    opacity: 0.85
-                }).addTo(map);
-
+                routePolylineLayer = L.polyline(plottedRouteCoordinates, { color: '#2563eb', weight: 5, opacity: 0.85 }).addTo(map);
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
                 forceMobileSidebarMinimalState();
                 refreshViewportViewFilter(distanceMiles);
-
             } catch (err) {
-                console.error("Routing network corridor layer rendering failure:", err);
+                console.error(err);
             }
         }
 
         function clearCalculatedRouteLayers() {
-            if (routePolylineLayer) {
-                map.removeLayer(routePolylineLayer);
-                routePolylineLayer = null;
-            }
+            if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
             plottedRouteCoordinates = [];
             document.getElementById('financial-card').classList.add('hidden');
             document.getElementById('cheapest-ranking-block').classList.add('hidden');
@@ -594,17 +609,14 @@
             for (let i = 0; i < plottedRouteCoordinates.length; i++) {
                 const node = plottedRouteCoordinates[i];
                 const distanceEstimate = computeDistanceVectorMiles(node[0], node[1], pointLat, pointLon);
-                if (distanceEstimate < minimumTrackSeparationMiles) {
-                    minimumTrackSeparationMiles = distanceEstimate;
-                }
+                if (distanceEstimate < minimumTrackSeparationMiles) minimumTrackSeparationMiles = distanceEstimate;
             }
             return minimumTrackSeparationMiles;
         }
 
         const BRAND_EMOJI_DICT = {
-            'shell': '⛽', 'bp': '🟢', 'esso': '🔴', 'tesco': '🔵', 
-            'asda': '🟢', 'sainsbury': '🟠', 'morrison': '💛', 
-            'texaco': '⭐', 'jet': '💛', 'gulf': '🟠'
+            'shell': '⛽', 'bp': '🟢', 'esso': '🔴', 'tesco': '🔵', 'asda': '🟢', 
+            'sainsbury': '🟠', 'morrison': '💛', 'texaco': '⭐', 'jet': '💛', 'gulf': '🟠'
         };
 
         function resolveBrandVisualSymbol(brandName) {
@@ -616,96 +628,61 @@
             return '⛽';
         }
 
-        // Setup DOM Event UI Binding Hooks
-        const slider = document.getElementById('radius-slider');
-        const sliderVal = document.getElementById('radius-val');
-        if (slider) {
-            slider.addEventListener('input', (e) => { 
-                sliderVal.textContent = `${e.target.value} Miles`; 
-                refreshViewportViewFilter();
-            });
-        }
-
-        const rSlider = document.getElementById('route-radius-slider');
-        const rSliderVal = document.getElementById('route-radius-val');
-        if (rSlider) {
-            rSlider.addEventListener('input', (e) => { rSliderVal.textContent = `${e.target.value} Miles`; });
-        }
-        
+        // Setup Event Handlers
+        document.getElementById('radius-slider')?.addEventListener('input', (e) => {
+            document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
+            refreshViewportViewFilter();
+        });
+        document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
+            document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
+        });
         document.getElementById('fuel-type')?.addEventListener('change', () => {
             refreshViewportViewFilter();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) {
-                renderStarredDropdownDashboard();
-            }
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
         });
 
         document.addEventListener('click', (e) => {
             ['location-suggestions', 'start-suggestions', 'end-suggestions'].forEach(id => {
                 const box = document.getElementById(id);
-                if (box && !box.contains(e.target) && e.target.id !== id.replace('-suggestions', '-input')) {
-                    box.classList.add('hidden');
-                }
+                if (box && !box.contains(e.target) && e.target.id !== id.replace('-suggestions', '-input')) box.classList.add('hidden');
             });
-            
-            const dropdown = document.getElementById('starred-dropdown-panel');
-            const starredTrigger = document.getElementById('nav-starred-trigger');
-            if (dropdown && !dropdown.contains(e.target) && starredTrigger && !starredTrigger.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
         });
 
-        // Remote Core Payload Ingestion Data Processing Layer
         async function forceReloadRemotePipelineData() {
             const counterElement = document.getElementById('station-counter');
             if (counterElement) counterElement.textContent = "Loading Data...";
-            
             try {
-                const endpoint = 'https://fuel-cron-scraper.jasonlung0.workers.dev/';
-                const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`Network status crash flag: ${response.status}`);
-                
+                const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
                 rawGlobalStationsPool = await response.json();
                 
                 const liveClock = new Date();
                 let hours = liveClock.getHours();
                 const minutes = liveClock.getMinutes().toString().padStart(2, '0');
                 const ampm = hours >= 12 ? 'PM' : 'AM';
-                hours = hours % 12;
-                hours = hours ? hours : 12; 
-                document.getElementById('live-timestamp-label').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Prices updated: Today, ${hours}:${minutes} ${ampm}`;
+                hours = hours % 12 || 12; 
+                document.getElementById('live-timestamp-label').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Prices synced: Today, ${hours}:${minutes} ${ampm}`;
                 
                 refreshViewportViewFilter();
             } catch (error) {
-                console.error("Ingestion data stream processing error:", error);
+                console.error(error);
                 if (counterElement) counterElement.textContent = "Data Link Error";
             }
         }
 
-        // Jump and focus map canvas to marker location layout view
         function focusAndHighlightMapMarker(lat, lon) {
             if (isNaN(lat) || isNaN(lon)) return;
-            
             map.setView([lat, lon], 14, { animate: true, duration: 0.6 });
             
-            const selectedStation = currentlyVisibleStations.find(s => 
-                parseFloat(s.latitude || s.lat) === lat && 
-                parseFloat(s.longitude || s.lng) === lon
-            ) || rawGlobalStationsPool.find(s => 
-                parseFloat(s.latitude || s.lat) === lat && 
-                parseFloat(s.longitude || s.lng) === lon
-            );
+            const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) ||
+                                     rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
             
             if (selectedStation) {
-                setTimeout(() => {
-                    openForecourtDetailSheet(selectedStation);
-                }, 400);
+                setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 400);
             }
         }
 
-        // Viewport & Radius Filter Compilation Engine Rules
         function refreshViewportViewFilter(routeDistanceContext = null, manualScanTriggered = false) {
             if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
-
             const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
             const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
             const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
@@ -715,394 +692,255 @@
             if (activeTabContext === 'local' || plottedRouteCoordinates.length === 0) {
                 if (manualScanTriggered) {
                     const mapScreenBounds = map.getBounds();
-                    dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
-                        const lat = parseFloat(station.latitude || station.lat);
-                        const lon = parseFloat(station.longitude || station.lng);
-                        if (isNaN(lat) || isNaN(lon)) return false;
-                        return mapScreenBounds.contains([lat, lon]);
-                    });
+                    dynamicBoundedStations = rawGlobalStationsPool.filter(s => mapScreenBounds.contains([parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)]));
                 } else {
-                    dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
-                        const lat = parseFloat(station.latitude || station.lat);
-                        const lon = parseFloat(station.longitude || station.lng);
-                        if (isNaN(lat) || isNaN(lon)) return false;
-                        
-                        const distanceMiles = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], lat, lon);
-                        return distanceMiles <= targetLocalRadiusThreshold;
-                    });
+                    dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetLocalRadiusThreshold);
                 }
             } else {
-                dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
-                    const lat = parseFloat(station.latitude || station.lat);
-                    const lon = parseFloat(station.longitude || station.lng);
-                    if (isNaN(lat) || isNaN(lon)) return false;
-                    
-                    const distanceToTrack = computeMinimumDistanceToRouteCorridor(lat, lon);
-                    return distanceToTrack <= targetCorridorRadiusThreshold;
-                });
+                dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetCorridorRadiusThreshold);
             }
 
             currentlyVisibleStations = dynamicBoundedStations;
-
-            const renderingDisplayLimitCap = 250;
-            const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
-
-            paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
+            paintMarkerCanvasLayersToMap(dynamicBoundedStations.slice(0, 250), chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
             generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
         }
 
-        // Top 3 cheapest choices processing compiler logic
         function generateCheapestRankingListDeck(pool, fuelVariant) {
             const block = document.getElementById('cheapest-ranking-block');
             const container = document.getElementById('cheapest-cards-stack');
             if (!block || !container) return;
 
             const validPool = pool.filter(s => s[fuelVariant] && !isNaN(parseFloat(s[fuelVariant])) && parseFloat(s[fuelVariant]) > 0);
-            
-            if (validPool.length === 0) {
-                block.classList.add('hidden');
-                return;
-            }
+            if (validPool.length === 0) { block.classList.add('hidden'); return; }
 
             validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
-            const top3 = validPool.slice(0, 3);
-
             container.innerHTML = '';
-            top3.forEach((station, idx) => {
+            
+            validPool.slice(0, 3).forEach((station, idx) => {
                 const lat = parseFloat(station.latitude || station.lat);
                 const lon = parseFloat(station.longitude || station.lng);
                 const val = parseFloat(station[fuelVariant]).toFixed(1);
                 const emoji = resolveBrandVisualSymbol(station.brand_name);
-                const cleanBrand = (station.brand_name || 'Independent').replace(/['"]/g, '');
                 
                 const card = document.createElement('div');
                 card.className = "flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl hover:border-amber-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
                 card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-                
                 card.innerHTML = `
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-7 h-7 rounded-full bg-amber-50 text-xs flex items-center justify-center shrink-0 font-black text-amber-600 border border-amber-100">
-                            #${idx + 1}
-                        </div>
+                        <div class="w-7 h-7 rounded-full bg-amber-50 text-xs flex items-center justify-center shrink-0 font-black text-amber-600 border border-amber-100">#${idx + 1}</div>
                         <div class="min-w-0">
-                            <div class="text-xs font-black text-slate-800 truncate flex items-center gap-1">
-                                <span>${emoji}</span> ${cleanBrand}
-                            </div>
+                            <div class="text-xs font-black text-slate-800 truncate flex items-center gap-1"><span>${emoji}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
                             <div class="text-[10px] font-medium text-slate-400 truncate">${station.address || ''}</div>
                         </div>
                     </div>
-                    <div class="text-right shrink-0">
-                        <div class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 border border-emerald-100 rounded-md">${val}p</div>
-                    </div>
+                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 border border-emerald-100 rounded-md">${val}p</div></div>
                 `;
                 container.appendChild(card);
             });
-
             block.classList.remove('hidden');
         }
 
-        // Relative pricing context dynamic styling engine assignment
         function assignPricingTierColorStyles(valueRaw, variantKey) {
             const fallbackClasses = "bg-slate-50 border-slate-200 text-slate-400";
             if (!valueRaw) return fallbackClasses;
-            
             const numericVal = parseFloat(valueRaw);
             if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
-            const referencePool = currentlyVisibleStations
-                .map(item => parseFloat(item[variantKey]))
-                .filter(p => !isNaN(p) && p > 0);
-
+            const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
             if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900";
 
             const min = Math.min(...referencePool);
-            const max = Math.max(...referencePool);
-            const delta = max - min;
-
+            const delta = Math.max(...referencePool) - min;
             if (delta <= 0) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
 
-            const stepThreshold = delta / 3;
-            const greenLimit = min + stepThreshold;
-            const blueLimit = min + (stepThreshold * 2);
-
-            if (numericVal <= greenLimit) {
-                return "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-xs";
-            } else if (numericVal <= blueLimit) {
-                return "bg-blue-50 border-blue-400 text-blue-950 font-black shadow-xs";
-            } else {
-                return "bg-rose-50 border-rose-400 text-rose-950 font-black shadow-xs";
-            }
+            const step = delta / 3;
+            if (numericVal <= min + step) return "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-xs";
+            if (numericVal <= min + (step * 2)) return "bg-blue-50 border-blue-400 text-blue-950 font-black shadow-xs";
+            return "bg-rose-50 border-rose-400 text-rose-950 font-black shadow-xs";
         }
 
-        // Render Price Bubbles to Map
         function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
             markerLayerGroup.clearLayers();
-
-            const pricesArray = stationsList
-                .map(s => parseFloat(s[variant]))
-                .filter(p => !isNaN(p) && p > 0);
-
+            const pricesArray = stationsList.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
             const minPrice = Math.min(...pricesArray) || 140;
-            const maxPrice = Math.max(...pricesArray) || 175;
-            const spreadDelta = maxPrice - minPrice;
+            const spreadDelta = (Math.max(...pricesArray) || 175) - minPrice;
 
             const finCard = document.getElementById('financial-card');
             if (finCard && pricesArray.length > 0) {
                 finCard.classList.remove('hidden');
                 if (activeTabContext === 'route' && routeDistanceContext) {
-                    const vehicleMpg = parseFloat(document.getElementById('vehicle-mpg').value || 45);
-                    const totalTripPriceCostPounds = ((routeDistanceContext / vehicleMpg) * 4.54609 * minPrice) / 100;
-
+                    const totalTripPriceCostPounds = ((routeDistanceContext / parseFloat(document.getElementById('vehicle-mpg').value || 45)) * 4.54609 * minPrice) / 100;
                     document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
                     document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
                 } else {
-                    document.getElementById('summary-distance').textContent = `Radius Area Scope`;
+                    document.getElementById('summary-distance').textContent = `Radius Scope`;
                     document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
                 }
             }
 
             stationsList.forEach((station) => {
-                const lat = parseFloat(station.latitude || station.lat);
-                const lon = parseFloat(station.longitude || station.lng);
-                const priceTextRaw = station[variant];
-
-                if (!priceTextRaw) return;
-                const numericPrice = parseFloat(priceTextRaw);
+                const numericPrice = parseFloat(station[variant]);
+                if (!numericPrice) return;
                 
                 let tierBgClassColor = 'bg-fuel-blue';
                 if (spreadDelta > 0) {
                     const step = spreadDelta / 3;
-                    if (numericPrice <= (minPrice + step)) {
-                        tierBgClassColor = 'bg-fuel-green';
-                    } else if (numericPrice <= (minPrice + (step * 2))) {
-                        tierBgClassColor = 'bg-fuel-blue';
-                    } else {
-                        tierBgClassColor = 'bg-fuel-red';
-                    }
+                    if (numericPrice <= (minPrice + step)) tierBgClassColor = 'bg-fuel-green';
+                    else if (numericPrice <= (minPrice + (step * 2))) tierBgClassColor = 'bg-fuel-blue';
+                    else tierBgClassColor = 'bg-fuel-red';
                 } else {
                     tierBgClassColor = 'bg-fuel-green';
                 }
 
-                const brandVisualSymbol = resolveBrandVisualSymbol(station.brand_name);
-                const designHTMLTemplateString = `
-                    <div class="fuel-marker-bubble ${tierBgClassColor}">
-                        <div class="logo-container">${brandVisualSymbol}</div>
-                        <span>${numericPrice.toFixed(1)}p</span>
-                    </div>
-                `;
-
-                const layoutCustomIconInstance = L.divIcon({
-                    html: designHTMLTemplateString,
-                    className: 'leaflet-div-icon-reset-layout-layer',
-                    iconSize: [85, 30],
-                    iconAnchor: [42, 15]
+                const markerInstanceElement = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
+                    icon: L.divIcon({
+                        html: `<div class="fuel-marker-bubble ${tierBgClassColor}"><div class="logo-container">${resolveBrandVisualSymbol(station.brand_name)}</div><span>${numericPrice.toFixed(1)}p</span></div>`,
+                        className: 'leaflet-div-icon-reset-layout-layer',
+                        iconSize: [85, 30], iconAnchor: [42, 15]
+                    })
                 });
-
-                const markerInstanceElement = L.marker([lat, lon], { icon: layoutCustomIconInstance });
                 markerInstanceElement.on('click', () => openForecourtDetailSheet(station));
                 markerInstanceElement.addTo(markerLayerGroup);
             });
 
-            const statusCounter = document.getElementById('station-counter');
-            if (statusCounter) statusCounter.textContent = `Forecourts: ${fallbackTotalCount} rows`;
+            if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Forecourts: ${fallbackTotalCount}`;
         }
 
-        // Toggle Favorite/Starred Pipeline Configuration Thread
         function toggleCurrentStationStar() {
             if (!activeSheetStation) return;
-            
             const stationKey = getStationUniqueSignature(activeSheetStation);
             const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
 
-            if (matchingIndex > -1) {
-                starredStations.splice(matchingIndex, 1);
-            } else {
-                starredStations.push(activeSheetStation);
-            }
+            if (matchingIndex > -1) starredStations.splice(matchingIndex, 1);
+            else starredStations.push(activeSheetStation);
 
             localStorage.setItem('uk_fuel_starred_stations', JSON.stringify(starredStations));
             updateAllStarUIStates();
         }
 
-        // Synchronize star graphic styling attributes across all views globally
+        // Global Architectural Synchronization Module (Toggles Grey vs Amber-Yellow States)
         function updateAllStarUIStates() {
             if (!activeSheetStation) return;
-
             const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
             
-            // 1. Sync Bottom Sheet Details Elements
+            // 1. Details Sheet Star Button Styling Synchronizer Rules
             const sheetIcon = document.getElementById('sheet-star-icon');
             const sheetBtn = document.getElementById('sheet-star-btn');
             if (sheetIcon && sheetBtn) {
                 if (isStarred) {
-                    sheetIcon.classList.remove('fill-none', 'text-slate-300');
-                    sheetIcon.classList.add('fill-amber-400', 'text-amber-500');
-                    sheetBtn.classList.add('bg-amber-50');
+                    sheetIcon.className.value = "w-5 h-5 fill-amber-400 text-amber-500 transition-colors duration-200";
+                    sheetBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center";
                 } else {
-                    sheetIcon.classList.remove('fill-amber-400', 'text-amber-500');
-                    sheetIcon.classList.add('fill-none', 'text-slate-300');
-                    sheetBtn.classList.remove('bg-amber-50');
+                    sheetIcon.className.value = "w-5 h-5 fill-none text-slate-400 transition-colors duration-200";
+                    sheetBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center";
                 }
             }
 
-            // 2. Sync Left Sidebar Quick-View Card Elements
+            // 2. Sidebar Active Selection Card Star Layout Sync Engine 
             const sidebarIcon = document.getElementById('sidebar-star-icon');
             const sidebarBtn = document.getElementById('sidebar-star-btn');
             if (sidebarIcon && sidebarBtn) {
                 if (isStarred) {
-                    sidebarIcon.classList.remove('fill-none', 'text-slate-300');
-                    sidebarIcon.classList.add('fill-amber-400', 'text-amber-500');
-                    sidebarBtn.classList.add('bg-amber-50', 'border-slate-200', 'shadow-xs');
+                    sidebarIcon.className.value = "w-4 h-4 fill-amber-400 text-amber-500 transition-colors duration-200";
+                    sidebarBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0";
                 } else {
-                    sidebarIcon.classList.remove('fill-amber-400', 'text-amber-500');
-                    sidebarIcon.classList.add('fill-none', 'text-slate-300');
-                    sidebarBtn.classList.remove('bg-amber-50', 'border-slate-200', 'shadow-xs');
+                    sidebarIcon.className.value = "w-4 h-4 fill-none text-slate-400 transition-colors duration-200";
+                    sidebarBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0";
                 }
             }
 
-            // 3. Re-render list live if open
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) {
-                renderStarredDropdownDashboard();
-            }
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
         }
 
-        // Toggle Visibility of Top-Right Floating Starred Modal Dropdown
         function toggleStarredDropdown() {
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
-
             const isCurrentlyHidden = panel.classList.contains('hidden');
-            if (isCurrentlyHidden) {
-                panel.classList.remove('hidden');
-                renderStarredDropdownDashboard();
-            } else {
-                panel.classList.add('hidden');
-            }
+            if (isCurrentlyHidden) { panel.classList.remove('hidden'); renderStarredDropdownDashboard(); }
+            else { panel.classList.add('hidden'); }
         }
 
-        // Populate Floating Dropdown Stack with high-fidelity pricing blocks matching modal sheet layout
         function renderStarredDropdownDashboard() {
             const container = document.getElementById('starred-list-container');
             const badge = document.getElementById('starred-count-badge');
             if (!container || !badge) return;
 
             badge.textContent = starredStations.length;
-
             if (starredStations.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-8 text-slate-400 text-xs font-semibold leading-relaxed">
-                        No starred stations yet.<br>
-                        <span class="text-[11px] font-medium opacity-80">Tap the star icon inside any forecourt's detail card to save it.</span>
-                    </div>
-                `;
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs font-semibold leading-relaxed">No saved stations found.<br><span class="text-[11px] font-medium opacity-80">Tap the star icon inside any forecourt's card to add it here.</span></div>`;
                 return;
             }
 
             container.innerHTML = '';
             starredStations.forEach(station => {
-                const lat = parseFloat(station.latitude || station.lat);
-                const lon = parseFloat(station.longitude || station.lng);
-                const emoji = resolveBrandVisualSymbol(station.brand_name);
-                const cleanBrand = (station.brand_name || 'Independent').replace(/['"]/g, '');
-                const cleanAddress = (station.address || '').replace(/['"]/g, '');
-
-                const valE10 = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A';
-                const valE5 = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A';
-                const valB7 = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A';
-
-                // Fetch real-time relative pricing tier color configuration strings
-                const styleE10 = assignPricingTierColorStyles(station.E10, 'E10');
-                const styleE5 = assignPricingTierColorStyles(station.E5, 'E5');
-                const styleB7 = assignPricingTierColorStyles(station.B7, 'B7');
-
                 const cardRow = document.createElement('div');
                 cardRow.className = "p-3 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
                 cardRow.onclick = () => {
-                    focusAndHighlightMapMarker(lat, lon);
-                    if (window.innerWidth < 768) {
-                        document.getElementById('starred-dropdown-panel').classList.add('hidden');
-                    }
+                    focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
+                    if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
                 };
 
                 cardRow.innerHTML = `
                     <div class="min-w-0">
-                        <div class="text-xs font-black text-slate-900 truncate flex items-center gap-1.5">
-                            <span>${emoji}</span> ${cleanBrand}
-                        </div>
-                        <div class="text-[10px] font-semibold text-slate-400 truncate mt-0.5">${cleanAddress}</div>
+                        <div class="text-xs font-black text-slate-900 truncate flex items-center gap-1.5"><span>${resolveBrandVisualSymbol(station.brand_name)}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                        <div class="text-[10px] font-semibold text-slate-400 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 pt-0.5">
-                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleE10}">
-                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">E10</div>
-                            <div class="text-[11px] font-black mt-0.5">${valE10}</div>
-                        </div>
-                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleE5}">
-                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Super E5</div>
-                            <div class="text-[11px] font-black mt-0.5">${valE5}</div>
-                        </div>
-                        <div class="border p-1.5 rounded-lg text-center transition-all duration-200 ${styleB7}">
-                            <div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Diesel B7</div>
-                            <div class="text-[11px] font-black mt-0.5">${valB7}</div>
-                        </div>
-                    </div>
-                `;
+                        <div class="border p-1.5 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[11px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
+                        <div class="border p-1.5 rounded-lg text-center ${assignPricingTierColorStyles(station.E5, 'E5')}"><div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Super E5</div><div class="text-[11px] font-black mt-0.5">${station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A'}</div></div>
+                        <div class="border p-1.5 rounded-lg text-center ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">Diesel B7</div><div class="text-[11px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
+                    </div>`;
                 container.appendChild(cardRow);
             });
         }
 
-        // Open Unified Interactive Forecourt Sheet Layout View
         function openForecourtDetailSheet(stationData) {
             const sheet = document.getElementById('global-detail-sheet');
-            const title = document.getElementById('sheet-brand-title');
-            const address = document.getElementById('sheet-address-details');
-            
             if (!sheet) return;
-
             activeSheetStation = stationData;
 
             const cleanBrandText = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
             const cleanAddressText = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
 
-            title.textContent = cleanBrandText;
-            address.textContent = cleanAddressText;
+            document.getElementById('sheet-brand-title').textContent = cleanBrandText;
+            document.getElementById('sheet-address-details').textContent = cleanAddressText;
 
-            // Populate the newly configured sidebar active selection container live parameters
             const sidebarBox = document.getElementById('sidebar-active-station-box');
-            const sidebarBrand = document.getElementById('sidebar-active-brand');
-            const sidebarAddress = document.getElementById('sidebar-active-address');
-            if (sidebarBox && sidebarBrand && sidebarAddress) {
-                sidebarBrand.textContent = cleanBrandText;
-                sidebarAddress.textContent = cleanAddressText;
+            if (sidebarBox) {
+                document.getElementById('sidebar-active-brand').textContent = cleanBrandText;
+                document.getElementById('sidebar-active-address').textContent = cleanAddressText;
                 sidebarBox.classList.remove('hidden');
             }
 
-            const wrapE10 = document.getElementById('card-wrap-e10');
-            const wrapE5 = document.getElementById('card-wrap-e5');
-            const wrapB7 = document.getElementById('card-wrap-b7');
-
-            wrapE10.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-            wrapE5.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-            wrapB7.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+            document.getElementById('card-wrap-e10').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+            document.getElementById('card-wrap-e5').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+            document.getElementById('card-wrap-b7').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
 
             document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-b7').textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
 
             updateAllStarUIStates();
-            sheet.classList.add('active');
+
+            if (window.innerWidth < 768) setForecourtSheetState('mid');
+            else sheet.classList.add('active-desktop');
         }
 
         function closeForecourtDetailSheet() {
             const sheet = document.getElementById('global-detail-sheet');
-            if (sheet) sheet.classList.remove('active');
+            if (!sheet) return;
             
+            if (window.innerWidth < 768) setForecourtSheetState('hidden');
+            else sheet.classList.remove('active-desktop');
+
             const sidebarBox = document.getElementById('sidebar-active-station-box');
             if (sidebarBox) sidebarBox.classList.add('hidden');
-
             activeSheetStation = null;
         }
 
         window.addEventListener('DOMContentLoaded', () => {
+            initializeClickIsolationBubbling();
+            initializeGestureTrackEngine();
             checkNativeHardwarePositionMatrix();
             forceReloadRemotePipelineData();
         });
