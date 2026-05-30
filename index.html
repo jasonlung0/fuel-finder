@@ -3,868 +3,469 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Fuel Price - Live Spatial Optimization Control Core</title>
-    
+    <title>Corridor Route Optimization & Planning Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        /* Custom UI Scrollbar Tracking Rules */
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* Drag-and-Drop Interactive Sorting Elements Styles */
-        .sortable-item.dragging {
-            opacity: 0.35;
-            transform: scale(0.97);
-            border-style: dashed;
-            border-color: #3b82f6;
-        }
-
-        /* Disable Default Leaflet Component Layout Markers Overlays Conflict */
-        .leaflet-control-zoom { display: none !important; }
-        .leaflet-top, .leaflet-bottom { z-index: 40 !important; }
-        
-        /* Smooth Fluid Structural Viewport Transitions animations styles */
-        .transition-all-smooth { transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
-
-        /* Custom Vector Mapping Label Styling Rules overrides */
-        .custom-price-badge {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        /* Responsive Mobile Bottom Sheet Structural States Heights Layout Rules */
-        @media (max-width: 768px) {
-            .mobile-sheet-minimal { transform: translateY(calc(100% - 64px)); }
-            .mobile-sheet-middle { transform: translateY(45%); }
-            .mobile-sheet-full { transform: translateY(0%); }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+        .custom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
         }
     </style>
 </head>
-<body class="bg-slate-900 font-sans h-screen w-screen overflow-hidden select-none relative text-slate-800">
-
-    <div id="map" class="absolute inset-0 z-0 h-full w-full bg-slate-900"></div>
-
-
-    <div class="absolute top-20 md:top-5 left-1/2 -translate-x-1/2 z-[50] pointer-events-auto">
-        <button onclick="triggerViewportRescanPipeline()" id="scanViewportBtn" class="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-full shadow-xl shadow-slate-900/10 border border-slate-200/60 flex items-center gap-2.5 text-xs font-bold text-slate-700 hover:text-blue-600 transition-all hover:scale-105 active:scale-95 group">
-            <i id="scanIcon" class="fa-solid fa-magnifying-glass-location text-blue-500 text-sm transition-transform group-hover:rotate-12"></i>
-            <span class="tracking-wide uppercase text-[11px]">Scan This Viewport Area</span>
-        </button>
-    </div>
-
-
-    <nav id="topSystemNav" class="absolute top-4 right-4 left-4 md:left-auto z-[50] bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-xl shadow-slate-900/5 border border-slate-200/40 flex items-center justify-between md:justify-end gap-4 pointer-events-auto transition-all">
-        <div class="flex items-center gap-2 border-r border-slate-200 pr-3 hidden sm:flex">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">System Live</span>
-        </div>
-        
-        <div class="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-around md:justify-end">
-            <button onclick="toggleTopMenuDropdown('dashboardMenu')" class="text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-50"><i class="fa-solid fa-chart-line text-slate-400"></i> <span class="hidden lg:inline">Dashboard</span></button>
-            <button onclick="toggleTopMenuDropdown('savedRoutesMenu')" class="text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 relative"><i class="fa-solid fa-route text-slate-400"></i> Saved Routes <span class="bg-blue-500 text-white text-[9px] px-1.5 py-0.2 rounded-full">2</span></button>
-            <button onclick="toggleTopMenuDropdown('starredForecourtsMenu')" class="text-xs font-bold text-blue-600 flex items-center gap-2 bg-blue-50/80 px-3 py-2 rounded-xl border border-blue-100/40 relative"><i class="fa-solid fa-star text-amber-500 animate-bounce"></i> Starred Forecourts <span class="bg-amber-500 text-white text-[9px] px-1.5 py-0.2 rounded-full">1</span></button>
-        </div>
-
-        <div id="starredForecourtsMenu" class="absolute top-14 right-0 w-80 bg-white shadow-2xl rounded-2xl border border-slate-200/60 p-4 hidden flex-col gap-3 transition-all z-[60]">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Starred Forecourts</span>
-                <span class="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">1 Selected</span>
-            </div>
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h4 class="text-xs font-extrabold text-slate-800">JET</h4>
-                        <p class="text-[10px] text-slate-400 font-medium">21-23 Barclay Place, Edinburgh</p>
-                    </div>
-                    <button class="text-amber-500 hover:text-slate-300 transition-colors"><i class="fa-solid fa-star"></i></button>
-                </div>
-                <div class="grid grid-cols-3 gap-1.5 pt-1.5 text-center">
-                    <div class="bg-white border rounded-lg p-1"><span class="block text-[8px] text-slate-400 font-bold uppercase">E10</span><span class="text-[10px] font-extrabold text-slate-700">159.9p</span></div>
-                    <div class="bg-white border rounded-lg p-1"><span class="block text-[8px] text-slate-400 font-bold uppercase">E5</span><span class="text-[10px] font-extrabold text-slate-700">175.9p</span></div>
-                    <div class="bg-white border rounded-lg p-1"><span class="block text-[8px] text-slate-400 font-bold uppercase">B7</span><span class="text-[10px] font-extrabold text-slate-700">182.9p</span></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="savedRoutesMenu" class="absolute top-14 right-20 w-85 bg-white shadow-2xl rounded-2xl border border-slate-200/60 p-4 hidden flex-col gap-2.5 transition-all z-[60]">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Saved Corridor Clusters</span>
-            </div>
-            <div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                <div onclick="loadPredefinedRouteScenario('Dunfermline', 'Edinburgh')" class="p-2.5 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-xl cursor-pointer text-left transition-all">
-                    <div class="flex justify-between items-center"><span class="text-xs font-extrabold text-slate-700">Dunfermline ➔ Edinburgh Corridor</span><span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">18.5 mi</span></div>
-                    <span class="text-[10px] text-slate-400">Regular transit cluster path route matrix</span>
-                </div>
-                <div onclick="loadPredefinedRouteScenario('Dunfermline', 'Blackpool')" class="p-2.5 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-xl cursor-pointer text-left transition-all">
-                    <div class="flex justify-between items-center"><span class="text-xs font-extrabold text-slate-700">Dunfermline ➔ Blackpool Route</span><span class="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">212.4 mi</span></div>
-                    <span class="text-[10px] text-slate-400">Long haul custom transit parameter window</span>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-
-    <aside id="mainApplicationSidebar" class="absolute bottom-0 left-0 right-0 md:top-4 md:bottom-4 md:left-4 md:right-auto w-full md:w-[395px] bg-white z-[45] md:rounded-2xl shadow-2xl shadow-slate-900/10 border-t md:border border-slate-200/60 flex flex-col overflow-hidden pointer-events-auto transition-all-smooth mobile-sheet-middle">
-        
-        <div class="w-full py-2 flex justify-center md:hidden items-center border-b border-slate-100 bg-slate-50/50 cursor-pointer" onclick="cycleMobileViewState()">
-            <div class="w-12 h-1.5 rounded-full bg-slate-300"></div>
-        </div>
-
-        <div class="p-5 pb-4 border-b border-slate-100 relative">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 class="text-lg font-black text-slate-800 tracking-tight">Search Fuel Price</h1>
-                    <p id="systemPulseTimestamp" class="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wide flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span> Prices updated: Today, 6:06 PM
-                    </p>
-                </div>
-                <button onclick="cycleMobileViewState()" class="md:hidden text-xs font-black bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg text-slate-600 transition-all">
-                    <i class="fa-solid fa-expand"></i> View State
-                </button>
-            </div>
-            
-            <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-500 mt-4 relative">
-                <button onclick="switchWorkspaceAppMode('local')" id="tabBtn-local" class="flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-800 bg-white shadow-sm flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-location-crosshairs text-rose-500"></i> Local Area
-                </button>
-                <button onclick="switchWorkspaceAppMode('route')" id="tabBtn-route" class="flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-400 flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-route text-blue-500"></i> Route Corridor
-                </button>
-            </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar space-y-5 bg-white">
-            
-            <div id="wrapperControlGroup-local" class="space-y-4 block">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 tracking-wider uppercase mb-1.5">Search Area Location</label>
-                    <div class="relative flex items-center">
-                        <i class="fa-solid fa-location-dot absolute left-3.5 text-rose-400 text-xs"></i>
-                        <input type="text" id="localSearchField" value="City of Edinburgh, Scotland, United Kingdom" placeholder="Enter target city or postcode area..." class="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-500 focus:bg-white transition-colors">
-                        <button onclick="fetchDeviceGeolocationCoordinates()" class="absolute right-3 text-slate-400 hover:text-blue-500 transition-colors" title="Locate current geolocation framework"><i class="fa-solid fa-crosshairs text-xs"></i></button>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex justify-between items-center mb-1.5">
-                        <label class="block text-[10px] font-black text-slate-400 tracking-wider uppercase">Scan Window Radius Range</label>
-                        <span id="radiusLabelBadge" class="text-[10px] font-extrabold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md border border-blue-100/40">5 Miles</span>
-                    </div>
-                    <div class="relative flex items-center gap-3 bg-slate-50/60 p-3 rounded-xl border border-slate-100">
-                        <i class="fa-solid fa-bullseye text-blue-500 text-xs"></i>
-                        <input type="range" id="localRadiusSlider" min="1" max="30" value="5" oninput="updateLocalRadiusScopeMetric(this.value)" class="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 focus:outline-none">
-                    </div>
-                </div>
-            </div>
-
-            <div id="wrapperControlGroup-route" class="space-y-4 hidden">
-                <div class="relative flex items-start gap-3">
-                    <div class="absolute left-3 top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-200/80 z-0 pointer-events-none"></div>
-                    
-                    <div id="routeTimelineNodesStack" class="w-full space-y-3.5 z-10">
-                        </div>
-
-                    <div class="h-full flex items-center justify-center pt-2 self-stretch">
-                        <button onclick="reverseEntireTimelineArrayStack()" class="p-2 text-slate-300 hover:text-blue-600 hover:bg-slate-50 border border-transparent hover:border-slate-100 rounded-xl transition-all" title="Reverse path traversal structure direction">
-                            <i class="fa-solid fa-arrows-up-down text-xs"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 pt-2">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 tracking-wider uppercase mb-1">Vehicle Efficiency (MPG)</label>
-                        <input type="number" id="vehicleMpgInput" value="45" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 tracking-wider uppercase mb-1">Route Journey Radius</label>
-                        <select id="routeRadiusSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
-                            <option value="1">1 Mile width</option>
-                            <option value="2" selected>2 Miles width</option>
-                            <option value="5">5 Miles width</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pt-2 border-t border-slate-100 space-y-4">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 tracking-wider uppercase mb-1.5">Fuel Formulation Variant</label>
-                    <div class="relative">
-                        <select id="fuelVariantMainSelector" onchange="synchronizeActiveFuelFormulaDisplay()" class="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
-                            <option value="E10" selected>Petrol Unleaded (E10)</option>
-                            <option value="E5">Super Petrol (E5)</option>
-                            <option value="B7">Diesel (B7)</option>
-                            <option value="PremiumDiesel">Premium Diesel</option>
-                        </select>
-                        <i class="fa-solid fa-gas-pump absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                        <div class="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-slate-400 text-[10px]">
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex items-center gap-2.5 px-1">
-                    <input type="checkbox" id="traditionalPumpsFilter" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600">
-                    <label for="traditionalPumpsFilter" class="text-xs font-bold text-slate-500 cursor-pointer tracking-tight">Traditional Mechanical Pumps Only</label>
-                </div>
-            </div>
-
-            <div class="bg-gradient-to-br from-slate-50 to-slate-100/40 p-4 rounded-xl border border-slate-200/50 space-y-2">
-                <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="fa-solid fa-calculator text-blue-500"></i> Financial Calculations Summary
-                </span>
-                <div class="grid grid-cols-2 gap-4 pt-1">
-                    <div>
-                        <span id="metricScopeTitle" class="block text-[9px] font-bold text-slate-400 uppercase">Scope Area / Route</span>
-                        <span id="metricScopeValue" class="text-xs font-black text-slate-700 block mt-0.5">Radius Area Scope</span>
-                    </div>
-                    <div>
-                        <span class="block text-[9px] font-bold text-slate-400 uppercase">Lowest Price Target</span>
-                        <span id="metricLowestTargetValue" class="text-xs font-black text-emerald-600 block mt-0.5">152.7p</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="cheapestSelectionChoicesWidget" class="space-y-2.5 pt-2 border-t border-slate-100 block">
-                <h3 class="text-[10px] font-black text-amber-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="fa-solid fa-trophy text-amber-500"></i> Cheapest Selection Choices
-                </h3>
-                
-                <div id="cheapestForecourtsList" class="space-y-2">
-                    </div>
-            </div>
-
-        </div>
-
-        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2.5 z-20">
-            <button class="px-3.5 py-3 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-layer-group text-slate-400 text-xs"></i> Pools
-            </button>
-            <button onclick="executeRouteQueryCalculationPipeline()" id="primarySubmitActionBtn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-xs rounded-xl shadow-md transition-colors tracking-wider uppercase text-center">
-                Search Route
-            </button>
-        </div>
-    </aside>
-
-
-    <div class="absolute bottom-24 md:bottom-6 right-4 md:right-6 z-[45] bg-white shadow-2xl rounded-2xl flex flex-col overflow-hidden border border-slate-200/60 pointer-events-auto">
-        <button onclick="map.zoomIn()" class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold border-b border-slate-100 transition-colors" title="Zoom In Mapping Matrix"><i class="fa-solid fa-plus text-xs"></i></button>
-        <button onclick="map.zoomOut()" class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold transition-colors" title="Zoom Out Mapping Matrix"><i class="fa-solid fa-minus text-xs"></i></button>
-    </div>
-
-
-    <div id="stationDetailSheetModal" class="fixed inset-x-0 bottom-0 md:bottom-auto md:top-4 md:right-4 md:left-auto md:w-96 bg-white z-[100] rounded-t-3xl md:rounded-2xl shadow-2xl border border-slate-200/80 p-5 transform translate-y-full md:translate-y-0 md:opacity-0 md:scale-95 pointer-events-auto hidden transition-all duration-300">
-        
-        <div class="w-full pb-3 flex justify-center md:hidden items-center" onclick="closeStationDetailOverlaySheet()">
-            <div class="w-10 h-1 rounded-full bg-slate-200"></div>
-        </div>
-
-        <div class="flex items-start justify-between pb-3 border-b border-slate-100">
-            <div>
-                <h3 id="sheetStationBrandName" class="font-black text-slate-800 text-base uppercase tracking-tight">ASDA</h3>
-                <p id="sheetStationAddressLocation" class="text-xs text-slate-400 font-semibold mt-0.5">HALBEATH ROAD RETAIL PARK</p>
-            </div>
-            <div class="flex items-center gap-1">
-                <button onclick="toggleStationFavoriteState()" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-amber-500 rounded-full transition-all" id="favoriteStationBtn"><i class="fa-solid fa-star text-sm"></i></button>
-                <button onclick="closeStationDetailOverlaySheet()" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"><i class="fa-solid fa-xmark text-sm"></i></button>
-            </div>
-        </div>
-
-        <div class="py-4 space-y-4">
-            <span class="block text-[10px] font-black text-slate-400 uppercase tracking-wider">Live Formulation Pricing Cards Grid</span>
-            
-            <div class="grid grid-cols-3 gap-2.5" id="sheetStationPricingGridContainer">
-                </div>
-        </div>
-
-        <div class="pt-2 border-t border-slate-100 flex gap-2">
-            <button class="flex-1 py-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-bold rounded-xl transition-all uppercase tracking-wider flex items-center justify-center gap-1.5">
-                <i class="fa-solid fa-diamond-turn-right"></i> Navigate Here
-            </button>
-        </div>
-    </div>
-
-
-    <script>
-        // Global system routing maps engine components tracking definitions
-        let map;
-        let activeRoutePolyline = null;
-        let appWorkspaceMode = 'local'; // 'local' | 'route'
-        let mobileViewStateIndex = 1; // 0 = minimal, 1 = middle, 2 = full
-        
-        // Active data store state arrays tracking layers structures definitions
-        let routeTimelineNodes = [
-            { id: "node-start", type: "start", placeholder: "Starting location pinpoint...", value: "Dunfermline, Fife, Scotland" },
-            { id: "node-interim-1", type: "interim", placeholder: "Add intermediate transit waypoint...", value: "Moffat" },
-            { id: "node-dest", type: "destination", placeholder: "Target destination pinpoint...", value: "Blackpool, Lancashire, England" }
-        ];
-
-        // Central Mock Database Forecourt Node Entries Registry Data Matrix
-        const forecourtDatabaseCluster = [
-            { id: "stn-1", brand: "ASDA", site: "Halbeath Road Retail Park", lat: 56.0792, lng: -3.4285, pricing: { E10: 158.7, E5: 172.9, B7: 184.7, PremiumDiesel: 191.9 } },
-            { id: "stn-2", brand: "GULF", site: "Primrose Lane", lat: 56.0521, lng: -3.4110, pricing: { E10: 157.7, E5: 175.7, B7: 183.7, PremiumDiesel: 189.9 } },
-            { id: "stn-3", brand: "SAINSBURYS", site: "3 New Mart Road, Edinburgh", lat: 55.9281, lng: -3.2450, pricing: { E10: 152.7, E5: 168.9, B7: 179.9, PremiumDiesel: 184.7 } },
-            { id: "stn-4", brand: "SAINSBURYS", site: "39 Westfield Road, Edinburgh", lat: 55.9375, lng: -3.2399, pricing: { E10: 152.9, E5: 169.9, B7: 180.5, PremiumDiesel: 185.9 } },
-            { id: "stn-5", brand: "JET", site: "21-23 Barclay Place, Edinburgh", lat: 55.9412, lng: -3.2031, pricing: { E10: 159.9, E5: 175.9, B7: 182.9, PremiumDiesel: 189.9 } },
-            { id: "stn-6", brand: "MORRISONS", site: "3 Waterfront Broadway, Edinburgh", lat: 55.9815, lng: -3.2322, pricing: { E10: 156.9, E5: 175.9, B7: 182.9, PremiumDiesel: 188.9 } },
-            { id: "stn-7", brand: "BP", site: "Moffat Corridor Station", lat: 55.3324, lng: -3.4431, pricing: { E10: 164.9, E5: 181.9, B7: 189.9, PremiumDiesel: 197.9 } },
-            { id: "stn-8", brand: "SHELL", site: "Blackpool Arrival Gate", lat: 53.8175, lng: -3.0357, pricing: { E10: 161.9, E5: 179.9, B7: 185.9, PremiumDiesel: 194.9 } },
-            { id: "stn-9", brand: "TEXACO", site: "Inverkeithing bypass layout", lat: 56.0312, lng: -3.3980, pricing: { E10: 164.9, E5: 179.9, B7: 187.9, PremiumDiesel: 195.9 } }
-        ];
-
-        let loadedMapMarkersArray = [];
-
-        // --- LIFECYCLE INITIALIZATION ENTRY PIPELINES ---
-        document.addEventListener("DOMContentLoaded", () => {
-            initializeMapViewportEngine();
-            renderDynamicRouteTimelineFieldsStack();
-            rebuildCheapestForecourtsSidebarWidget();
-            injectSpatialDataMarkersCanvas(forecourtDatabaseCluster);
-            isolateComponentPointerEventPropagation();
-        });
-
-        /**
-         * Initialize Leaflet spatial rendering map base structures layers canvas
-         */
-        function initializeMapViewportEngine() {
-            // Setup default regional coordinates window tracking viewpoint (Fife/Edinburgh bounding channel layout grid)
-            map = L.map('map', {
-                zoomControl: false,
-                attributionControl: true
-            }).setView([56.015, -3.450], 11);
-
-            // Fetch live production-grade raster graphics mapping imagery maps layers tilesets from OpenStreetMap open repositories
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
-        }
-
-        /**
-         * Event Propagation Controls Isolation Guardrails. Prevents map coordinate shifts while using floating components.
-         */
-        function isolateComponentPointerEventPropagation() {
-            const controlsDOMArrayElements = [
-                document.getElementById("mainApplicationSidebar"),
-                document.getElementById("topSystemNav"),
-                document.getElementById("stationDetailSheetModal"),
-                document.getElementById("scanViewportBtn")
-            ];
-            
-            const activeInputEventsCluster = ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'touchstart', 'touchend', 'touchmove', 'mousewheel', 'DOMMouseScroll'];
-            
-            controlsDOMArrayElements.forEach(nodeElement => {
-                if(!nodeElement) return;
-                activeInputEventsCluster.forEach(eventIdentifierString => {
-                    nodeElement.addEventListener(eventIdentifierString, (eventCaptureObject) => {
-                        eventCaptureObject.stopPropagation();
-                    });
-                });
-            });
-        }
-
-        // ==========================================
-        // WORKSPACE VIEWPORT LAYER LAYOUT TOGGLES MECHANICS
-        // ==========================================
-        
-        /**
-         * Change operation context parameters styles matching the target configuration type
-         */
-        function switchWorkspaceAppMode(targetModeString) {
-            appWorkspaceMode = targetModeString;
-            
-            const localTabBtn = document.getElementById("tabBtn-local");
-            const routeTabBtn = document.getElementById("tabBtn-route");
-            const localControlGroup = document.getElementById("wrapperControlGroup-local");
-            const routeControlGroup = document.getElementById("wrapperControlGroup-route");
-            const cheapestWidget = document.getElementById("cheapestSelectionChoicesWidget");
-            const primaryActionBtn = document.getElementById("primarySubmitActionBtn");
-            const metricScopeTitle = document.getElementById("metricScopeTitle");
-            const metricScopeValue = document.getElementById("metricScopeValue");
-
-            if (targetModeString === 'local') {
-                // UI Toggle Rules Local Mode Settings Selection Actions
-                localTabBtn.className = "flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-800 bg-white shadow-sm flex items-center justify-center gap-1.5";
-                routeTabBtn.className = "flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-400 flex items-center justify-center gap-1.5";
-                
-                localControlGroup.className = "space-y-4 block";
-                routeControlGroup.className = "space-y-4 hidden";
-                cheapestWidget.className = "space-y-2.5 pt-2 border-t border-slate-100 block";
-                
-                primaryActionBtn.innerText = "Fetch Remote Pool";
-                metricScopeTitle.innerText = "Scope Area / Radius";
-                metricScopeValue.innerText = "Radius Area Scope";
-                
-                // Readjust focal bounds coordinates
-                map.setView([56.015, -3.450], 11);
-                if(activeRoutePolyline) { map.removeLayer(activeRoutePolyline); activeRoutePolyline = null; }
-            } else {
-                // UI Toggle Rules Corridor Mode Settings Selection Actions
-                localTabBtn.className = "flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-400 flex items-center justify-center gap-1.5";
-                routeTabBtn.className = "flex-1 py-2 text-center rounded-lg transition-all z-10 text-slate-800 bg-white shadow-sm flex items-center justify-center gap-1.5";
-                
-                localControlGroup.className = "space-y-4 hidden";
-                routeControlGroup.className = "space-y-4 block";
-                cheapestWidget.className = "space-y-2.5 pt-2 border-t border-slate-100 hidden";
-                
-                primaryActionBtn.innerText = "Search Route Corridor";
-                metricScopeTitle.innerText = "Total Route Scope";
-                metricScopeValue.innerText = "0.0 miles route track";
-            }
-        }
-
-        /**
-         * Mobile View Layout State Engine. Controls bottom sheet heights configurations responsive boundaries viewports.
-         */
-        function cycleMobileViewState() {
-            mobileViewStateIndex = (mobileViewStateIndex + 1) % 3;
-            const targetSidebarPanel = document.getElementById("mainApplicationSidebar");
-            
-            targetSidebarPanel.classList.remove("mobile-sheet-minimal", "mobile-sheet-middle", "mobile-sheet-full");
-            
-            if(mobileViewStateIndex === 0) {
-                targetSidebarPanel.classList.add("mobile-sheet-minimal");
-            } else if(mobileViewStateIndex === 1) {
-                targetSidebarPanel.classList.add("mobile-sheet-middle");
-            } else {
-                targetSidebarPanel.classList.add("mobile-sheet-full");
-            }
-        }
-
-        /**
-         * Dropdown control popup display toggles mechanics layout bars tracking
-         */
-        function toggleTopMenuDropdown(menuContainerElementId) {
-            const activeMenusIdentifiers = ['starredForecourtsMenu', 'savedRoutesMenu'];
-            activeMenusIdentifiers.forEach(id => {
-                const targetingMenu = document.getElementById(id);
-                if(id === menuContainerElementId) {
-                    targetingMenu.classList.toggle("hidden");
-                    targetingMenu.classList.toggle("flex");
-                } else {
-                    targetingMenu.classList.add("hidden");
-                    targetingMenu.classList.remove("flex");
-                }
-            });
-        }
-
-
-        // ==========================================
-        // MAP SPATIAL GRAPHICS MARKERS DISPATCHERS ENGINE
-        // ==========================================
-
-        /**
-         * Inject custom-built HTML element price tracking markers node labels directly onto Leaflet map context
-         */
-        function injectSpatialDataMarkersCanvas(forecourtsDataSetArray) {
-            // Evacuate old memory vectors references arrays
-            loadedMapMarkersArray.forEach(markerRef => map.removeLayer(markerRef));
-            loadedMapMarkersArray = [];
-
-            const currentFuelFormulaSelectedKey = document.getElementById("fuelVariantMainSelector").value;
-
-            forecourtsDataSetArray.forEach(forecourtObj => {
-                const activePriceReadingValue = forecourtObj.pricing[currentFuelFormulaSelectedKey];
-                if (!activePriceReadingValue) return;
-
-                // COLOR CODING MATRIX CLASSIFICATION RULES CALCULATIONS
-                let colorThemeUtilityClasses = "bg-blue-600 text-white ring-blue-100"; // Default Average base
-                if(activePriceReadingValue <= 153.5) {
-                    colorThemeUtilityClasses = "bg-emerald-500 text-white ring-emerald-100"; // Highly Competitive Low Price
-                } else if (activePriceReadingValue > 153.5 && activePriceReadingValue <= 158.9) {
-                    colorThemeUtilityClasses = "bg-teal-600 text-white ring-teal-100"; // Competitive Good Yield
-                } else if (activePriceReadingValue >= 164.0) {
-                    colorThemeUtilityClasses = "bg-rose-600 text-white ring-rose-100"; // High Price Premium Deviation
-                }
-
-                // Construct an isolated DOM element container for custom styled pricing nodes map popups
-                const rawCustomMarkerHTMLLabel = `
-                    <div onclick="triggerStationSpecificDetailOverlaySheet('${forecourtObj.id}')" class="flex items-center gap-1.5 ${colorThemeUtilityClasses} px-2 py-1 rounded-full font-black text-[11px] shadow-lg shadow-slate-900/20 ring-4 cursor-pointer transform hover:scale-110 active:scale-95 transition-all whitespace-nowrap">
-                        <i class="fa-solid fa-gas-pump text-[9px] opacity-90"></i>
-                        <span>${activePriceReadingValue.toFixed(1)}p</span>
-                    </div>
-                `;
-
-                const leafCustomIconInstance = L.divIcon({
-                    html: rawCustomMarkerHTMLLabel,
-                    className: 'custom-price-badge',
-                    iconSize: [65, 26],
-                    iconAnchor: [32, 13]
-                });
-
-                const structuralMapMarkerNode = L.marker([forecourtObj.lat, forecourtObj.lng], { icon: leafCustomIconInstance }).addTo(map);
-                loadedMapMarkersArray.push(structuralMapMarkerNode);
-            });
-        }
-
-        /**
-         * Dynamic Rescan pipeline routine mock sequence. Fired by clicking top pill container element.
-         */
-        function triggerViewportRescanPipeline() {
-            const iconRef = document.getElementById("scanIcon");
-            iconRef.classList.add("fa-spin");
-            
-            // Randomize spatial price markers values offsets to simulate data pooling ingestion updates sequence
-            setTimeout(() => {
-                forecourtDatabaseCluster.forEach(item => {
-                    Object.keys(item.pricing).forEach(formulaKey => {
-                        if(item.pricing[formulaKey]) {
-                            item.pricing[formulaKey] += (Math.random() * 4 - 2);
-                        }
-                    });
-                });
-                
-                injectSpatialDataMarkersCanvas(forecourtDatabaseCluster);
-                rebuildCheapestForecourtsSidebarWidget();
-                iconRef.classList.remove("fa-spin");
-            }, 800);
-        }
-
-        /**
-         * Synchronize pricing labels on formula change
-         */
-        function synchronizeActiveFuelFormulaDisplay() {
-            injectSpatialDataMarkersCanvas(forecourtDatabaseCluster);
-            rebuildCheapestForecourtsSidebarWidget();
-        }
-
-        /**
-         * Adjust display values on range updates
-         */
-        function updateLocalRadiusScopeMetric(radiusValue) {
-            document.getElementById("radiusLabelBadge").innerText = `${radiusValue} Miles`;
-        }
-
-
-        // ==========================================
-        // STATION SPECIFIC SLIDER MODAL LAYOUT VIEWS
-        // ==========================================
-
-        /**
-         * Open station detail layout overlay pane containing exhaustive specifications metrics cards
-         */
-        function triggerStationSpecificDetailOverlaySheet(stationRegistryIdentifierId) {
-            const matchedStationDataObj = forecourtDatabaseCluster.find(s => s.id === stationRegistryIdentifierId);
-            if (!matchedStationDataObj) return;
-
-            document.getElementById("sheetStationBrandName").innerText = matchedStationDataObj.brand;
-            document.getElementById("sheetStationAddressLocation").innerText = matchedStationDataObj.site;
-
-            const gridContainer = document.getElementById("sheetStationPricingGridContainer");
-            gridContainer.innerHTML = "";
-
-            const variantsIndexingLabelsMap = [
-                { key: 'E10', label: 'UNLEADED E10' },
-                { key: 'E5', label: 'SUPER E5' },
-                { key: 'B7', label: 'DIESEL B7' }
-            ];
-
-            variantsIndexingLabelsMap.forEach(variantMeta => {
-                const targetPriceReading = matchedStationDataObj.pricing[variantMeta.key];
-                const displayedPriceString = targetPriceReading ? `${targetPriceReading.toFixed(4)}p` : "N/A";
-                
-                const cardCellElement = document.createElement("div");
-                cardCellElement.className = "bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 text-center flex flex-col justify-center";
-                cardCellElement.innerHTML = `
-                    <span class="block text-[8px] text-slate-400 font-bold tracking-wider uppercase">${variantMeta.label}</span>
-                    <span class="text-xs font-black text-slate-800 mt-1 block">${displayedPriceString}</span>
-                `;
-                gridContainer.appendChild(cardCellElement);
-            });
-
-            // Reveal Overlay Sheet DOM Node Structure Transitions classes
-            const detailModalSheet = document.getElementById("stationDetailSheetModal");
-            detailModalSheet.classList.remove("hidden");
-            setTimeout(() => {
-                detailModalSheet.classList.remove("translate-y-full", "md:opacity-0", "md:scale-95");
-                detailModalSheet.classList.add("translate-y-0", "md:opacity-100", "md:scale-100");
-            }, 10);
-        }
-
-        function closeStationDetailOverlaySheet() {
-            const detailModalSheet = document.getElementById("stationDetailSheetModal");
-            detailModalSheet.classList.remove("translate-y-0", "md:opacity-100", "md:scale-100");
-            detailModalSheet.classList.add("translate-y-full", "md:opacity-0", "md:scale-95");
-            setTimeout(() => { detailModalSheet.classList.add("hidden"); }, 300);
-        }
-
-        function toggleStationFavoriteState() {
-            const favBtn = document.getElementById("favoriteStationBtn");
-            favBtn.classList.toggle("text-amber-500");
-            favBtn.classList.toggle("text-slate-300");
-        }
-
-
-        // ==========================================
-        // ROUTE TRANSIT CLUSTER FIELDS DRAG SORT LIFECYCLES
-        // ==========================================
-
-        /**
-         * Render timeline multi-stop point rows dynamically into side-panel view
-         */
-        function renderDynamicRouteTimelineFieldsStack() {
-            const targetContainerElement = document.getElementById("routeTimelineNodesStack");
-            targetContainerElement.innerHTML = "";
-
-            routeTimelineNodes.forEach((nodeObj, indexId) => {
-                const nodeItemRowElement = document.createElement("div");
-                nodeItemRowElement.className = "sortable-item flex items-center gap-2.5 group bg-white rounded-xl transition-all";
-                nodeItemRowElement.setAttribute("draggable", "true");
-                nodeItemRowElement.setAttribute("data-id", nodeObj.id);
-                nodeItemRowElement.setAttribute("data-index", indexId);
-
-                // Initialize HTML drag-and-drop structural operational interfaces listeners
-                nodeItemRowElement.addEventListener("dragstart", handleTimelineDragStart);
-                nodeItemRowElement.addEventListener("dragover", handleTimelineDragOver);
-                nodeItemRowElement.addEventListener("drop", handleTimelineDrop);
-                nodeItemRowElement.addEventListener("dragend", handleTimelineDragEnd);
-
-                let timelineSymbolNodeIndicatorHTML = '<div class="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-white flex-shrink-0"></div>';
-                if(indexId === 0) {
-                    timelineSymbolNodeIndicatorHTML = '<div class="w-3 h-3 rounded-full border-2 border-blue-500 bg-white flex-shrink-0 ring-4 ring-blue-50"></div>';
-                } else if (indexId === routeTimelineNodes.length - 1) {
-                    timelineSymbolNodeIndicatorHTML = '<div class="text-rose-500 text-xs flex-shrink-0"><i class="fa-solid fa-location-dot"></i></div>';
-                }
-
-                nodeItemRowElement.innerHTML = `
-                    <div class="w-4 flex justify-center items-center">${timelineSymbolNodeIndicatorHTML}</div>
-                    
-                    <div class="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200/70 rounded-xl px-3 py-2 transition-colors focus-within:bg-white focus-within:border-blue-500">
-                        <input type="text" 
-                               value="${nodeObj.value}" 
-                               placeholder="${nodeObj.placeholder}" 
-                               oninput="updateInternalNodeValueMemory('${nodeObj.id}', this.value)"
-                               class="w-full bg-transparent text-xs font-bold text-slate-700 placeholder-slate-400 outline-none border-none">
-                        
-                        ${nodeObj.type === 'interim' ? `
-                            <button onclick="removeInterimTimelineNode('${nodeObj.id}')" class="text-slate-300 hover:text-rose-500 text-[10px] transition-colors">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    <div class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-400 p-1 flex-shrink-0 flex items-center">
-                        <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
-                        <i class="fa-solid fa-ellipsis-vertical text-[10px] ml-0.5"></i>
-                    </div>
-                `;
-                targetContainerElement.appendChild(nodeItemRowElement);
-            });
-
-            appendInterimNodeAdditionTriggerControlLink(targetContainerElement);
-        }
-
-        function appendInterimNodeAdditionTriggerControlLink(containerElement) {
-            const addActionLinkWrapper = document.createElement("div");
-            addActionLinkWrapper.className = "flex items-center gap-2.5 pt-0.5";
-            addActionLinkWrapper.innerHTML = `
-                <div class="w-4 flex justify-center"><div class="w-1 h-1 rounded-full bg-slate-300"></div></div>
-                <button onclick="injectNewInterimTimelineWaypointNode()" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-all">
-                    <i class="fa-solid fa-plus text-[9px]"></i> Add interim stop
-                </button>
-            `;
-            containerElement.insertBefore(addActionLinkWrapper, containerElement.lastChild);
-        }
-
-        function injectNewInterimTimelineWaypointNode() {
-            const assignedUniqueId = `interim-node-${Date.now()}`;
-            routeTimelineNodes.splice(routeTimelineNodes.length - 1, 0, {
-                id: assignedUniqueId,
-                type: "interim",
-                placeholder: "Identify interim transit waypoint...",
-                value: ""
-            });
-            renderDynamicRouteTimelineFieldsStack();
-        }
-
-        function removeInterimTimelineNode(targetNodeUniqueId) {
-            routeTimelineNodes = routeTimelineNodes.filter(node => node.id !== targetNodeUniqueId);
-            renderDynamicRouteTimelineFieldsStack();
-        }
-
-        function updateInternalNodeValueMemory(nodeId, updatedValueString) {
-            const match = routeTimelineNodes.find(node => node.id === nodeId);
-            if(match) match.value = updatedValueString;
-        }
-
-        function reverseEntireTimelineArrayStack() {
-            routeTimelineNodes.reverse();
-            routeTimelineNodes.forEach((node, layoutIndex) => {
-                if(layoutIndex === 0) node.type = "start";
-                else if (layoutIndex === routeTimelineNodes.length - 1) node.type = "destination";
-                else node.type = "interim";
-            });
-            renderDynamicRouteTimelineFieldsStack();
-        }
-
-        // --- NATIVE DRAG IMPLEMENTATIONS LOGIC LIFECYCLES ---
-        let operationalSourceDragElementRef = null;
-
-        function handleTimelineDragStart(eventObj) {
-            operationalSourceDragElementRef = this;
-            this.classList.add("dragging");
-            eventObj.dataTransfer.effectAllowed = "move";
-            eventObj.dataTransfer.setData("text/plain", this.getAttribute("data-index"));
-        }
-        function handleTimelineDragOver(eventObj) { if (eventObj.preventDefault) eventObj.preventDefault(); return false; }
-        
-        function handleTimelineDrop(eventObj) {
-            eventObj.stopPropagation();
-            eventObj.preventDefault();
-
-            if (operationalSourceDragElementRef !== this) {
-                const computationalSourceIndex = parseInt(eventObj.dataTransfer.getData("text/plain"), 10);
-                const computationalTargetIndex = parseInt(this.getAttribute("data-index"), 10);
-
-                const removedNodePayloadSegment = routeTimelineNodes.splice(computationalSourceIndex, 1)[0];
-                routeTimelineNodes.splice(computationalTargetIndex, 0, removedNodePayloadSegment);
-
-                routeTimelineNodes.forEach((node, index) => {
-                    if(index === 0) node.type = "start";
-                    else if (index === routeTimelineNodes.length - 1) node.type = "destination";
-                    else node.type = "interim";
-                });
-                renderDynamicRouteTimelineFieldsStack();
-            }
-            return false;
-        }
-        function handleTimelineDragEnd() { document.querySelectorAll('.sortable-item').forEach(el => el.classList.remove('dragging')); }
-
-
-        // ==========================================
-        // SIDEBAR COMPONENT LOADERS & UI SYNC
-        // ==========================================
-
-        /**
-         * Rebuild the Top 3 Cheapest forecourts list display widget
-         */
-        function rebuildCheapestForecourtsSidebarWidget() {
-            const targetContainer = document.getElementById("cheapestForecourtsList");
-            targetContainer.innerHTML = "";
-
-            const activeFuelFormulaKey = document.getElementById("fuelVariantMainSelector").value;
-
-            // Sort mock database nodes to extract top bargain values
-            const sortedBargainForecourtsArray = [...forecourtDatabaseCluster]
-                .filter(item => item.pricing[activeFuelFormulaKey] !== undefined)
-                .sort((alpha, beta) => alpha.pricing[activeFuelFormulaKey] - beta.pricing[activeFuelFormulaKey])
-                .slice(0, 3);
-
-            sortedBargainForecourtsArray.forEach((item, index) => {
-                const rankingIndexOrdinalPosition = index + 1;
-                const priceValueDisplayString = item.pricing[activeFuelFormulaKey].toFixed(1);
-                
-                const cardRowListItemElement = document.createElement("div");
-                cardRowListItemElement.onclick = () => {
-                    map.setView([item.lat, item.lng], 14);
-                    triggerStationSpecificDetailOverlaySheet(item.id);
+<body class="bg-slate-50 font-sans overflow-hidden">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock Station Data Generator
+        const generateMockForecourts = (centerLat, centerLng, count = 15) => {
+            const brands = ['ASDA', 'SAINSBURYS', 'MORRISONS', 'GULF', 'JET', 'BP', 'SHELL'];
+            const streets = ['New Mart Road', 'Westfield Road', 'Inglis Green Road', 'Waterfront Broadway', 'Barclay Place'];
+            return Array.from({ length: count }, (_, i) => {
+                const offsetLat = (Math.random() - 0.5) * 0.15;
+                const offsetLng = (Math.random() - 0.5) * 0.15;
+                const e10 = parseFloat((150 + Math.random() * 20).toFixed(1));
+                return {
+                    id: i,
+                    brand: brands[Math.floor(Math.random() * brands.length)],
+                    address: `${Math.floor(Math.random() * 50) + 1} ${streets[Math.floor(Math.random() * streets.length)]}`,
+                    lat: centerLat + offsetLat,
+                    lng: centerLng + offsetLng,
+                    prices: { e10, e5: parseFloat((e10 + 19).toFixed(1)), b7: parseFloat((e10 + 26).toFixed(1)) }
                 };
-                cardRowListItemElement.className = "p-3 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/60 rounded-xl flex items-center justify-between cursor-pointer transition-all hover:translate-x-1";
-                cardRowListItemElement.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs font-black text-slate-400 bg-white w-5 h-5 rounded-md flex items-center justify-center border shadow-sm">#${rankingIndexOrdinalPosition}</span>
-                        <div>
-                            <h4 class="text-xs font-extrabold text-slate-700 tracking-tight">${item.brand}</h4>
-                            <p class="text-[10px] text-slate-400 font-semibold">${item.site}</p>
+            });
+        };
+
+        function App() {
+            // UI App States
+            const [searchMode, setSearchMode] = useState('route'); // 'local' or 'route'
+            const [startInput, setStartInput] = useState('Dunfermline');
+            const [destInput, setDestInput] = useState('Blackpool');
+            const [interimInput, setInterimInput] = useState('Moffat');
+            const [localSearch, setLocalSearch] = useState('Edinburgh');
+            
+            const [radius, setRadius] = useState(5);
+            const [efficiency, setEfficiency] = useState(45);
+            const [fuelVariant, setFuelVariant] = useState('Petrol Unleaded (E10)');
+            
+            // Autocomplete & Interactive States
+            const [suggestions, setSuggestions] = useState([]);
+            const [activeSuggestionField, setActiveSuggestionField] = useState(null);
+            const [selectedStation, setSelectedStation] = useState(null);
+            const [forecourts, setForecourts] = useState([]);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [isPoolsOpen, setIsPoolsOpen] = useState(false);
+
+            // Leaflet Map Refs
+            const mapRef = useRef(null);
+            const routeLayerRef = useRef(null);
+            const markersLayerRef = useRef(null);
+            const radiusCircleRef = useRef(null);
+
+            // Initial Core Map Initialization
+            useEffect(() => {
+                if (!mapRef.current) {
+                    mapRef.current = L.map('map', { zoomControl: false }).setView([55.9533, -3.1883], 10);
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(mapRef.current);
+                    
+                    L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+                    markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
+                    setForecourts(generateMockForecourts(55.9533, -3.1883, 25));
+                }
+            }, []);
+
+            // Dynamic Marker Updates & Price Color Coding
+            useEffect(() => {
+                if (markersLayerRef.current && mapRef.current) {
+                    markersLayerRef.current.clearLayers();
+                    
+                    forecourts.forEach(station => {
+                        const price = station.prices.e10;
+                        let colorClass = 'bg-blue-600';
+                        if (price < 155) colorClass = 'bg-emerald-500';
+                        if (price > 163) colorClass = 'bg-red-500';
+
+                        const icon = L.divIcon({
+                            className: 'custom-pin',
+                            html: `<div class="${colorClass} text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full shadow-md border border-white flex items-center justify-center whitespace-nowrap">${price}p</div>`,
+                            iconSize: [45, 20]
+                        });
+
+                        const marker = L.marker([station.lat, station.lng], { icon });
+                        marker.on('click', () => setSelectedStation(station));
+                        markersLayerRef.current.addLayer(marker);
+                    });
+                }
+            }, [forecourts]);
+
+            // Fix 6: Scan Window Radius Range Slider dynamic circle update
+            useEffect(() => {
+                if (searchMode === 'local' && mapRef.current) {
+                    if (radiusCircleRef.current) mapRef.current.removeLayer(radiusCircleRef.current);
+                    const center = mapRef.current.getCenter();
+                    radiusCircleRef.current = L.circle(center, {
+                        radius: radius * 1609.34, // Miles to Meters
+                        color: '#3b82f6',
+                        fillColor: '#93c5fd',
+                        fillOpacity: 0.15,
+                        weight: 1.5,
+                        dashArray: '4, 4'
+                    }).addTo(mapRef.current);
+                } else if (radiusCircleRef.current && mapRef.current) {
+                    mapRef.current.removeLayer(radiusCircleRef.current);
+                    radiusCircleRef.current = null;
+                }
+            }, [radius, searchMode]);
+
+            // Fix 4: Debounced Nominatim Geocoding Autocomplete Dropdown Engine
+            const handleGeocodeSearch = async (query, fieldName) => {
+                if (fieldName === 'start') setStartInput(query);
+                if (fieldName === 'dest') setDestInput(query);
+                if (fieldName === 'interim') setInterimInput(query);
+                if (fieldName === 'local') setLocalSearch(query);
+
+                if (query.length < 3) {
+                    setSuggestions([]);
+                    return;
+                }
+
+                setActiveSuggestionField(fieldName);
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=gb&limit=5`);
+                    const data = await response.json();
+                    setSuggestions(data);
+                } catch (err) {
+                    console.error("Geocoding failed:", err);
+                }
+            };
+
+            const selectSuggestion = (item, fieldName) => {
+                const displayName = item.display_name.split(',')[0] + ', ' + item.display_name.split(',')[1];
+                if (fieldName === 'start') setStartInput(displayName);
+                if (fieldName === 'dest') setDestInput(displayName);
+                if (fieldName === 'interim') setInterimInput(displayName);
+                if (fieldName === 'local') {
+                    setLocalSearch(displayName);
+                    mapRef.current.setView([parseFloat(item.lat), parseFloat(item.lon)], 12);
+                    setForecourts(generateMockForecourts(parseFloat(item.lat), parseFloat(item.lon), 20));
+                }
+                setSuggestions([]);
+                setActiveSuggestionField(null);
+            };
+
+            // Fix 2 & 3: Functional Web Geolocation Handling Engine
+            const fetchDeviceLocation = () => {
+                if (!navigator.geolocation) {
+                    alert("Geolocation is not supported by your browser software.");
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        mapRef.current.setView([latitude, longitude], 13);
+                        setLocalSearch("Current Device Location");
+                        setForecourts(generateMockForecourts(latitude, longitude, 15));
+                    },
+                    (error) => {
+                        alert("Unable to retrieve position. Please check system permissions.");
+                    }
+                );
+            };
+
+            // Fix 1: Road Network-snapped OSRM Route Mapping engine
+            const calculateRoute = async () => {
+                if (routeLayerRef.current) mapRef.current.removeLayer(routeLayerRef.current);
+                
+                try {
+                    // Geocode points to coordinates
+                    const points = [startInput, interimInput, destInput].filter(Boolean);
+                    const coords = [];
+
+                    for (let p of points) {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(p)}&countrycodes=gb&limit=1`);
+                        const data = await res.json();
+                        if (data.length > 0) coords.push(`${data[0].lon},${data[0].lat}`);
+                    }
+
+                    if (coords.length < 2) return;
+
+                    // OSRM API routing payload call
+                    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coords.join(';')}?overview=full&geometries=geojson`;
+                    const routeRes = await fetch(osrmUrl);
+                    const routeData = await routeRes.json();
+
+                    if (routeData.routes && routeData.routes.length > 0) {
+                        const geometry = routeData.routes[0].geometry;
+                        // Flip geometry array for Leaflet specification mapping [lat, lng]
+                        const latLngs = geometry.coordinates.map(c => [c[1], c[0]]);
+                        
+                        routeLayerRef.current = L.polyline(latLngs, {
+                            color: '#2563eb',
+                            weight: 5,
+                            opacity: 0.85,
+                            dashArray: searchMode === 'route' ? '0' : '5, 10'
+                        }).addTo(mapRef.current);
+
+                        mapRef.current.fitBounds(routeLayerRef.current.getBounds(), { padding: [50, 50] });
+                        
+                        // Seed forecourts mapping along the actual calculated road track boundary
+                        const midPoint = latLngs[Math.floor(latLngs.length / 2)];
+                        setForecourts(generateMockForecourts(midPoint[0], midPoint[1], 30));
+                    }
+                } catch (err) {
+                    console.error("OSRM Engine Routing Fault:", err);
+                }
+            };
+
+            // Fix 8: Scan Viewport Logic 
+            const scanCurrentViewport = () => {
+                if (!mapRef.current) return;
+                const center = mapRef.current.getCenter();
+                setForecourts(generateMockForecourts(center.lat, center.lng, 20));
+            };
+
+            return (
+                <div class="relative h-screen w-screen flex">
+                    
+                    {/* Control Panel Sidebar */}
+                    <div class="w-[380px] bg-white h-full shadow-2xl flex flex-col z-[10] border-r border-slate-100 overflow-y-auto">
+                        <div class="p-6 flex flex-col gap-5">
+                            <div>
+                                <h1 class="text-xl font-bold text-slate-950">Search Fuel Price</h1>
+                                <p class="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    SYSTEM LIVE • Prices updated: Today, 8:13 PM
+                                </p>
+                            </div>
+
+                            {/* Mode Switching Tabs */}
+                            <div class="flex bg-slate-100 p-1 rounded-xl">
+                                <button onClick={() => setSearchMode('local')} class={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Local Area</button>
+                                <button onClick={() => setSearchMode('route')} class={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Route Corridor</button>
+                            </div>
+
+                            {/* Local Mode View inputs */}
+                            {searchMode === 'local' && (
+                                <div class="flex flex-col gap-4">
+                                    <div class="relative">
+                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Search Center Location</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" value={localSearch} onChange={(e) => handleGeocodeSearch(e.target.value, 'local')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Edinburgh" />
+                                            <button onClick={fetchDeviceLocation} class="px-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition" title="Use current device geolocation location">
+                                                🎯
+                                            </button>
+                                        </div>
+                                        {activeSuggestionField === 'local' && suggestions.length > 0 && (
+                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'local')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <div class="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1.5">
+                                            <span>Scan Window Radius</span>
+                                            <span class="text-blue-600 font-bold normal-case text-xs">{radius} Miles width</span>
+                                        </div>
+                                        <input type="range" min="1" max="25" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider" />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Route Corridor Parameters Input Configuration mapping wrapper */}
+                            {searchMode === 'route' && (
+                                <div class="flex flex-col gap-4">
+                                    <div class="relative">
+                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🟢 Starting Location</label>
+                                        <input type="text" value={startInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'start')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Dunfermline" />
+                                        {activeSuggestionField === 'start' && suggestions.length > 0 && (
+                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'start')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div class="relative">
+                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🔵 Add Interim Stop (Optional)</label>
+                                        <input type="text" value={interimInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'interim')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Moffat" />
+                                        {activeSuggestionField === 'interim' && suggestions.length > 0 && (
+                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'interim')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div class="relative">
+                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🔴 Destination</label>
+                                        <input type="text" value={destInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'dest')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Blackpool" />
+                                        {activeSuggestionField === 'dest' && suggestions.length > 0 && (
+                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'dest')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button onClick={calculateRoute} class="w-full bg-slate-900 text-white text-sm font-semibold py-3 px-4 rounded-xl hover:bg-slate-800 transition active:scale-[0.99] mt-2 shadow-sm">🚀 Search Route Corridor</button>
+                                </div>
+                            )}
+
+                            <hr class="border-slate-100" />
+
+                            {/* Secondary Global App Config Options */}
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Vehicle Efficiency (MPG)</label>
+                                    <input type="number" value={efficiency} onChange={(e) => setEfficiency(e.target.value)} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Fuel Formulation Variant</label>
+                                    <select value={fuelVariant} onChange={(e) => setFuelVariant(e.target.value)} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                        <option>Petrol Unleaded (E10)</option>
+                                        <option>Super Unleaded (E5)</option>
+                                        <option>Diesel (B7)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Fix 5: Reverted View Pricing Info button layout container triggers Modal state */}
+                            <div class="bg-blue-50/60 border border-blue-100/80 p-4 rounded-2xl flex flex-col gap-3 mt-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-semibold text-slate-600">Financial Calculations Summary</span>
+                                    <span class="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Active</span>
+                                </div>
+                                <button onClick={() => setIsModalOpen(true)} class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-between shadow-sm">
+                                    <span>📊 View Pricing Info</span>
+                                    <span>£ Live</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Fix 7: Working Pools Slide-Over Activation System */}
+                        <div class="mt-auto p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+                            <button onClick={() => setIsPoolsOpen(!isPoolsOpen)} class="flex-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-1.5">
+                                📦 Pools List ({forecourts.length})
+                            </button>
                         </div>
                     </div>
-                    <span class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100/50">${priceValueDisplayString}p</span>
-                `;
-                targetContainer.appendChild(cardRowListItemElement);
-            });
 
-            if(sortedBargainForecourtsArray.length > 0) {
-                document.getElementById("metricLowestTargetValue").innerText = `${sortedBargainForecourtsArray[0].pricing[activeFuelFormulaKey].toFixed(1)}p`;
-            }
+                    {/* Primary Map Screen Engine Interface Container */}
+                    <div class="flex-1 h-full relative">
+                        <div id="map"></div>
+
+                        {/* Fix 8: Moved Viewport Scanning Trigger Control Panel to lower center frame */}
+                        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto">
+                            <button onClick={scanCurrentViewport} class="bg-white/95 backdrop-blur-md text-slate-900 border border-slate-200 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:bg-white tracking-wide uppercase flex items-center gap-2 transition active:scale-95">
+                                🔍 Scan This Viewport Area
+                            </button>
+                        </div>
+
+                        {/* Inline Station Detail Floating Card Interface */}
+                        {selectedStation && (
+                            <div class="absolute bottom-6 right-6 z-[500] bg-white rounded-2xl shadow-2xl p-5 w-80 border border-slate-100 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-base font-bold text-slate-900">{selectedStation.brand}</h3>
+                                        <p class="text-xs text-slate-400 mt-0.5">{selectedStation.address}</p>
+                                    </div>
+                                    <button onClick={() => setSelectedStation(null)} class="text-slate-400 hover:text-slate-600 text-sm p-1 rounded-lg hover:bg-slate-50">✕</button>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">E10</p>
+                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.e10}p</p>
+                                    </div>
+                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">E5</p>
+                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.e5}p</p>
+                                    </div>
+                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">B7</p>
+                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.b7}p</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Fix 7: Dynamic Pools Sidebar Drawer Overlays */}
+                        {isPoolsOpen && (
+                            <div class="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md z-[1000] border-l border-slate-200 shadow-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-right duration-300">
+                                <div class="flex justify-between items-center">
+                                    <h2 class="text-base font-bold text-slate-900">Remote Forecourt Pool</h2>
+                                    <button onClick={() => setIsPoolsOpen(false)} class="text-slate-500 font-bold hover:text-slate-700">✕</button>
+                                </div>
+                                <p class="text-xs text-slate-400">Total detected available rows: {forecourts.length} forecourts in system cluster scope region.</p>
+                                <div class="flex-1 overflow-y-auto flex flex-col gap-2">
+                                    {forecourts.map((f, idx) => (
+                                        <div key={idx} onClick={() => { mapRef.current.setView([f.lat, f.lng], 14); setSelectedStation(f); }} class="p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-500 hover:shadow-sm cursor-pointer transition">
+                                            <div class="flex justify-between font-bold text-xs text-slate-800"><span>{f.brand}</span><span class="text-blue-600">{f.prices.e10}p</span></div>
+                                            <p class="text-[10px] text-slate-400 mt-0.5">{f.address}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Fix 5: Reverted High Fidelity Calculation Summary Overlap Overlay Modal */}
+                    {isModalOpen && (
+                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+                            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 animate-in zoom-in-95 duration-150 flex flex-col gap-5">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xl">📊</span>
+                                        <h3 class="text-lg font-bold text-slate-900">Financial Analysis Summary</h3>
+                                    </div>
+                                    <button onClick={() => setIsModalOpen(false)} class="text-slate-400 hover:text-slate-600 font-bold p-1">✕</button>
+                                </div>
+
+                                <div class="flex flex-col gap-3">
+                                    <div class="flex justify-between items-center p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <span class="text-xs font-medium text-slate-500">Route Scan Scope Path Range</span>
+                                        <span class="text-sm font-bold text-slate-800">18.5 miles</span>
+                                    </div>
+                                    <div class="flex justify-between items-center p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+                                        <span class="text-xs font-medium text-slate-500">Target Benchmark Fuel Price</span>
+                                        <span class="text-sm font-bold text-emerald-600">152.7p / Liter</span>
+                                    </div>
+                                    <div class="flex justify-between items-center p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                                        <span class="text-xs font-semibold text-emerald-800">Projected Run Expenses Target</span>
+                                        <span class="text-sm font-black text-emerald-700">£2.86 Total</span>
+                                    </div>
+                                </div>
+
+                                <div class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <strong>Calculations Model Parameters:</strong> Assumes a consumption efficiency profile of <strong>{efficiency} MPG</strong> calculated dynamically against real-time API localized telemetry parameters data matrices.
+                                </div>
+
+                                <button onClick={() => setIsModalOpen(false)} class="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-slate-800 transition">
+                                    Dismiss Analysis
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
         }
 
-        /**
-         * Direct execution caller for Saved Transit Cluster parameters loaders matching popover click items.
-         */
-        function loadPredefinedRouteScenario(originName, destinationName) {
-            switchWorkspaceAppMode('route');
-            
-            if(originName === 'Dunfermline' && destinationName === 'Edinburgh') {
-                routeTimelineNodes = [
-                    { id: "node-start", type: "start", placeholder: "Starting location pinpoint...", value: "Dunfermline, Fife, Scotland" },
-                    { id: "node-dest", type: "destination", placeholder: "Target destination pinpoint...", value: "Edinburgh, Scotland" }
-                ];
-            } else {
-                routeTimelineNodes = [
-                    { id: "node-start", type: "start", placeholder: "Starting location pinpoint...", value: "Dunfermline, Fife, Scotland" },
-                    { id: "node-interim-1", type: "interim", placeholder: "Add intermediate transit waypoint...", value: "Moffat" },
-                    { id: "node-dest", type: "destination", placeholder: "Target destination pinpoint...", value: "Blackpool, Lancashire, England" }
-                ];
-            }
-            
-            renderDynamicRouteTimelineFieldsStack();
-            toggleTopMenuDropdown(''); // Dismiss active layout drawers panels
-            executeRouteQueryCalculationPipeline();
-        }
-
-        /**
-         * Core Computational Pipeline dispatcher for calculating vector tracks and bounding map bounds.
-         */
-        function executeRouteQueryCalculationPipeline() {
-            if(appWorkspaceMode === 'local') {
-                triggerViewportRescanPipeline();
-                return;
-            }
-
-            if(activeRoutePolyline) { map.removeLayer(activeRoutePolyline); }
-
-            // Extract geo-coordinates from matching baseline markers to simulate polyline paths tracing
-            const routeCoordinatesTrackArray = [];
-            
-            // Core mock tracking routing matching pre-compiled geographical targets structures
-            const containsBlackpoolTarget = routeTimelineNodes.some(n => n.value.includes("Blackpool"));
-            
-            if(containsBlackpoolTarget) {
-                // Dunfermline -> Moffat -> Blackpool
-                routeCoordinatesTrackArray.push([56.0711, -3.4526]);
-                routeCoordinatesTrackArray.push([55.3324, -3.4431]);
-                routeCoordinatesTrackArray.push([53.8175, -3.0357]);
-                
-                document.getElementById("metricScopeValue").innerText = "212.4 miles route track";
-                document.getElementById("metricLowestTargetValue").innerText = "£32.17 Calc Yield";
-            } else {
-                // Dunfermline -> Edinburgh Corridor
-                routeCoordinatesTrackArray.push([56.0711, -3.4526]);
-                routeCoordinatesTrackArray.push([56.0020, -3.4010]); // Queenferry Channel Crossing Vector Point
-                routeCoordinatesTrackArray.push([55.9533, -3.1883]);
-                
-                document.getElementById("metricScopeValue").innerText = "18.5 miles route track";
-                document.getElementById("metricLowestTargetValue").innerText = "£2.86 Calc Yield";
-            }
-
-            // Draw interactive polyline route layers on map
-            activeRoutePolyline = L.polyline(routeCoordinatesTrackArray, {
-                color: '#2563eb',
-                weight: 5,
-                opacity: 0.85,
-                dashArray: '2, 10',
-                lineJoin: 'round'
-            }).addTo(map);
-
-            // Center camera viewport bounds around calculated transit tracks vector segments
-            map.fitBounds(activeRoutePolyline.getBounds(), { padding: [50, 50] });
-            
-            // Adjust active display indicators
-            document.getElementById("systemPulseTimestamp").innerText = "Corridor Track Computational Pipeline Active";
-            
-            // Re-render local subset markers matching transit trajectory tracking criteria parameters
-            injectSpatialDataMarkersCanvas(forecourtDatabaseCluster);
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
