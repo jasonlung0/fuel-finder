@@ -97,6 +97,34 @@
             transform: translateY(0);
         }
 
+        /* Pure CSS Tooltip Architecture Blueprint Setup */
+        .nav-tooltip-trigger {
+            position: relative;
+        }
+        .nav-tooltip-trigger::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%) scale(0.95);
+            background-color: #0f172a;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .nav-tooltip-trigger:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
         .leaflet-top.leaflet-left {
             top: 90px !important;
         }
@@ -112,12 +140,26 @@
 
     <div id="map"></div>
 
-    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[450] max-md:top-18">
-        <button onclick="refreshViewportViewFilter(null, true)" class="bg-white/95 backdrop-blur-md hover:bg-white border border-slate-200 px-5 py-2.5 rounded-full shadow-xl font-bold text-xs tracking-wider text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            Scan This Viewport Area
+    <nav class="fixed top-4 right-4 z-[500] bg-white/95 backdrop-blur-md border border-slate-200/80 px-2 py-1.5 rounded-full shadow-2xl flex items-center gap-0.5 select-none max-md:top-3 max-md:right-3">
+        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition cursor-pointer" data-tooltip="Home" onclick="console.log('Navigate Home')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
         </button>
-    </div>
+        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-amber-500 hover:bg-amber-50/50 rounded-full transition cursor-pointer" data-tooltip="Starred" onclick="console.log('View Starred Forecourts')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
+        </button>
+        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 rounded-full transition cursor-pointer" data-tooltip="Saved" onclick="console.log('View Saved Filters')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0z" /></svg>
+        </button>
+        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50 rounded-full transition cursor-pointer" data-tooltip="Trends" onclick="console.log('View Fuel Price Trends')">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>
+        </button>
+        
+        <div class="w-[1px] h-5 bg-slate-200 mx-1"></div>
+        
+        <button onclick="refreshViewportViewFilter(null, true)" class="nav-tooltip-trigger p-2 text-blue-600 hover:bg-blue-50 rounded-full transition cursor-pointer font-bold animate-pulse hover:animate-none" data-tooltip="Scan Viewport">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+    </nav>
 
     <aside id="control-sidebar" class="adaptive-control-sidebar fixed z-[500] bg-white/95 backdrop-blur-md border-slate-200 shadow-2xl flex flex-col justify-between state-mid
         max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:rounded-t-[2rem] max-md:border-t
@@ -127,7 +169,7 @@
             <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1"></div>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-6 pt-5 md:pt-7 space-y-5">
+        <div class="flex-1 overflow-y-auto px-6 pb-6 pt-6 md:pt-9 space-y-5">
             <div class="flex justify-between items-start">
                 <div>
                     <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
@@ -594,13 +636,12 @@
         }
 
         // Interactively jump and zoom into a clean map marker node anchor context
-        function focusAndHighlightMapMarker(lat, lon, stationIndex) {
+        function focusAndHighlightMapMarker(lat, lon) {
             if (isNaN(lat) || isNaN(lon)) return;
             
             // Recenter canvas smoothly
             map.setView([lat, lon], 14, { animate: true, duration: 0.6 });
             
-            // Extract the correct raw structure matching the index matching the filtered visible pool
             const selectedStation = currentlyVisibleStations.find(s => 
                 parseFloat(s.latitude || s.lat) === lat && 
                 parseFloat(s.longitude || s.lng) === lon
@@ -653,7 +694,6 @@
                 });
             }
 
-            // Lock the visible stations reference array strictly into local scope
             currentlyVisibleStations = dynamicBoundedStations;
 
             const renderingDisplayLimitCap = 250;
@@ -669,7 +709,6 @@
             const container = document.getElementById('cheapest-cards-stack');
             if (!block || !container) return;
 
-            // Sort target array strictly by numeric value matching current fuel parameter assignment scope
             const validPool = pool.filter(s => s[fuelVariant] && !isNaN(parseFloat(s[fuelVariant])) && parseFloat(s[fuelVariant]) > 0);
             
             if (validPool.length === 0) {
