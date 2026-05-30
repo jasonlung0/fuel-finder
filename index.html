@@ -113,29 +113,63 @@
             </div>
 
             <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold tracking-wide uppercase">
-                <button class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5">
+                <button id="tab-local-btn" onclick="toggleSearchTab('local')" class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition">
                     📍 Local Area
                 </button>
-                <button class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 transition">
+                <button id="tab-route-btn" onclick="toggleSearchTab('route')" class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition">
                     🚖 Route Corridor
                 </button>
             </div>
 
-            <div class="space-y-1.5">
-                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
-                <div class="relative">
-                    <input type="text" id="location-input" placeholder="Enter town, city or postcode..." 
-                           class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition" />
-                    <button onclick="triggerDefaultLocationLookup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition text-sm">🎯</button>
+            <div id="panel-local" class="space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
+                    <div class="relative">
+                        <input type="text" id="location-input" placeholder="Enter town, city or postcode..." 
+                               onkeydown="if(event.key === 'Enter') executeAddressGeocodeLookup();"
+                               class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition" />
+                        <button onclick="executeAddressGeocodeLookup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition text-sm cursor-pointer">🎯</button>
+                    </div>
+                </div>
+
+                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-600">🎯 Scan Window Radius</span>
+                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="radius-val">5 Miles</span>
+                    </div>
+                    <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                 </div>
             </div>
 
-            <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-600">🎯 Scan Window Radius</span>
-                    <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="radius-val">5 Miles</span>
+            <div id="panel-route" class="space-y-4 hidden">
+                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-2.5">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase flex items-center gap-1">🟢 Starting Location</label>
+                        <input type="text" id="route-start" placeholder="e.g. London or Glasgow" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold tracking-wider text-red-600 uppercase flex items-center gap-1">🔴 Destination</label>
+                        <input type="text" id="route-end" placeholder="e.g. Edinburgh or Manchester" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                    </div>
                 </div>
-                <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+
+                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-600">🚗 Route Journey Radius</span>
+                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="route-radius-val">2 Miles</span>
+                    </div>
+                    <input type="range" min="1" max="10" value="2" id="route-radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Vehicle Efficiency (MPG)</label>
+                    <input type="number" id="vehicle-mpg" value="45" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="executeRouteGenerationPipeline()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition shadow-md cursor-pointer text-center">🚀 Search Route</button>
+                    <button onclick="clearCalculatedRouteLayers()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer text-center">Clear Route</button>
+                </div>
             </div>
 
             <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/40 border border-emerald-100 p-4 rounded-xl space-y-2 hidden">
@@ -143,8 +177,8 @@
                     📊 Financial Calculations Summary
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
-                    <div>Visible Scope Area: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
-                    <div>Lowest Regional Tier: <span id="summary-cost" class="font-extrabold text-emerald-600">0.0p</span></div>
+                    <div>Scope / Route: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
+                    <div>Lowest Target: <span id="summary-cost" class="font-extrabold text-emerald-600">0.0p</span></div>
                 </div>
             </div>
 
@@ -208,6 +242,9 @@
         // Global Operational Environment Runtime States Variable Registry
         let rawGlobalStationsPool = [];
         let markerLayerGroup = L.layerGroup();
+        let routePolylineLayer = null;
+        let activeTabContext = 'local';
+        let plottedRouteCoordinates = [];
         
         // 1. Initialize Map Canvas Coordinates
         const map = L.map('map', { zoomControl: false }).setView([55.92, -4.05], 12);
@@ -217,6 +254,29 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
+
+        // Tab Subsystem Toggle Routing Panels
+        function toggleSearchTab(targetTab) {
+            activeTabContext = targetTab;
+            const localBtn = document.getElementById('tab-local-btn');
+            const routeBtn = document.getElementById('tab-route-btn');
+            const localPanel = document.getElementById('panel-local');
+            const routePanel = document.getElementById('panel-route');
+
+            if (targetTab === 'local') {
+                localBtn.className = "bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition";
+                routeBtn.className = "text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition";
+                localPanel.classList.remove('hidden');
+                routePanel.classList.add('hidden');
+                clearCalculatedRouteLayers();
+            } else {
+                routeBtn.className = "bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition";
+                localBtn.className = "text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition";
+                routePanel.classList.remove('hidden');
+                localPanel.classList.add('hidden');
+            }
+            refreshViewportViewFilter();
+        }
 
         // 2. Hardware Native Location Telemetry Autodetect Framework
         function checkNativeHardwarePositionMatrix() {
@@ -240,7 +300,119 @@
             }
         }
 
-        // 3. Simple Version 1 Standard Branding Mapping Dictionary Lookup Logic Matrix
+        // 3. Live Geocoding Text Input Search Feature Lookup Function
+        async function executeAddressGeocodeLookup() {
+            const searchString = document.getElementById('location-input').value.trim();
+            if (!searchString) return;
+
+            try {
+                const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
+                const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
+                const matchingNodes = await res.json();
+
+                if (matchingNodes && matchingNodes.length > 0) {
+                    const targetLat = parseFloat(matchingNodes[0].lat);
+                    const targetLon = parseFloat(matchingNodes[0].lon);
+                    map.setView([targetLat, targetLon], 12);
+                    refreshViewportViewFilter();
+                } else {
+                    alert("Location not found inside the UK system mesh. Please check your query or postcode spelling.");
+                }
+            } catch (err) {
+                console.error("Geocoding fetch operation error:", err);
+            }
+        }
+
+        // 4. Live Core Route Corridor Computation Engine Pipeline
+        async function executeRouteGenerationPipeline() {
+            const startVal = document.getElementById('route-start').value.trim();
+            const endVal = document.getElementById('route-end').value.trim();
+
+            if (!startVal || !endVal) {
+                alert("Please declare both starting point and destination fields.");
+                return;
+            }
+
+            try {
+                // Geocode Start
+                const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
+                const startNodes = await startRes.json();
+                
+                // Geocode End
+                const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
+                const endNodes = await endRes.json();
+
+                if (!startNodes.length || !endNodes.length) {
+                    alert("Unable to map route. Ensure locations exist in the UK grid map framework.");
+                    return;
+                }
+
+                const sLat = startNodes[0].lat, sLon = startNodes[0].lon;
+                const eLat = endNodes[0].lat, eLon = endNodes[0].lon;
+
+                // Query OSRM Public Routing System Engine APIs
+                const osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
+                const routeRes = await fetch(osrmQuery);
+                const routeData = await routeRes.json();
+
+                if (!routeData.routes || !routeData.routes.length) {
+                    alert("No valid road tracks could be linked between points.");
+                    return;
+                }
+
+                const routeLineGeometry = routeData.routes[0].geometry;
+                const pathDistanceMeters = routeData.routes[0].distance;
+                const distanceMiles = pathDistanceMeters * 0.000621371;
+
+                // Strip down layout arrays coords context coordinates arrays layer
+                plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]); // Swap to Leaflet Lat/Lon order
+
+                if (routePolylineLayer) map.removeLayer(routePolylineLayer);
+                
+                routePolylineLayer = L.polyline(plottedRouteCoordinates, {
+                    color: '#4f46e5',
+                    weight: 5,
+                    opacity: 0.85
+                }).addTo(map);
+
+                map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
+
+                // Trigger filtering view based around the calculated route path corridor trace
+                refreshViewportViewFilter(distanceMiles);
+
+            } catch (err) {
+                console.error("Routing network thread malfunction context track:", err);
+            }
+        }
+
+        function clearCalculatedRouteLayers() {
+            if (routePolylineLayer) {
+                map.removeLayer(routePolylineLayer);
+                routePolylineLayer = null;
+            }
+            plottedRouteCoordinates = [];
+            document.getElementById('financial-card').classList.add('hidden');
+            refreshViewportViewFilter();
+        }
+
+        // Helper function: Calculates geometric shortest point-to-line segment separation
+        function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
+            let minimumTrackSeparationMiles = Infinity;
+            
+            // Core scanning vector matrix sweep logic checks for localized points proximity
+            for (let i = 0; i < plottedRouteCoordinates.length; i++) {
+                const node = plottedRouteCoordinates[i];
+                const dLat = (node[0] - pointLat) * 69.1;
+                const dLon = (node[1] - pointLon) * 53.0; // Approximation adjusted roughly for UK parallels
+                const distanceEstimate = Math.sqrt(dLat * dLat + dLon * dLon);
+                if (distanceEstimate < minimumTrackSeparationMiles) {
+                    minimumTrackSeparationMiles = distanceEstimate;
+                }
+            }
+            return minimumTrackSeparationMiles;
+        }
+
+        // 5. Version 1 Standard Branding Mapping Dictionary Lookup Logic Matrix
         const BRAND_EMOJI_DICT = {
             'shell': '⛽', 'bp': '🟢', 'esso': '🔴', 'tesco': '🔵', 
             'asda': '🟢', 'sainsbury': '🟠', 'morrison': '💛', 
@@ -262,15 +434,23 @@
         if (slider) {
             slider.addEventListener('input', (e) => { sliderVal.textContent = `${e.target.value} Miles`; });
         }
+
+        const rSlider = document.getElementById('route-radius-slider');
+        const rSliderVal = document.getElementById('route-radius-val');
+        if (rSlider) {
+            rSlider.addEventListener('input', (e) => { rSliderVal.textContent = `${e.target.value} Miles`; });
+        }
         
         const fuelSelector = document.getElementById('fuel-type');
         if (fuelSelector) {
             fuelSelector.addEventListener('change', () => refreshViewportViewFilter());
         }
         
-        map.on('moveend', () => refreshViewportViewFilter());
+        map.on('moveend', () => {
+            if (activeTabContext === 'local') refreshViewportViewFilter();
+        });
 
-        // 4. Remote Core Data Ingestion Network Pipeline
+        // 6. Remote Core Data Ingestion Network Pipeline
         async function forceReloadRemotePipelineData() {
             const counterElement = document.getElementById('station-counter');
             if (counterElement) counterElement.textContent = "Loading Data...";
@@ -288,30 +468,45 @@
             }
         }
 
-        // 5. High-Performance Overload Safe Viewport Bounding Box Filter
-        function refreshViewportViewFilter() {
+        // 7. High-Performance Overload Safe Viewport / Corridor Filter
+        function refreshViewportViewFilter(routeDistanceContext = null) {
             if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
 
             const mapScreenBounds = map.getBounds();
             const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
+            const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
 
-            // Filter nodes down dynamically to only what matches within current viewing window boundaries
-            const dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
-                const lat = parseFloat(station.latitude || station.lat);
-                const lon = parseFloat(station.longitude || station.lng);
-                if (isNaN(lat) || isNaN(lon)) return false;
-                return mapScreenBounds.contains([lat, lon]);
-            });
+            let dynamicBoundedStations = [];
+
+            if (activeTabContext === 'local' || plottedRouteCoordinates.length === 0) {
+                // Viewport Box Filtering Scheme
+                dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
+                    const lat = parseFloat(station.latitude || station.lat);
+                    const lon = parseFloat(station.longitude || station.lng);
+                    if (isNaN(lat) || isNaN(lon)) return false;
+                    return mapScreenBounds.contains([lat, lon]);
+                });
+            } else {
+                // Route Corridor Filtering Spatial Map Calculations
+                dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
+                    const lat = parseFloat(station.latitude || station.lat);
+                    const lon = parseFloat(station.longitude || station.lng);
+                    if (isNaN(lat) || isNaN(lon)) return false;
+                    
+                    const distanceToTrack = computeMinimumDistanceToRouteCorridor(lat, lon);
+                    return distanceToTrack <= targetCorridorRadiusThreshold;
+                });
+            }
 
             // Prevent engine locking by adding an explicit display cap window threshold
             const renderingDisplayLimitCap = 250;
             const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
 
-            paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length);
+            paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
         }
 
-        // 6. Safe Node Renderer Engine 
-        function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount) {
+        // 8. Safe Node Renderer Engine 
+        function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
             markerLayerGroup.clearLayers();
 
             const pricesArray = stationsList
@@ -322,15 +517,26 @@
             const maxPrice = Math.max(...pricesArray) || 175;
             const spreadDelta = maxPrice - minPrice;
 
-            // Paint summary info modules cards updates details context matrix
+            // Update Summary Financial Statistics Module Cards
             const finCard = document.getElementById('financial-card');
             if (finCard && pricesArray.length > 0) {
                 finCard.classList.remove('hidden');
-                document.getElementById('summary-distance').textContent = `${(fallbackTotalCount * 0.03).toFixed(1)} miles area`;
-                document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
+                
+                if (activeTabContext === 'route' && routeDistanceContext) {
+                    const vehicleMpg = parseFloat(document.getElementById('vehicle-mpg').value || 45);
+                    const fuelGallonsConsumed = routeDistanceContext / vehicleMpg;
+                    const fuelLitresConsumed = fuelGallonsConsumed * 4.54609;
+                    const totalTripPriceCostPounds = (fuelLitresConsumed * minPrice) / 100;
+
+                    document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
+                    document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
+                } else {
+                    document.getElementById('summary-distance').textContent = `${(fallbackTotalCount * 0.03).toFixed(1)} miles area`;
+                    document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
+                }
             }
 
-            stationsList.forEach((station, index) => {
+            stationsList.forEach((station) => {
                 const lat = parseFloat(station.latitude || station.lat);
                 const lon = parseFloat(station.longitude || station.lng);
                 const priceTextRaw = station[variant];
@@ -347,7 +553,7 @@
 
                 const brandVisualSymbol = resolveBrandVisualSymbol(station.brand_name);
 
-                // Build pristine custom token markup container layout string arrays safely
+                // Build custom token markup container layout string arrays safely without broken quotes
                 const designHTMLTemplateString = `
                     <div class="fuel-marker-bubble ${tierBgClassColor}">
                         <div class="logo-container">${brandVisualSymbol}</div>
@@ -362,7 +568,7 @@
                     iconAnchor: [37, 14]
                 });
 
-                // Generate safe text strings variables context maps layout profiles markers instances
+                // Generate completely safe non-breaking token text strings
                 const safeBrandTitle = (station.brand_name || 'Independent Vendor').replace(/['"]/g, '');
                 const safeAddressDetails = (station.address || 'UK Road Network').replace(/['"]/g, '');
                 
@@ -379,13 +585,12 @@
                 `;
 
                 const markerInstanceElement = L.marker([lat, lon], { icon: layoutCustomIconInstance });
-                
                 markerInstanceElement.bindPopup(popupLayoutContent);
                 
-                // Intercept clicks to power the seamless mobile iOS-style bottom drawer
+                // Intercept clicks to power mobile bottom drawer
                 markerInstanceElement.on('click', () => {
                     if (window.innerWidth < 768) {
-                        map.closePopup(); // Suppress standard map popups on mobile layout
+                        map.closePopup();
                         launchIosDetailMobileDrawer(station);
                     }
                 });
@@ -394,10 +599,10 @@
             });
 
             const statusCounter = document.getElementById('station-counter');
-            if (statusCounter) statusCounter.textContent = `Viewport: ${stationsList.length} rows`;
+            if (statusCounter) statusCounter.textContent = `Pool Metrics: ${fallbackTotalCount} records`;
         }
 
-        // 7. Interactive Native iOS Drawer Action Trigger Systems Controller Matrix
+        // 9. Interactive Native iOS Drawer Action Trigger Systems Controller Matrix
         function launchIosDetailMobileDrawer(stationData) {
             const drawer = document.getElementById('ios-detail-sheet');
             const title = document.getElementById('ios-sheet-title');
@@ -406,8 +611,8 @@
             
             if (!drawer) return;
 
-            title.textContent = stationData.brand_name || 'Independent Vendor';
-            address.textContent = stationData.address || 'UK Highway Network Info Layer Area';
+            title.textContent = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
+            address.textContent = (stationData.address || 'UK Highway Network Info Layer Area').replace(/['"]/g, '');
 
             document.getElementById('ios-price-e10').textContent = stationData.E10 ? `${stationData.E10}p` : 'N/A';
             document.getElementById('ios-price-e5').textContent = stationData.E5 ? `${stationData.E5}p` : 'N/A';
