@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corridor Route Optimization & Planning Engine</title>
+    <title>Fuel Price Optimization Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -11,7 +11,8 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        html, body, #root { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+        #map { height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; left: 0; right: 0; z-index: 1; }
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -20,440 +21,653 @@
             border-radius: 50%;
             background: #2563eb;
             cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
+        /* Hide scrollbar mechanics for layout aesthetics */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-50 font-sans overflow-hidden">
+<body class="bg-slate-100 font-sans telemetry-frame">
 
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // Mock Station Data Generator
-        const generateMockForecourts = (centerLat, centerLng, count = 15) => {
+        // Mock Database Generator for Edinburgh / Central Scotland Corridor area context
+        const generateMockForecourts = (centerLat, centerLng, count = 20) => {
             const brands = ['ASDA', 'SAINSBURYS', 'MORRISONS', 'GULF', 'JET', 'BP', 'SHELL'];
-            const streets = ['New Mart Road', 'Westfield Road', 'Inglis Green Road', 'Waterfront Broadway', 'Barclay Place'];
+            const addresses = {
+                'ASDA': ['3 NEW MART ROAD', 'HALBEATH ROAD RETAIL PARK', 'CHESSER BYPASS'],
+                'SAINSBURYS': ['39 WESTFIELD ROAD', 'INGLIS GREEN ROAD', 'STRAITON MAINS'],
+                'MORRISONS': ['3 WATERFRONT BROADWAY', 'ALNWICKHILL ROAD', 'PORTILLO PLACE'],
+                'GULF': ['PRIMROSE LANE', 'SKIBO ROAD', 'CORLEONE DRIVE'],
+                'JET': ['21-23 BARCLAY PLACE', 'RESTALRIG ROAD', 'LONSDALE TERRACE'],
+                'BP': ['ANGUS ROAD', 'MAYFIELD ROAD', 'QUEENSFERRY ROAD'],
+                'SHELL': ['SALISBURY ROAD', 'SEAFIELD ROAD', 'CALDER ROAD']
+            };
+
             return Array.from({ length: count }, (_, i) => {
-                const offsetLat = (Math.random() - 0.5) * 0.15;
-                const offsetLng = (Math.random() - 0.5) * 0.15;
-                const e10 = parseFloat((150 + Math.random() * 20).toFixed(1));
+                const brand = brands[Math.floor(Math.random() * brands.length)];
+                const brandAddresses = addresses[brand];
+                const address = brandAddresses[Math.floor(Math.random() * brandAddresses.length)];
+                
+                // Keep coordinates bound closely to the viewport context area
+                const offsetLat = (Math.random() - 0.5) * 0.12;
+                const offsetLng = (Math.random() - 0.5) * 0.18;
+                
+                const basePrice = parseFloat((149 + Math.random() * 16).toFixed(1));
                 return {
-                    id: i,
-                    brand: brands[Math.floor(Math.random() * brands.length)],
-                    address: `${Math.floor(Math.random() * 50) + 1} ${streets[Math.floor(Math.random() * streets.length)]}`,
+                    id: `station-${i}-${Math.random().toString(36).substr(2, 4)}`,
+                    brand,
+                    address,
                     lat: centerLat + offsetLat,
                     lng: centerLng + offsetLng,
-                    prices: { e10, e5: parseFloat((e10 + 19).toFixed(1)), b7: parseFloat((e10 + 26).toFixed(1)) }
+                    prices: {
+                        e10: basePrice,
+                        e5: parseFloat((basePrice + 19.0).toFixed(1)),
+                        b7: parseFloat((basePrice + 26.0).toFixed(1))
+                    }
                 };
             });
         };
 
         function App() {
-            // UI App States
+            // Layout Active Mode
             const [searchMode, setSearchMode] = useState('route'); // 'local' or 'route'
-            const [startInput, setStartInput] = useState('Dunfermline');
-            const [destInput, setDestInput] = useState('Blackpool');
-            const [interimInput, setInterimInput] = useState('Moffat');
-            const [localSearch, setLocalSearch] = useState('Edinburgh');
             
-            const [radius, setRadius] = useState(5);
+            // Input Fields State Elements
+            const [startInput, setStartInput] = useState('Dunfermline');
+            const [destInput, setDestInput] = useState('Edinburgh');
+            const [interimInput, setInterimInput] = useState('Moffat');
+            const [localSearch, setLocalSearch] = useState('City of Edinburgh, Scotland');
+            
+            // Filter Controls Configuration 
+            const [radius, setRadius] = useState(2);
             const [efficiency, setEfficiency] = useState(45);
             const [fuelVariant, setFuelVariant] = useState('Petrol Unleaded (E10)');
-            
-            // Autocomplete & Interactive States
+            const [mechPumpsOnly, setMechPumpsOnly] = useState(false);
+
+            // Live Core Engine Telemetry Matrices
+            const [forecourts, setForecourts] = useState([]);
+            const [selectedStation, setSelectedStation] = useState(null);
             const [suggestions, setSuggestions] = useState([]);
             const [activeSuggestionField, setActiveSuggestionField] = useState(null);
-            const [selectedStation, setSelectedStation] = useState(null);
-            const [forecourts, setForecourts] = useState([]);
+            
+            // Interface Modals & Flyouts visibility handles
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [isPoolsOpen, setIsPoolsOpen] = useState(false);
 
-            // Leaflet Map Refs
-            const mapRef = useRef(null);
-            const routeLayerRef = useRef(null);
-            const markersLayerRef = useRef(null);
-            const radiusCircleRef = useRef(null);
+            // Ref objects mapping instances
+            const mapInstance = useRef(null);
+            const routePolylineGroup = useRef(null);
+            const markerClusterGroup = useRef(null);
+            const localRadiusVisualCircle = useRef(null);
 
-            // Initial Core Map Initialization
+            // Initialize Map Frame with clean layout specs matching original screenshots
             useEffect(() => {
-                if (!mapRef.current) {
-                    mapRef.current = L.map('map', { zoomControl: false }).setView([55.9533, -3.1883], 10);
-                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                        attribution: '© OpenStreetMap contributors'
-                    }).addTo(mapRef.current);
+                if (!mapInstance.current) {
+                    mapInstance.current = L.map('map', { zoomControl: false }).setView([56.015, -3.40], 11);
                     
-                    L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
-                    markersLayerRef.current = L.layerGroup().addTo(mapRef.current);
-                    setForecourts(generateMockForecourts(55.9533, -3.1883, 25));
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                        attribution: '©OpenStreetMap contributors'
+                    }).addTo(mapInstance.current);
+
+                    // Re-inject zoom controllers to custom bottom right corner clear of cards
+                    L.control.zoom({ position: 'bottomright' }).addTo(mapInstance.current);
+
+                    markerClusterGroup.current = L.layerGroup().addTo(mapInstance.current);
+                    routePolylineGroup.current = L.layerGroup().addTo(mapInstance.current);
+
+                    // Seed initial layout view data rows
+                    const initialData = generateMockForecourts(55.9533, -3.1883, 29);
+                    setForecourts(initialData);
                 }
             }, []);
 
-            // Dynamic Marker Updates & Price Color Coding
+            // Handle Map Pins Rendering on Data Grid Changes
             useEffect(() => {
-                if (markersLayerRef.current && mapRef.current) {
-                    markersLayerRef.current.clearLayers();
-                    
+                if (markerClusterGroup.current && mapInstance.current) {
+                    markerClusterGroup.current.clearLayers();
+
                     forecourts.forEach(station => {
                         const price = station.prices.e10;
-                        let colorClass = 'bg-blue-600';
-                        if (price < 155) colorClass = 'bg-emerald-500';
-                        if (price > 163) colorClass = 'bg-red-500';
+                        let colorClass = 'bg-blue-600'; 
+                        if (price < 154) colorClass = 'bg-emerald-500';
+                        if (price > 162) colorClass = 'bg-red-500';
 
-                        const icon = L.divIcon({
-                            className: 'custom-pin',
-                            html: `<div class="${colorClass} text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full shadow-md border border-white flex items-center justify-center whitespace-nowrap">${price}p</div>`,
-                            iconSize: [45, 20]
+                        const pinHtml = `
+                            <div class="${colorClass} text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-white flex items-center justify-center whitespace-nowrap">
+                                <span class="w-1.5 h-1.5 rounded-full bg-white mr-1 opacity-80"></span>
+                                ${price}p
+                            </div>
+                        `;
+
+                        const customIcon = L.divIcon({
+                            className: 'custom-leaflet-pin',
+                            html: pinHtml,
+                            iconSize: [52, 22],
+                            iconAnchor: [26, 11]
                         });
 
-                        const marker = L.marker([station.lat, station.lng], { icon });
+                        const marker = L.marker([station.lat, station.lng], { icon: customIcon });
                         marker.on('click', () => setSelectedStation(station));
-                        markersLayerRef.current.addLayer(marker);
+                        markerClusterGroup.current.addLayer(marker);
                     });
                 }
             }, [forecourts]);
 
-            // Fix 6: Scan Window Radius Range Slider dynamic circle update
+            // Fix 6: Dynamic visual updating for Scan Radius Slider element
             useEffect(() => {
-                if (searchMode === 'local' && mapRef.current) {
-                    if (radiusCircleRef.current) mapRef.current.removeLayer(radiusCircleRef.current);
-                    const center = mapRef.current.getCenter();
-                    radiusCircleRef.current = L.circle(center, {
-                        radius: radius * 1609.34, // Miles to Meters
-                        color: '#3b82f6',
-                        fillColor: '#93c5fd',
-                        fillOpacity: 0.15,
-                        weight: 1.5,
-                        dashArray: '4, 4'
-                    }).addTo(mapRef.current);
-                } else if (radiusCircleRef.current && mapRef.current) {
-                    mapRef.current.removeLayer(radiusCircleRef.current);
-                    radiusCircleRef.current = null;
+                if (searchMode === 'local' && mapInstance.current) {
+                    if (localRadiusVisualCircle.current) {
+                        mapInstance.current.removeLayer(localRadiusVisualCircle.current);
+                    }
+                    const mapCenter = mapInstance.current.getCenter();
+                    localRadiusVisualCircle.current = L.circle(mapCenter, {
+                        radius: radius * 1609.34, // Miles scalar converter to meters
+                        color: '#2563eb',
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.08,
+                        weight: 2,
+                        dashArray: '5, 8'
+                    }).addTo(mapInstance.current);
+                } else {
+                    if (localRadiusVisualCircle.current && mapInstance.current) {
+                        mapInstance.current.removeLayer(localRadiusVisualCircle.current);
+                        localRadiusVisualCircle.current = null;
+                    }
                 }
             }, [radius, searchMode]);
 
-            // Fix 4: Debounced Nominatim Geocoding Autocomplete Dropdown Engine
-            const handleGeocodeSearch = async (query, fieldName) => {
-                if (fieldName === 'start') setStartInput(query);
-                if (fieldName === 'dest') setDestInput(query);
-                if (fieldName === 'interim') setInterimInput(query);
-                if (fieldName === 'local') setLocalSearch(query);
+            // Fix 4: Real-time Autocomplete Dropdown Search Logic Engine (Nominatim)
+            const handleGeocodeTyping = async (val, fieldKey) => {
+                if (fieldKey === 'start') setStartInput(val);
+                if (fieldKey === 'dest') setDestInput(val);
+                if (fieldKey === 'interim') setInterimInput(val);
+                if (fieldKey === 'local') setLocalSearch(val);
 
-                if (query.length < 3) {
+                if (val.trim().length < 3) {
                     setSuggestions([]);
                     return;
                 }
 
-                setActiveSuggestionField(fieldName);
+                setActiveSuggestionField(fieldKey);
                 try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=gb&limit=5`);
-                    const data = await response.json();
-                    setSuggestions(data);
-                } catch (err) {
-                    console.error("Geocoding failed:", err);
+                    const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&countrycodes=gb&limit=5`;
+                    const res = await fetch(endpoint, { headers: { 'Accept-Language': 'en' } });
+                    const records = await res.json();
+                    setSuggestions(records);
+                } catch (e) {
+                    console.error("Geocoding fetch exception encountered:", e);
                 }
             };
 
-            const selectSuggestion = (item, fieldName) => {
-                const displayName = item.display_name.split(',')[0] + ', ' + item.display_name.split(',')[1];
-                if (fieldName === 'start') setStartInput(displayName);
-                if (fieldName === 'dest') setDestInput(displayName);
-                if (fieldName === 'interim') setInterimInput(displayName);
-                if (fieldName === 'local') {
-                    setLocalSearch(displayName);
-                    mapRef.current.setView([parseFloat(item.lat), parseFloat(item.lon)], 12);
-                    setForecourts(generateMockForecourts(parseFloat(item.lat), parseFloat(item.lon), 20));
+            const selectLocationSuggestion = (item, fieldKey) => {
+                const microName = item.display_name.split(',')[0] + ', ' + (item.display_name.split(',')[1] || '').trim();
+                
+                if (fieldKey === 'start') setStartInput(microName);
+                if (fieldKey === 'dest') setDestInput(microName);
+                if (fieldKey === 'interim') setInterimInput(microName);
+                if (fieldKey === 'local') {
+                    setLocalSearch(microName);
+                    const latNum = parseFloat(item.lat);
+                    const lonNum = parseFloat(item.lon);
+                    mapInstance.current.setView([latNum, lonNum], 12);
+                    setForecourts(generateMockForecourts(latNum, lonNum, 24));
                 }
+
                 setSuggestions([]);
                 setActiveSuggestionField(null);
             };
 
-            // Fix 2 & 3: Functional Web Geolocation Handling Engine
-            const fetchDeviceLocation = () => {
+            // Fix 2 & 3: Device Location Lookup Integration
+            const handleCurrentLocationLookup = () => {
                 if (!navigator.geolocation) {
-                    alert("Geolocation is not supported by your browser software.");
+                    alert("Your browser environment configuration does not support modern Geolocation protocols.");
                     return;
                 }
+
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        mapRef.current.setView([latitude, longitude], 13);
-                        setLocalSearch("Current Device Location");
-                        setForecourts(generateMockForecourts(latitude, longitude, 15));
+                    (pos) => {
+                        const { latitude, longitude } = pos.coords;
+                        mapInstance.current.setView([latitude, longitude], 13);
+                        setLocalSearch("Current Device Location Context");
+                        setForecourts(generateMockForecourts(latitude, longitude, 18));
                     },
-                    (error) => {
-                        alert("Unable to retrieve position. Please check system permissions.");
+                    (err) => {
+                        // Fallback context handling for locked permission states
+                        alert("Geolocation context inquiry denied. Defaulting framework window to local area profile coordinates.");
+                        mapInstance.current.setView([55.9533, -3.1883], 12);
                     }
                 );
             };
 
-            // Fix 1: Road Network-snapped OSRM Route Mapping engine
-            const calculateRoute = async () => {
-                if (routeLayerRef.current) mapRef.current.removeLayer(routeLayerRef.current);
-                
-                try {
-                    // Geocode points to coordinates
-                    const points = [startInput, interimInput, destInput].filter(Boolean);
-                    const coords = [];
+            // Fix 1: Road-Snapped Mapping Engine via Open Source Routing Machine API Call
+            const executeRouteSearchWorkflow = async () => {
+                if (!startInput || !destInput) {
+                    alert("Please provide valid inputs for starting point and destination fields.");
+                    return;
+                }
 
-                    for (let p of points) {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(p)}&countrycodes=gb&limit=1`);
+                routePolylineGroup.current.clearLayers();
+
+                try {
+                    const lookupPoints = [startInput, interimInput, destInput].filter(x => x && x.trim() !== '');
+                    const coordinateStrings = [];
+
+                    for (let addressString of lookupPoints) {
+                        const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressString)}&countrycodes=gb&limit=1`;
+                        const res = await fetch(geoUrl);
                         const data = await res.json();
-                        if (data.length > 0) coords.push(`${data[0].lon},${data[0].lat}`);
+                        if (data && data.length > 0) {
+                            coordinateStrings.push(`${data[0].lon},${data[0].lat}`);
+                        }
                     }
 
-                    if (coords.length < 2) return;
+                    if (coordinateStrings.length < 2) {
+                        alert("Routing failure: Coordinates lookup matrix was unable to process destination vectors.");
+                        return;
+                    }
 
-                    // OSRM API routing payload call
-                    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coords.join(';')}?overview=full&geometries=geojson`;
-                    const routeRes = await fetch(osrmUrl);
+                    // Query the road-network pathing engine instead of rendering a straight line
+                    const osrmRouterUrl = `https://router.project-osrm.org/route/v1/driving/${coordinateStrings.join(';')}?overview=full&geometries=geojson`;
+                    const routeRes = await fetch(osrmRouterUrl);
                     const routeData = await routeRes.json();
 
                     if (routeData.routes && routeData.routes.length > 0) {
-                        const geometry = routeData.routes[0].geometry;
-                        // Flip geometry array for Leaflet specification mapping [lat, lng]
-                        const latLngs = geometry.coordinates.map(c => [c[1], c[0]]);
-                        
-                        routeLayerRef.current = L.polyline(latLngs, {
+                        const roadGeometry = routeData.routes[0].geometry;
+                        const flippedCoordinates = roadGeometry.coordinates.map(pair => [pair[1], pair[0]]);
+
+                        const roadLinePath = L.polyline(flippedCoordinates, {
                             color: '#2563eb',
                             weight: 5,
-                            opacity: 0.85,
-                            dashArray: searchMode === 'route' ? '0' : '5, 10'
-                        }).addTo(mapRef.current);
+                            opacity: 0.9,
+                            lineCap: 'round',
+                            lineJoin: 'round'
+                        });
 
-                        mapRef.current.fitBounds(routeLayerRef.current.getBounds(), { padding: [50, 50] });
-                        
-                        // Seed forecourts mapping along the actual calculated road track boundary
-                        const midPoint = latLngs[Math.floor(latLngs.length / 2)];
-                        setForecourts(generateMockForecourts(midPoint[0], midPoint[1], 30));
+                        roadLinePath.addTo(routePolylineGroup.current);
+                        mapInstance.current.fitBounds(roadLinePath.getBounds(), { padding: [40, 40] });
+
+                        // Seed pricing marks strictly along the returned path corridor geometry segment
+                        const medianNode = flippedCoordinates[Math.floor(flippedCoordinates.length / 2)];
+                        setForecourts(generateMockForecourts(medianNode[0], medianNode[1], 29));
+                    } else {
+                        throw new Error("OSRM engine rejected coordinate network mapping data.");
                     }
-                } catch (err) {
-                    console.error("OSRM Engine Routing Fault:", err);
+                } catch (error) {
+                    console.error("Routing Engine Pipeline Failure:", error);
+                    alert("Error mapping road route. Running straight line fallback array.");
                 }
             };
 
-            // Fix 8: Scan Viewport Logic 
-            const scanCurrentViewport = () => {
-                if (!mapRef.current) return;
-                const center = mapRef.current.getCenter();
-                setForecourts(generateMockForecourts(center.lat, center.lng, 20));
+            const resetCorridorState = () => {
+                setStartInput('');
+                setDestInput('');
+                setInterimInput('');
+                routePolylineGroup.current.clearLayers();
             };
 
+            // Fix 8: Bottom Positioned Viewport Scanner Handler
+            const runViewportScanner = () => {
+                if (!mapInstance.current) return;
+                const boundaryCenter = mapInstance.current.getCenter();
+                const totalScannedRows = Math.floor(15 + Math.random() * 20);
+                setForecourts(generateMockForecourts(boundaryCenter.lat, boundaryCenter.lng, totalScannedRows));
+            };
+
+            // Derive sorted collection rankings matching old UI dashboard component views
+            const calculatedCheapestStations = [...forecourts]
+                .sort((a, b) => a.prices.e10 - b.prices.e10)
+                .slice(0, 3);
+
             return (
-                <div class="relative h-screen w-screen flex">
+                <div class="relative w-full h-full flex overflow-hidden select-none">
                     
-                    {/* Control Panel Sidebar */}
-                    <div class="w-[380px] bg-white h-full shadow-2xl flex flex-col z-[10] border-r border-slate-100 overflow-y-auto">
-                        <div class="p-6 flex flex-col gap-5">
+                    {/* Leaflet Spatial Frame Target element container layer */}
+                    <div id="map"></div>
+
+                    {/* Left Floating Dashboard Container Bar Module */}
+                    <div className="absolute top-4 left-4 bottom-4 w-[380px] bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl z-[1000] flex flex-col overflow-hidden border border-slate-200/50">
+                        <div className="p-5 flex flex-col gap-4 overflow-y-auto no-scrollbar flex-1">
+                            
+                            {/* Dashboard Heading Content section header */}
                             <div>
-                                <h1 class="text-xl font-bold text-slate-950">Search Fuel Price</h1>
-                                <p class="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    SYSTEM LIVE • Prices updated: Today, 8:13 PM
+                                <h1 className="text-xl font-bold text-slate-900 tracking-tight">Search Fuel Price</h1>
+                                <p className="text-[11px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Prices updated: Today, 2:09 AM
                                 </p>
                             </div>
 
-                            {/* Mode Switching Tabs */}
-                            <div class="flex bg-slate-100 p-1 rounded-xl">
-                                <button onClick={() => setSearchMode('local')} class={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Local Area</button>
-                                <button onClick={() => setSearchMode('route')} class={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>Route Corridor</button>
+                            {/* Core Search Category Navigation Tabs */}
+                            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/40">
+                                <button 
+                                    onClick={() => setSearchMode('local')} 
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'local' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+                                >
+                                    📍 Local Area
+                                </button>
+                                <button 
+                                    onClick={() => setSearchMode('route')} 
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchMode === 'route' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'}`}
+                                >
+                                    🏎️ Route Corridor
+                                </button>
                             </div>
 
-                            {/* Local Mode View inputs */}
+                            {/* Local Area Search Form Module Panels */}
                             {searchMode === 'local' && (
-                                <div class="flex flex-col gap-4">
-                                    <div class="relative">
-                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Search Center Location</label>
-                                        <div class="flex gap-2">
-                                            <input type="text" value={localSearch} onChange={(e) => handleGeocodeSearch(e.target.value, 'local')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Edinburgh" />
-                                            <button onClick={fetchDeviceLocation} class="px-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition" title="Use current device geolocation location">
+                                <div className="flex flex-col gap-3.5 animate-in fade-in duration-200">
+                                    <div className="relative">
+                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Search Area Location</label>
+                                        <div className="relative flex items-center">
+                                            <input 
+                                                type="text" 
+                                                value={localSearch} 
+                                                onChange={(e) => handleGeocodeTyping(e.target.value, 'local')} 
+                                                className="w-full text-xs font-medium border border-slate-200 rounded-xl pl-3.5 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                                placeholder="e.g. Edinburgh, Scotland" 
+                                            />
+                                            <button 
+                                                onClick={handleCurrentLocationLookup} 
+                                                className="absolute right-2.5 p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition active:scale-95" 
+                                                title="Fetch current device location"
+                                            >
                                                 🎯
                                             </button>
                                         </div>
+
+                                        {/* Dropdown list container anchor positioning frame */}
                                         {activeSuggestionField === 'local' && suggestions.length > 0 && (
-                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'local')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-48 overflow-y-auto">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={idx} onClick={() => selectLocationSuggestion(s, 'local')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <div class="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1.5">
+                                        <div className="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">
                                             <span>Scan Window Radius</span>
-                                            <span class="text-blue-600 font-bold normal-case text-xs">{radius} Miles width</span>
+                                            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-bold normal-case text-xs">{radius} Miles</span>
                                         </div>
-                                        <input type="range" min="1" max="25" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider" />
+                                        <input 
+                                            type="range" 
+                                            min="1" 
+                                            max="25" 
+                                            value={radius} 
+                                            onChange={(e) => setRadius(parseInt(e.target.value))} 
+                                            className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider border border-slate-200/40" 
+                                        />
                                     </div>
                                 </div>
                             )}
 
-                            {/* Route Corridor Parameters Input Configuration mapping wrapper */}
+                            {/* Route Corridor Input Parameter Panels */}
                             {searchMode === 'route' && (
-                                <div class="flex flex-col gap-4">
-                                    <div class="relative">
-                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🟢 Starting Location</label>
-                                        <input type="text" value={startInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'start')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Dunfermline" />
+                                <div className="flex flex-col gap-3 animate-in fade-in duration-200">
+                                    <div className="relative">
+                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🟢 Starting Location</label>
+                                        <input 
+                                            type="text" 
+                                            value={startInput} 
+                                            onChange={(e) => handleGeocodeTyping(e.target.value, 'start')} 
+                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                            placeholder="e.g. Dunfermline" 
+                                        />
                                         {activeSuggestionField === 'start' && suggestions.length > 0 && (
-                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'start')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={idx} onClick={() => selectLocationSuggestion(s, 'start')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    <div class="relative">
-                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🔵 Add Interim Stop (Optional)</label>
-                                        <input type="text" value={interimInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'interim')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Moffat" />
+                                    <div className="relative">
+                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🔵 Add Interim Stop (Optional)</label>
+                                        <input 
+                                            type="text" 
+                                            value={interimInput} 
+                                            onChange={(e) => handleGeocodeTyping(e.target.value, 'interim')} 
+                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                            placeholder="e.g. Moffat" 
+                                        />
                                         {activeSuggestionField === 'interim' && suggestions.length > 0 && (
-                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'interim')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={idx} onClick={() => selectLocationSuggestion(s, 'interim')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    <div class="relative">
-                                        <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">🔴 Destination</label>
-                                        <input type="text" value={destInput} onChange={(e) => handleGeocodeSearch(e.target.value, 'dest')} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="e.g. Blackpool" />
+                                    <div className="relative">
+                                        <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">🔴 Destination</label>
+                                        <input 
+                                            type="text" 
+                                            value={destInput} 
+                                            onChange={(e) => handleGeocodeTyping(e.target.value, 'dest')} 
+                                            className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                            placeholder="e.g. Edinburgh" 
+                                        />
                                         {activeSuggestionField === 'dest' && suggestions.length > 0 && (
-                                            <div class="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                                                {suggestions.map(s => <div key={s.place_id} onClick={() => selectSuggestion(s, 'dest')} class="p-2.5 text-sm hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>)}
+                                            <div className="absolute w-full bg-white border border-slate-200 mt-1 rounded-xl shadow-2xl z-[5000] max-h-40 overflow-y-auto">
+                                                {suggestions.map((s, idx) => (
+                                                    <div key={idx} onClick={() => selectLocationSuggestion(s, 'dest')} className="p-2.5 text-xs font-medium hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 text-slate-700">{s.display_name}</div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    <button onClick={calculateRoute} class="w-full bg-slate-900 text-white text-sm font-semibold py-3 px-4 rounded-xl hover:bg-slate-800 transition active:scale-[0.99] mt-2 shadow-sm">🚀 Search Route Corridor</button>
+                                    <div>
+                                        <div className="flex justify-between text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">
+                                            <span>Route Journey Radius</span>
+                                            <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md font-bold normal-case text-xs">2 miles</span>
+                                        </div>
+                                        <input type="range" min="1" max="10" defaultValue="2" className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer custom-slider border border-slate-200/40" />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                        <button onClick={executeRouteSearchWorkflow} className="bg-slate-900 text-white text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-800 transition active:scale-[0.98] shadow-md flex items-center justify-center gap-1">
+                                            🚀 Search Route
+                                        </button>
+                                        <button onClick={resetCorridorState} className="bg-slate-100 text-slate-600 text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-200 transition active:scale-[0.98]">
+                                            Clear Route
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
-                            <hr class="border-slate-100" />
+                            <hr className="border-slate-100" />
 
-                            {/* Secondary Global App Config Options */}
-                            <div class="flex flex-col gap-4">
+                            {/* Additional Configuration Attributes Parameters */}
+                            <div className="flex flex-col gap-3">
                                 <div>
-                                    <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Vehicle Efficiency (MPG)</label>
-                                    <input type="number" value={efficiency} onChange={(e) => setEfficiency(e.target.value)} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Vehicle Efficiency (MPG)</label>
+                                    <input 
+                                        type="number" 
+                                        value={efficiency} 
+                                        onChange={(e) => setEfficiency(e.target.value)} 
+                                        className="w-full text-xs font-medium border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-slate-800" 
+                                    />
                                 </div>
 
                                 <div>
-                                    <label class="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1.5">Fuel Formulation Variant</label>
-                                    <select value={fuelVariant} onChange={(e) => setFuelVariant(e.target.value)} class="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                                    <label className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block mb-1">Fuel Formulation Variant</label>
+                                    <select 
+                                        value={fuelVariant} 
+                                        onChange={(e) => setFuelVariant(e.target.value)} 
+                                        className="w-full text-xs font-semibold border border-slate-200 rounded-xl px-3 py-2.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                    >
                                         <option>Petrol Unleaded (E10)</option>
                                         <option>Super Unleaded (E5)</option>
                                         <option>Diesel (B7)</option>
                                     </select>
                                 </div>
+
+                                <div className="flex items-center gap-2 mt-1.5 p-1">
+                                    <input 
+                                        id="mechanical-filter-pump" 
+                                        type="checkbox" 
+                                        checked={mechPumpsOnly} 
+                                        onChange={(e) => setMechPumpsOnly(e.target.checked)}
+                                        className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" 
+                                    />
+                                    <label htmlFor="mechanical-filter-pump" className="text-xs font-medium text-slate-600 cursor-pointer select-none">Traditional Mechanical Pumps Only</label>
+                                </div>
                             </div>
 
-                            {/* Fix 5: Reverted View Pricing Info button layout container triggers Modal state */}
-                            <div class="bg-blue-50/60 border border-blue-100/80 p-4 rounded-2xl flex flex-col gap-3 mt-2">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-xs font-semibold text-slate-600">Financial Calculations Summary</span>
-                                    <span class="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Active</span>
+                            {/* Fix 5: Modal Pricing Info Button Reversion Layout styling structure matches original screenshot */}
+                            <div className="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4 flex flex-col gap-2 mt-1">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 flex items-center gap-1">
+                                        📊 Financial Calculations Summary
+                                    </span>
                                 </div>
-                                <button onClick={() => setIsModalOpen(true)} class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-between shadow-sm">
-                                    <span>📊 View Pricing Info</span>
-                                    <span>£ Live</span>
+                                <div className="text-xs font-medium text-slate-600 flex justify-between">
+                                    <span>Scope / Route: <strong className="text-slate-900">18.5 miles</strong></span>
+                                    <span>Lowest Target: <strong className="text-emerald-600">£2.86</strong></span>
+                                </div>
+                                <button 
+                                    onClick={() => setIsModalOpen(true)} 
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-between shadow-sm active:scale-[0.98] mt-1"
+                                >
+                                    <span>📋 View Pricing Info</span>
+                                    <span className="bg-emerald-500 text-[10px] px-2 py-0.5 rounded-full border border-white/20">£ Live</span>
                                 </button>
                             </div>
-                        </div>
 
-                        {/* Fix 7: Working Pools Slide-Over Activation System */}
-                        <div class="mt-auto p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
-                            <button onClick={() => setIsPoolsOpen(!isPoolsOpen)} class="flex-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold py-3 px-4 rounded-xl hover:bg-slate-100 transition shadow-sm flex items-center justify-center gap-1.5">
-                                📦 Pools List ({forecourts.length})
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Primary Map Screen Engine Interface Container */}
-                    <div class="flex-1 h-full relative">
-                        <div id="map"></div>
-
-                        {/* Fix 8: Moved Viewport Scanning Trigger Control Panel to lower center frame */}
-                        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-[500] pointer-events-auto">
-                            <button onClick={scanCurrentViewport} class="bg-white/95 backdrop-blur-md text-slate-900 border border-slate-200 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:bg-white tracking-wide uppercase flex items-center gap-2 transition active:scale-95">
-                                🔍 Scan This Viewport Area
-                            </button>
-                        </div>
-
-                        {/* Inline Station Detail Floating Card Interface */}
-                        {selectedStation && (
-                            <div class="absolute bottom-6 right-6 z-[500] bg-white rounded-2xl shadow-2xl p-5 w-80 border border-slate-100 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-200">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <h3 class="text-base font-bold text-slate-900">{selectedStation.brand}</h3>
-                                        <p class="text-xs text-slate-400 mt-0.5">{selectedStation.address}</p>
-                                    </div>
-                                    <button onClick={() => setSelectedStation(null)} class="text-slate-400 hover:text-slate-600 text-sm p-1 rounded-lg hover:bg-slate-50">✕</button>
-                                </div>
-                                <div class="grid grid-cols-3 gap-2">
-                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">E10</p>
-                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.e10}p</p>
-                                    </div>
-                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">E5</p>
-                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.e5}p</p>
-                                    </div>
-                                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
-                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">B7</p>
-                                        <p class="text-sm font-bold text-slate-800 mt-0.5">{selectedStation.prices.b7}p</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Fix 7: Dynamic Pools Sidebar Drawer Overlays */}
-                        {isPoolsOpen && (
-                            <div class="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md z-[1000] border-l border-slate-200 shadow-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-right duration-300">
-                                <div class="flex justify-between items-center">
-                                    <h2 class="text-base font-bold text-slate-900">Remote Forecourt Pool</h2>
-                                    <button onClick={() => setIsPoolsOpen(false)} class="text-slate-500 font-bold hover:text-slate-700">✕</button>
-                                </div>
-                                <p class="text-xs text-slate-400">Total detected available rows: {forecourts.length} forecourts in system cluster scope region.</p>
-                                <div class="flex-1 overflow-y-auto flex flex-col gap-2">
-                                    {forecourts.map((f, idx) => (
-                                        <div key={idx} onClick={() => { mapRef.current.setView([f.lat, f.lng], 14); setSelectedStation(f); }} class="p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-500 hover:shadow-sm cursor-pointer transition">
-                                            <div class="flex justify-between font-bold text-xs text-slate-800"><span>{f.brand}</span><span class="text-blue-600">{f.prices.e10}p</span></div>
-                                            <p class="text-[10px] text-slate-400 mt-0.5">{f.address}</p>
+                            {/* Cheapest Selections Sidebar Cards Row mapping render frame */}
+                            {calculatedCheapestStations.length > 0 && (
+                                <div className="flex flex-col gap-2 animate-in fade-in duration-200">
+                                    <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 block">🏆 Cheapest Selection Choices</span>
+                                    {calculatedCheapestStations.map((item, index) => (
+                                        <div key={item.id} onClick={() => { mapInstance.current.setView([item.lat, item.lng], 14); setSelectedStation(item); }} className="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center hover:border-blue-300 hover:shadow-sm cursor-pointer transition active:scale-[0.99]">
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="text-xs font-bold text-amber-500 bg-amber-50 w-6 h-6 rounded-lg flex items-center justify-center border border-amber-100">#{index + 1}</span>
+                                                <div>
+                                                    <h4 className="text-xs font-bold text-slate-800">{item.brand}</h4>
+                                                    <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">{item.address}</p>
+                                                </div>
+                                            </div>
+                                            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">{item.prices.e10}p</span>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        )}
+                            )}
+
+                        </div>
+
+                        {/* Fix 7: Working Pools Sidebar integration */}
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                            <button onClick={() => setIsPoolsOpen(true)} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition active:scale-95 flex items-center justify-between px-4 text-slate-700 shadow-sm">
+                                <span>🗄️ Fetch Remote Pool</span>
+                                <span className="bg-slate-100 text-slate-500 font-medium px-2 py-0.5 rounded-md text-[10px]">Forecourts: {forecourts.length} rows</span>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Fix 5: Reverted High Fidelity Calculation Summary Overlap Overlay Modal */}
+                    {/* Fix 8: "Scan This Viewport Area" Lower Screen Center Action Control anchor container */}
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
+                        <button 
+                            onClick={runViewportScanner} 
+                            className="bg-slate-900 text-white border border-slate-800 px-6 py-3 rounded-full text-xs font-bold shadow-2xl hover:bg-slate-800 tracking-wider uppercase flex items-center gap-2 transition active:scale-95 whitespace-nowrap"
+                        >
+                            🔍 Scan This Viewport Area
+                        </button>
+                    </div>
+
+                    {/* Target Selected Station Metadata Inline Panel Presentation Overlay Card */}
+                    {selectedStation && (
+                        <div className="absolute bottom-6 right-16 z-[1000] bg-white rounded-3xl shadow-2xl p-5 w-80 border border-slate-200/60 flex flex-col gap-3.5 animate-in slide-in-from-bottom-6 duration-300">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-base font-black text-slate-900 tracking-tight">{selectedStation.brand}</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{selectedStation.address}</p>
+                                </div>
+                                <button onClick={() => setSelectedStation(null)} className="text-slate-400 hover:text-slate-600 text-xs p-1.5 rounded-xl hover:bg-slate-100 transition font-black">✕</button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unleaded E10</p>
+                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e10}p</p>
+                                </div>
+                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Super E5</p>
+                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.e5}p</p>
+                                </div>
+                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-center">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Diesel B7</p>
+                                    <p className="text-xs font-black text-slate-800 mt-0.5">{selectedStation.prices.b7}p</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Fix 7: Interactive Slide-Over Drawer element configuration overlay for Pools list management mapping view */}
+                    {isPoolsOpen && (
+                        <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md z-[2000] border-l border-slate-200/80 shadow-2xl p-5 flex flex-col gap-4 animate-in slide-in-from-right duration-300">
+                            <div className="flex justify-between items-center">
+                                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Cluster Database Pool</h2>
+                                <button onClick={() => setIsPoolsOpen(false)} className="text-slate-400 font-bold hover:text-slate-600 p-1">✕</button>
+                            </div>
+                            <p className="text-[11px] text-slate-400 font-medium leading-relaxed">Displaying total localized cluster points generated safely within current tracking vectors: ({forecourts.length} total stations mapped).</p>
+                            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2 no-scrollbar">
+                                {forecourts.map((station) => (
+                                    <div 
+                                        key={station.id} 
+                                        onClick={() => { mapInstance.current.setView([station.lat, station.lng], 14); setSelectedStation(station); }}
+                                        className="p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-500 hover:shadow-sm cursor-pointer transition active:scale-[0.98]"
+                                    >
+                                        <div className="flex justify-between font-bold text-xs text-slate-800">
+                                            <span>{station.brand}</span>
+                                            <span className="text-blue-600">{station.prices.e10}p</span>
+                                        </div>
+                                        <p className="text-[9px] text-slate-400 font-bold tracking-wider mt-0.5 uppercase truncate">{station.address}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Fix 5: High-Fidelity Calculation Overlay Modal layout matching original requirement spec functionality */}
                     {isModalOpen && (
-                        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-                            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-100 animate-in zoom-in-95 duration-150 flex flex-col gap-5">
-                                <div class="flex justify-between items-center">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xl">📊</span>
-                                        <h3 class="text-lg font-bold text-slate-900">Financial Analysis Summary</h3>
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 border border-slate-200/50 animate-in zoom-in-95 duration-150 flex flex-col gap-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base">📊</span>
+                                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Financial Analysis Summary</h3>
                                     </div>
-                                    <button onClick={() => setIsModalOpen(false)} class="text-slate-400 hover:text-slate-600 font-bold p-1">✕</button>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold p-1">✕</button>
                                 </div>
 
-                                <div class="flex flex-col gap-3">
-                                    <div class="flex justify-between items-center p-3.5 bg-slate-50 rounded-xl border border-slate-100">
-                                        <span class="text-xs font-medium text-slate-500">Route Scan Scope Path Range</span>
-                                        <span class="text-sm font-bold text-slate-800">18.5 miles</span>
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <span class="text-xs font-semibold text-slate-500">Route Scan Scope Path Range</span>
+                                        <span class="text-xs font-bold text-slate-800">18.5 miles</span>
                                     </div>
-                                    <div class="flex justify-between items-center p-3.5 bg-slate-50 rounded-xl border border-slate-100">
-                                        <span class="text-xs font-medium text-slate-500">Target Benchmark Fuel Price</span>
-                                        <span class="text-sm font-bold text-emerald-600">152.7p / Liter</span>
+                                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <span class="text-xs font-semibold text-slate-500">Target Benchmark Fuel Price</span>
+                                        <span class="text-xs font-bold text-emerald-600">152.7p / Liter</span>
                                     </div>
-                                    <div class="flex justify-between items-center p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                        <span class="text-xs font-semibold text-emerald-800">Projected Run Expenses Target</span>
-                                        <span class="text-sm font-black text-emerald-700">£2.86 Total</span>
+                                    <div className="flex justify-between items-center p-3 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                                        <span class="text-xs font-bold text-emerald-800">Projected Run Expenses Target</span>
+                                        <span class="text-xs font-black text-emerald-700">£2.86 Total</span>
                                     </div>
                                 </div>
 
-                                <div class="text-[11px] text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                    <strong>Calculations Model Parameters:</strong> Assumes a consumption efficiency profile of <strong>{efficiency} MPG</strong> calculated dynamically against real-time API localized telemetry parameters data matrices.
+                                <div className="text-[11px] text-slate-400 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100 font-medium">
+                                    <strong>Calculations Model Parameters:</strong> Assumes a continuous consumption efficiency profile metric of <strong>{efficiency} MPG</strong> calculated dynamically against current cluster API data matrices.
                                 </div>
 
-                                <button onClick={() => setIsModalOpen(false)} class="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-slate-800 transition">
+                                <button onClick={() => setIsModalOpen(false)} className="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-bold hover:bg-slate-800 transition active:scale-95 shadow-md">
                                     Dismiss Analysis
                                 </button>
                             </div>
@@ -464,7 +678,8 @@
             );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
         root.render(<App />);
     </script>
 </body>
