@@ -3,151 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Fuel Price - Route Planner</title>
+    <title>Search Fuel Price - Combined Premium Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Custom scrollbar matching clean modern UI aesthetics */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
         
-        /* Drag-and-drop ghost styling hint */
         .sortable-item.dragging {
-            opacity: 0.4;
-            transform: scale(0.98);
+            opacity: 0.5;
+            transform: scale(0.97);
             border-style: dashed;
             border-color: #3b82f6;
         }
     </style>
 </head>
-<body class="bg-slate-900 font-sans h-screen w-screen flex flex-col md:flex-row overflow-hidden select-none">
+<body class="bg-slate-100 font-sans h-screen w-screen overflow-hidden select-none relative">
 
-    <aside id="sidebarPanel" class="w-full md:w-[420px] bg-white h-[65vh] md:h-full absolute bottom-0 left-0 right-0 md:relative z-[50] rounded-t-3xl md:rounded-none shadow-2xl flex flex-col overflow-hidden pointer-events-auto transition-all duration-300">
+    <main class="absolute inset-0 z-0 bg-slate-900/5">
+        <div class="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-60 pointer-events-none"></div>
         
-        <div class="w-full flex justify-center py-3 md:hidden cursor-grab active:cursor-grabbing">
-            <div class="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400 pointer-events-none">
+            <i class="fa-solid fa-map-location-dot text-7xl text-slate-300 mb-3"></i>
+            <h3 class="text-sm font-bold text-slate-400 tracking-wide uppercase">Spatial Geometry Frame Layer</h3>
+        </div>
+        
+        <div class="absolute bottom-6 right-6 z-40 bg-white shadow-xl rounded-xl flex flex-col overflow-hidden border border-slate-200/60 pointer-events-auto">
+            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold border-b border-slate-100 transition-colors"><i class="fa-solid fa-plus"></i></button>
+            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold transition-colors"><i class="fa-solid fa-minus"></i></button>
+        </div>
+    </main>
+
+
+    <nav id="topNav" class="absolute top-4 right-4 z-50 bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl shadow-slate-900/5 border border-slate-200/40 flex items-center gap-6 pointer-events-auto transition-all">
+        <div class="flex items-center gap-1.5 border-r border-slate-200 pr-4">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">System Live</span>
+        </div>
+        <div class="flex items-center gap-5">
+            <a href="#" class="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors flex items-center gap-2"><i class="fa-solid fa-chart-line text-xs"></i> Dashboard</a>
+            <a href="#" class="text-sm font-bold text-blue-600 flex items-center gap-2 bg-blue-50/60 px-3 py-1.5 rounded-xl"><i class="fa-solid fa-route text-xs"></i> Route Planner</a>
+            <a href="#" class="text-sm font-bold text-slate-700 hover:text-blue-600 transition-colors flex items-center gap-2"><i class="fa-solid fa-gas-pump text-xs"></i> Fuel Stations</a>
+        </div>
+    </nav>
+
+
+    <aside id="sidebarPanel" class="absolute top-4 left-4 bottom-4 w-[390px] bg-white z-50 rounded-2xl shadow-2xl shadow-slate-900/10 border border-slate-200/50 flex flex-col overflow-hidden pointer-events-auto transition-all">
+        
+        <div class="p-5 pb-4 border-b border-slate-100">
+            <h1 class="text-lg font-extrabold text-slate-800 tracking-tight">Search Fuel Price</h1>
+            <p class="text-xs text-slate-400 font-medium mt-0.5">Corridor Route optimization & planning engine</p>
+            
+            <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-500 mt-4">
+                <button class="flex-1 py-2 text-center rounded-lg transition-all">Local Area</button>
+                <button class="flex-1 py-2 text-center rounded-lg bg-white text-slate-800 shadow-sm transition-all">Route Corridor</button>
+            </div>
         </div>
 
-        <div class="px-6 pt-2 pb-4 border-b border-slate-100">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h1 class="text-xl font-bold text-slate-800">Search Fuel Price</h1>
-                    <p class="text-xs text-emerald-500 font-medium flex items-center gap-1.5 mt-0.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live Parameters Engine Control
-                    </p>
-                </div>
-            </div>
-
-            <div class="flex bg-slate-100 p-1 rounded-xl text-sm font-semibold text-slate-500">
-                <button class="flex-1 py-2 text-center rounded-lg flex items-center justify-center gap-2 transition-all"><i class="fa-solid fa-location-crosshairs text-xs"></i> Local Area</button>
-                <button class="flex-1 py-2 text-center rounded-lg bg-white text-slate-800 shadow-sm flex items-center justify-center gap-2 transition-all"><i class="fa-solid fa-route text-xs text-blue-500"></i> Route Corridor</button>
-            </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar space-y-6">
+        <div class="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar space-y-5">
             
             <div class="relative flex items-start gap-3">
-                
-                <div class="absolute left-3.5 top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-300 z-0 pointer-events-none"></div>
+                <div class="absolute left-3.5 top-4 bottom-4 w-0.5 border-l-2 border-dashed border-slate-200 z-0 pointer-events-none"></div>
                 
                 <div id="routeFieldsContainer" class="w-full space-y-3 z-10">
                     </div>
 
                 <div class="h-full flex items-center justify-center pt-3 self-stretch">
-                    <button onclick="reverseEntireRoute()" class="p-2 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded-lg transition-all" title="Reverse entire route structure">
-                        <i class="fa-solid fa-arrows-up-down text-base"></i>
+                    <button onclick="reverseEntireRoute()" class="p-2 text-slate-300 hover:text-blue-500 hover:bg-slate-50 rounded-lg transition-colors" title="Reverse full path structure">
+                        <i class="fa-solid fa-arrows-up-down text-sm"></i>
                     </button>
                 </div>
             </div>
 
-            <div class="space-y-4 pt-2 border-t border-slate-100">
+            <div class="pt-4 border-t border-slate-100 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 tracking-wider uppercase mb-1.5">Vehicle Efficiency (MPG)</label>
-                    <input type="number" value="45" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700 focus:outline-none focus:border-blue-500 transition-colors">
+                    <label class="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Vehicle Efficiency (MPG)</label>
+                    <input type="number" value="45" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors">
                 </div>
-
-                <div class="bg-emerald-50/60 border border-emerald-100 rounded-2xl p-4">
-                    <div class="flex items-center gap-2 mb-2 text-emerald-800 font-bold text-xs tracking-wider uppercase">
-                        <i class="fa-solid fa-chart-pie"></i> Financial Calculations Summary
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <span class="block text-xs text-slate-400 font-medium">Scope / Route</span>
-                            <span id="calcDistance" class="text-sm font-bold text-slate-700">18.5 miles</span>
-                        </div>
-                        <div>
-                            <span class="block text-xs text-slate-400 font-medium">Lowest Target</span>
-                            <span id="calcCost" class="text-sm font-bold text-emerald-600">£2.86</span>
-                        </div>
-                    </div>
-                </div>
-
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 tracking-wider uppercase mb-1.5">Fuel Formulation Variant</label>
-                    <select class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
+                    <label class="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">Fuel Variant Preference</label>
+                    <select class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
                         <option>Petrol Unleaded (E10)</option>
                         <option>Premium Diesel (B7)</option>
                     </select>
                 </div>
             </div>
+
+            <button onclick="togglePricingModal(true)" class="w-full py-3 px-4 bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80 border border-emerald-200/60 rounded-xl flex items-center justify-between transition-all group">
+                <span class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
+                    <i class="fa-solid fa-calculator text-emerald-600 animate-pulse"></i> View Pricing Info
+                </span>
+                <span class="text-xs font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-md group-hover:scale-105 transition-transform">£ Live</span>
+            </button>
         </div>
 
-        <div class="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
-            <button class="px-4 py-3 bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-100 transition-colors whitespace-nowrap">
-                <i class="fa-solid fa-layer-group mr-1.5 text-xs"></i> Fetch Remote Pool
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center gap-2.5">
+            <button class="px-3 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100 transition-colors whitespace-nowrap">
+                <i class="fa-solid fa-layer-group text-slate-400 mr-1"></i> Pools
             </button>
-            <button onclick="triggerRouteCalculation()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm rounded-xl shadow-md shadow-slate-200 transition-all text-center">
-                <i class="fa-solid fa-magnifying-glass-arrow-right mr-1.5 text-xs"></i> Search Route
+            <button onclick="executeRouteGenerationPipeline()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-md transition-colors tracking-wide uppercase">
+                Search Route
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 relative bg-slate-100 h-full w-full">
-        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center text-slate-400 pointer-events-none">
-            <i class="fa-solid fa-map-location-dot text-6xl text-slate-300 mb-4"></i>
-            <h3 class="text-lg font-bold text-slate-500">Leaflet / OpenStreetMap Spatial Engine Workspace</h3>
-            <p class="text-xs text-slate-400 max-w-sm mt-1">Simulated isolated background environment frame canvas area context</p>
+
+    <div id="pricingModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm pointer-events-auto transition-all">
+        <div class="bg-white rounded-2xl p-6 shadow-2xl border border-slate-200/80 w-full max-w-md mx-4 transform scale-95 opacity-0 transition-all duration-200" id="modalCard">
+            
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 text-xs">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </div>
+                    <h3 class="font-extrabold text-slate-800 text-base">Financial Calculations Summary</h3>
+                </div>
+                <button onclick="togglePricingModal(false)" class="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Route Scope</span>
+                        <span class="text-base font-black text-slate-700 mt-0.5 block">18.5 miles</span>
+                    </div>
+                    <div class="bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/50">
+                        <span class="block text-[10px] font-bold text-emerald-600/80 uppercase tracking-wider">Lowest Target</span>
+                        <span class="text-base font-black text-emerald-600 mt-0.5 block">£2.86</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-500 space-y-2">
+                    <div class="flex justify-between"><span class="font-medium">Estimated Fuel Burn:</span><span class="font-bold text-slate-700">1.87 Litres</span></div>
+                    <div class="flex justify-between"><span class="font-medium">Average Price Variant:</span><span class="font-bold text-slate-700">142.9p / L</span></div>
+                    <div class="flex justify-between pt-2 border-t border-slate-200/60"><span class="font-bold text-slate-600">Net Cost Deviation Window:</span><span class="font-bold text-emerald-600">-£0.42 Saved</span></div>
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+                <button onclick="togglePricingModal(false)" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors uppercase tracking-wider">
+                    Close Sheet
+                </button>
+            </div>
         </div>
-        
-        <div class="absolute top-4 right-4 bg-white shadow-lg rounded-xl flex flex-col overflow-hidden border border-slate-200">
-            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold border-b border-slate-100"><i class="fa-solid fa-plus"></i></button>
-            <button class="w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-50 font-bold"><i class="fa-solid fa-minus"></i></button>
-        </div>
-    </main>
+    </div>
+
 
     <script>
-        // Initializing reactive sequential state model arrays mirroring path layout instances
+        // Internal application states storage mapping layout track definitions
         let routeNodes = [
-            { id: "start-node", type: "start", placeholder: "Starting location (e.g. Dunfermline)", value: "Dunfermline, Fife, Scotland" },
+            { id: "start-node", type: "start", placeholder: "Starting location...", value: "Dunfermline, Fife, Scotland" },
             { id: "interim-1", type: "interim", placeholder: "Add interim stop location...", value: "Moffat" },
-            { id: "dest-node", type: "destination", placeholder: "Destination location (e.g. Edinburgh)", value: "Blackpool, Lancashire, England" }
+            { id: "dest-node", type: "destination", placeholder: "Destination location...", value: "Blackpool, Lancashire, England" }
         ];
 
         document.addEventListener("DOMContentLoaded", () => {
             renderRouteStack();
-            isolateSidebarGestures();
+            isolateComponentPointerEvents();
         });
 
         /**
-         * Strict input event isolation logic. Prevents any interactions, drags, text adjustments or 
-         * pointer cycles executed inside the panel from bleeding out and affecting the map view.
+         * Isolate user touch/click events inside floating containers so they don't leak to the map.
          */
-        function isolateSidebarGestures() {
-            const sidebar = document.getElementById("sidebarPanel");
-            // Intercept and halt map viewport mutation triggers cleanly across all tracking states
-            const activeEvents = ['mousedown', 'mouseup', 'mousemove', 'click', 'touchstart', 'touchend', 'touchmove', 'pointerdown', 'pointerup', 'pointermove'];
-            activeEvents.forEach(evtStr => {
-                sidebar.addEventListener(evtStr, (e) => {
-                    e.stopPropagation();
-                }, { passive: true });
+        function isolateComponentPointerEvents() {
+            const elementsToIsolate = [
+                document.getElementById("sidebarPanel"),
+                document.getElementById("topNav"),
+                document.getElementById("pricingModal")
+            ];
+            
+            const operationalEvents = ['mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'touchmove', 'pointerdown', 'pointerup'];
+            
+            elementsToIsolate.forEach(element => {
+                if(!element) return;
+                operationalEvents.forEach(evtType => {
+                    element.addEventListener(evtType, (e) => {
+                        e.stopPropagation();
+                    }, { passive: true });
+                });
             });
         }
 
         /**
-         * Renders the complete, real-time responsive array node stack tracking current layout changes.
+         * Render layout framework nodes inside the sidebar stack matching Google Maps rules.
          */
         function renderRouteStack() {
             const container = document.getElementById("routeFieldsContainer");
@@ -155,133 +197,135 @@
 
             routeNodes.forEach((node, index) => {
                 const itemRow = document.createElement("div");
-                itemRow.className = "sortable-item flex items-center gap-3 group bg-white rounded-xl transition-all";
+                itemRow.className = "sortable-item flex items-center gap-2.5 group bg-white rounded-xl transition-all";
                 itemRow.setAttribute("draggable", "true");
                 itemRow.setAttribute("data-id", node.id);
                 itemRow.setAttribute("data-index", index);
 
-                // Attach Native HTML5 Drag and Drop event bindings
+                // Wire up standard drag and drop mechanics hooks
                 itemRow.addEventListener("dragstart", handleDragStart);
                 itemRow.addEventListener("dragover", handleDragOver);
                 itemRow.addEventListener("drop", handleDrop);
                 itemRow.addEventListener("dragend", handleDragEnd);
 
-                // Determine precise timeline map graphics representation dynamically 
-                let indicatorIcon = '<div class="w-3 h-3 rounded-full border-2 border-slate-400 bg-white shadow-sm flex-shrink-0"></div>';
+                // Set node icons dynamically based on position
+                let nodeVisualIcon = '<div class="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-white flex-shrink-0"></div>';
                 if (index === 0) {
-                    indicatorIcon = '<div class="w-3.5 h-3.5 rounded-full border-3 border-blue-500 bg-white flex-shrink-0 z-10 ring-4 ring-blue-50"></div>';
+                    nodeVisualIcon = '<div class="w-3 h-3 rounded-full border-2 border-blue-500 bg-white flex-shrink-0 ring-4 ring-blue-50"></div>';
                 } else if (index === routeNodes.length - 1) {
-                    indicatorIcon = '<div class="text-rose-500 text-sm z-10 flex-shrink-0"><i class="fa-solid fa-location-dot"></i></div>';
+                    nodeVisualIcon = '<div class="text-rose-500 text-xs flex-shrink-0"><i class="fa-solid fa-location-dot"></i></div>';
                 }
 
-                // Inner row scaffolding matching Google Maps structural conventions
                 itemRow.innerHTML = `
-                    <div class="w-5 flex justify-center items-center">
-                        ${indicatorIcon}
-                    </div>
-
-                    <div class="flex-1 flex items-center gap-2 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-2 transition-all">
+                    <div class="w-4 flex justify-center items-center">${nodeVisualIcon}</div>
+                    
+                    <div class="flex-1 flex items-center gap-1.5 bg-slate-50 border border-slate-200/70 rounded-xl px-2.5 py-1.5 transition-colors">
                         <input type="text" 
                                value="${node.value}" 
                                placeholder="${node.placeholder}" 
                                oninput="updateNodeValue('${node.id}', this.value)"
-                               class="w-full bg-transparent text-sm font-semibold text-slate-700 placeholder-slate-400 outline-none border-none">
+                               class="w-full bg-transparent text-xs font-semibold text-slate-700 placeholder-slate-400 outline-none border-none">
                         
                         ${node.type === 'interim' ? `
-                            <button onclick="removeInterimStop('${node.id}')" class="text-slate-400 hover:text-rose-500 px-1 text-xs transition-colors" title="Remove stop">
+                            <button onclick="removeInterimStop('${node.id}')" class="text-slate-400 hover:text-rose-500 px-1 text-[10px] transition-colors">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         ` : ''}
                     </div>
 
-                    <div class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-400 p-1 transition-colors flex-shrink-0">
-                        <i class="fa-solid fa-ellipsis-vertical text-xs tracking-tighter"></i><i class="fa-solid fa-ellipsis-vertical text-xs tracking-tighter ml-0.5"></i>
+                    <div class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-400 p-0.5 flex-shrink-0 flex items-center">
+                        <i class="fa-solid fa-ellipsis-vertical text-[10px]"></i>
+                        <i class="fa-solid fa-ellipsis-vertical text-[10px] ml-0.5"></i>
                     </div>
                 `;
 
                 container.appendChild(itemRow);
             });
 
-            // Inline insertion point calculation logic for dynamically attaching a new stop input link
-            appendAddStopActionLink(container);
+            injectAddStopTriggerLink(container);
         }
 
-        /**
-         * Injects the "+ Add stop" action route entry point alignment inline tracker context
-         */
-        function appendAddStopActionLink(container) {
-            const linkRow = document.createElement("div");
-            linkRow.className = "flex items-center gap-3 pt-1";
-            linkRow.innerHTML = `
-                <div class="w-5 flex justify-center">
-                    <div class="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                </div>
-                <button onclick="addNewInterimStop()" class="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 hover:underline transition-all">
-                    <i class="fa-solid fa-plus text-[10px]"></i> Add stop
+        function injectAddStopTriggerLink(container) {
+            const actionRow = document.createElement("div");
+            actionRow.className = "flex items-center gap-2.5 pt-0.5";
+            actionRow.innerHTML = `
+                <div class="w-4 flex justify-center"><div class="w-1 h-1 rounded-full bg-slate-300"></div></div>
+                <button onclick="addNewInterimStop()" class="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-all">
+                    <i class="fa-solid fa-plus text-[9px]"></i> Add interim stop
                 </button>
             `;
-            // Insert cleanly right above the final destination location node
-            container.insertBefore(linkRow, container.lastChild);
+            container.insertBefore(actionRow, container.lastChild);
         }
 
-        /**
-         * Inserts a clean, fully interactive intermediate route stop track element row node.
-         */
         function addNewInterimStop() {
-            const targetId = `interim-${Date.now()}`;
-            const newStopNode = {
-                id: targetId,
+            const dynamicId = `interim-${Date.now()}`;
+            routeNodes.splice(routeNodes.length - 1, 0, {
+                id: dynamicId,
                 type: "interim",
-                placeholder: "Enter interim stop point...",
+                placeholder: "Enter stop point...",
                 value: ""
-            };
-            // Dynamic tracking index assignment: position directly before the structural final terminal point
-            routeNodes.splice(routeNodes.length - 1, 0, newStopNode);
+            });
             renderRouteStack();
-            
-            // Set operational typing focus natively straight to the newly added field instance
             setTimeout(() => {
-                const queryRow = document.querySelector(`[data-id="${targetId}"] input`);
-                if(queryRow) queryRow.focus();
-            }, 50);
+                const targetInput = document.querySelector(`[data-id="${dynamicId}"] input`);
+                if(targetInput) targetInput.focus();
+            }, 30);
         }
 
         function removeInterimStop(id) {
-            routeNodes = routeNodes.filter(node => node.id !== id);
+            routeNodes = routeNodes.filter(n => n.id !== id);
             renderRouteStack();
         }
 
         function updateNodeValue(id, val) {
-            const target = routeNodes.find(n => n.id === id);
-            if(target) target.value = val;
+            const element = routeNodes.find(n => n.id === id);
+            if(element) element.value = val;
         }
 
-        /**
-         * Swaps the layout array parameters order sequence.
-         */
         function reverseEntireRoute() {
             routeNodes.reverse();
-            // Re-normalize start and destination type tags to guarantee layout style consistency
             routeNodes.forEach((node, idx) => {
-                if (idx === 0) node.type = "start";
+                if(idx === 0) node.type = "start";
                 else if (idx === routeNodes.length - 1) node.type = "destination";
                 else node.type = "interim";
             });
             renderRouteStack();
         }
 
-        // --- NATIVE DRAG AND DROP RUNTIME LIFECYCLE MANAGERS ---
-        let dragSourceElement = null;
+        // --- CALCULATION OVERLAY DIALOG SYSTEM TIMINGS CONTROLLER ---
+        function togglePricingModal(shouldShow) {
+            const modalMask = document.getElementById("pricingModal");
+            const modalBox = document.getElementById("modalCard");
+
+            if(shouldShow) {
+                modalMask.classList.remove("hidden");
+                modalMask.classList.add("flex");
+                setTimeout(() => {
+                    modalBox.classList.remove("scale-95", "opacity-0");
+                    modalBox.classList.add("scale-100", "opacity-100");
+                }, 10);
+            } else {
+                modalBox.classList.remove("scale-100", "opacity-100");
+                modalBox.classList.add("scale-95", "opacity-0");
+                setTimeout(() => {
+                    modalMask.classList.remove("flex");
+                    modalMask.classList.add("hidden");
+                }, 150);
+            }
+        }
+
+        // --- REORDER LIST LIFECYCLE EVENT HANDLERS ---
+        let srcElem = null;
 
         function handleDragStart(e) {
-            dragSourceElement = this;
+            srcElem = this;
             this.classList.add("dragging");
             e.dataTransfer.effectAllowed = "move";
             e.dataTransfer.setData("text/plain", this.getAttribute("data-index"));
         }
 
         function handleDragOver(e) {
-            if (e.preventDefault) e.preventDefault(); 
+            if (e.preventDefault) e.preventDefault();
             return false;
         }
 
@@ -289,15 +333,13 @@
             e.stopPropagation();
             e.preventDefault();
 
-            if (dragSourceElement !== this) {
-                const sourceIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-                const targetIdx = parseInt(this.getAttribute("data-index"), 10);
+            if (srcElem !== this) {
+                const originPos = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                const targetedPos = parseInt(this.getAttribute("data-index"), 10);
 
-                // Mutate source node array positioning sequences
-                const movingNode = routeNodes.splice(sourceIdx, 1)[0];
-                routeNodes.splice(targetIdx, 0, movingNode);
+                const itemToShift = routeNodes.splice(originPos, 1)[0];
+                routeNodes.splice(targetedPos, 0, itemToShift);
 
-                // Correct semantic type tags post-mutation to maintain visual integrity
                 routeNodes.forEach((n, idx) => {
                     if(idx === 0) n.type = "start";
                     else if (idx === routeNodes.length - 1) n.type = "destination";
@@ -310,17 +352,12 @@
         }
 
         function handleDragEnd() {
-            this.classList.remove("dragging");
-            const items = document.querySelectorAll('.sortable-item');
-            items.forEach(item => item.classList.remove('dragging'));
+            document.querySelectorAll('.sortable-item').forEach(i => i.classList.remove('dragging'));
         }
 
-        /**
-         * Simulates triggering core layout camera mutations on the spatial map layer coordinates system.
-         */
-        function triggerRouteCalculation() {
-            console.log("Recalculating isolated geo-routing pipeline targets with values:", routeNodes.map(n => n.value));
-            alert("Routing camera bounds recalculated sequentially without mutating active input sheets!");
+        function executeRouteGenerationPipeline() {
+            // Trigger calculation window modal popup on complete
+            togglePricingModal(true);
         }
     </script>
 </body>
