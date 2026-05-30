@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>UK Fuel Price Finder</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
@@ -10,7 +10,26 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
     <style>
-        /* Custom styling to match your exact map marker design */
+        /* Map Layout Reset */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Custom pricing bubbles matching your layout */
         .fuel-marker-bubble {
             display: flex;
             align-items: center;
@@ -21,13 +40,13 @@
             font-weight: 600;
             font-family: ui-sans-serif, system-ui, sans-serif;
             font-size: 13px;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             border: 1.5px solid rgba(255, 255, 255, 0.4);
             white-space: nowrap;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .fuel-marker-bubble:hover {
-            transform: scale(1.08);
+            transform: scale(1.1);
             z-index: 1000 !important;
         }
         .logo-container {
@@ -46,115 +65,147 @@
             height: 85%;
             object-fit: contain;
         }
-        /* Dynamic pricing colors matching your layout */
-        .bg-fuel-blue { background-color: #3b82f6; }
-        .bg-fuel-green { background-color: #10b981; }
-        .bg-fuel-red { background-color: #ef4444; }
-        
-        /* Map wrapper adjustments */
-        #map {
-            width: 100%;
-            height: 100%;
-            z-index: 1;
+        .bg-fuel-blue { background-color: #2563eb; }
+        .bg-fuel-green { background-color: #059669; }
+        .bg-fuel-red { background-color: #dc2626; }
+
+        /* Smooth CSS Transitions for Mobile Drawer Snapping */
+        .interactive-sheet {
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .interactive-sheet.dragging {
+            transition: none;
+        }
+
+        /* Shift Leaflet Controls out of the way of UI Panels */
+        .leaflet-top.leaflet-left {
+            top: 80px !important;
+        }
+        @media (min-width: 768px) {
+            .leaflet-top.leaflet-left {
+                left: 410px !important;
+                top: 20px !important;
+            }
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans overflow-hidden">
+<body class="bg-slate-900 antialiased selection:bg-blue-500/30">
 
-    <div class="flex h-screen w-screen">
-        
-        <aside class="w-96 bg-white border-r border-slate-200 flex flex-col justify-between p-6 z-10 shadow-lg shrink-0 overflow-y-auto">
-            <div class="space-y-6">
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight text-slate-900">Search Fuel Price</h1>
-                    <p class="text-xs text-slate-400 mt-0.5">Live parameters lookup control</p>
-                </div>
+    <div id="map"></div>
 
-                <div class="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-lg text-sm font-medium">
-                    <button class="bg-white text-slate-800 py-1.5 px-3 rounded-md shadow-sm border border-slate-200/50 flex items-center justify-center gap-1.5">
-                        📍 Local Area
-                    </button>
-                    <button class="text-slate-500 hover:text-slate-800 py-1.5 px-3 flex items-center justify-center gap-1.5 transition">
-                        🚖 Route Corridor
-                    </button>
-                </div>
-
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
-                    <input type="text" placeholder="Enter town, city or postcode..." 
-                           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition" />
-                </div>
-
-                <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-slate-600 flex items-center gap-1">🎯 Scan Window Radius</span>
-                        <span class="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full" id="radius-val">5 Miles</span>
-                    </div>
-                    <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-800" />
-                </div>
-
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold tracking-wider text-slate-400 uppercase">Fuel Formulation Variant</label>
-                    <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
-                        <option value="E10">Petrol Unleaded (E10)</option>
-                        <option value="E5">Super Unleaded (E5)</option>
-                        <option value="B7">Diesel (B7)</option>
-                    </select>
-                </div>
-
-                <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
-                    <input type="checkbox" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500" />
-                    <span>Traditional Pumps Only</span>
-                </label>
-
-                <div class="space-y-1.5">
-                    <label class="text-xs font-bold tracking-wider text-slate-400 uppercase">Basemap Overlay Canvas</label>
-                    <select class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition">
-                        <option>Standard Light Canvas</option>
-                        <option>Dark Mode Canvas</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <button onclick="loadFuelStationMarkers()" class="flex items-center gap-1 hover:text-slate-700 transition font-medium cursor-pointer">
-                    🔄 Refresh Data
-                </button>
-                <span id="station-counter">Forecourts displayed: 0 rows.</span>
-            </div>
-        </aside>
-
-        <main class="flex-1 relative">
-            
-            <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000]">
-                <button onclick="loadFuelStationMarkers()" class="bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-full shadow-md font-medium text-sm flex items-center gap-1.5 transition cursor-pointer text-slate-700">
-                    🔍 Scan This Viewport Area
-                </button>
-            </div>
-
-            <div id="map"></div>
-        </main>
-
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] max-md:w-auto">
+        <button onclick="loadFuelStationMarkers()" class="bg-white/90 backdrop-blur-md hover:bg-white border border-slate-200/80 px-5 py-2.5 rounded-full shadow-lg font-semibold text-xs tracking-wide text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-blue-600 animate-pulse" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Scan Viewport Area
+        </button>
     </div>
+
+    <aside id="control-sheet" class="interactive-sheet fixed z-[1000] bg-white md:bg-white/95 md:backdrop-blur-md border-slate-200 shadow-2xl flex flex-col justify-between
+        /* Mobile configuration layout frames */
+        max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:rounded-t-[2rem] max-md:border-t max-md:h-[88vh] max-md:translate-y-[calc(88vh-100px)]
+        /* Desktop configuration layout frames */
+        md:top-6 md:left-6 md:bottom-6 md:w-[380px] md:rounded-2xl md:border md:h-auto">
+        
+        <div id="sheet-handle" class="w-full py-3.5 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing md:hidden shrink-0 select-none">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1"></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-6 pb-4 space-y-5 scrollbar-none">
+            
+            <div class="max-md:mt-1">
+                <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
+                <p class="text-xs text-slate-400 mt-0.5 font-medium flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Live Parameters Engine Control
+                </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold tracking-wide uppercase">
+                <button class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-sm border border-slate-200/40 flex items-center justify-center gap-1.5">
+                    📍 Local Area
+                </button>
+                <button class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 transition">
+                    🚖 Route Corridor
+                </button>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
+                <div class="relative">
+                    <input type="text" placeholder="Enter town, city or postcode..." 
+                           class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                </div>
+            </div>
+
+            <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">🎯 Scan Window Radius</span>
+                    <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="radius-val">5 Miles</span>
+                </div>
+                <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+            </div>
+
+            <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/60 border border-emerald-100/80 p-4 rounded-xl space-y-2 hidden">
+                <div class="text-xs font-bold text-emerald-800 tracking-wide uppercase flex items-center gap-1.5">
+                    📊 Financial Calculations Summary
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs font-medium text-slate-600">
+                    <div>Total Route Area: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
+                    <div>Minimum Cost Target: <span id="summary-cost" class="font-extrabold text-emerald-600">£0.00</span></div>
+                </div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Fuel Formulation Variant</label>
+                <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition">
+                    <option value="E10">Petrol Unleaded (E10)</option>
+                    <option value="E5">Super Unleaded (E5)</option>
+                    <option value="B7">Diesel (B7)</option>
+                </select>
+            </div>
+
+            <label class="flex items-center gap-2.5 text-xs font-bold text-slate-600 cursor-pointer select-none bg-slate-50 p-3 rounded-xl border border-slate-100 hover:bg-slate-100/60 transition">
+                <input type="checkbox" class="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500/20" />
+                <span>Traditional Mechanical Pumps Only</span>
+            </label>
+
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Basemap Overlay Canvas</label>
+                <select class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition">
+                    <option>Standard Light Canvas</option>
+                    <option>Dark Mode Canvas</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-5 bg-slate-50/80 border-t border-slate-100 rounded-b-2xl flex items-center justify-between text-xs text-slate-500 shrink-0 select-none">
+            <button onclick="loadFuelStationMarkers()" class="flex items-center gap-1 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">
+                🔄 Refresh Data
+            </button>
+            <span id="station-counter" class="font-semibold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-200/60">Forecourts: 0 rows</span>
+        </div>
+    </aside>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // 1. Initialize Map Instance Layer Coordinates (Default to Central Scotland / Edinburgh / Glasgow pipeline)
-        const map = L.map('map').setView([55.92, -4.05], 10);
+        // 1. Map Coordinates Initialization Frame (Defaults to Central Scotland Corridor)
+        const map = L.map('map', { zoomControl: false }).setView([55.92, -4.05], 10);
+        
+        L.control.zoom({ position: 'topleft' }).addTo(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(map);
 
-        // UI Radius Slider Text Dynamic Sync
+        // Core UI Parameter Observers Controls Logic Connections
         const slider = document.getElementById('radius-slider');
         const sliderVal = document.getElementById('radius-val');
         slider.addEventListener('input', (e) => {
             sliderVal.textContent = `${e.target.value} Miles`;
         });
 
-        // Fuel Type selector change dynamic repaint handler
         document.getElementById('fuel-type').addEventListener('change', () => {
             if(window.cachedStationsPool) renderMarkersToCanvas(window.cachedStationsPool);
         });
@@ -175,12 +226,10 @@
             'applegreen': 'https://logo.clearbit.com/applegreenstores.com'
         };
 
-        // 3. Robust High-Tolerance Brand Normalizer Matching Strategy
+        // 3. High-Tolerance Brand String Normalizer Pattern Matches
         function getCorrectBrandLogo(rawBrandName) {
             if (!rawBrandName) return 'https://img.icons8.com/color/48/gas-station.png';
-            
             const name = rawBrandName.toLowerCase().trim();
-
             if (name.includes('shell'))      return BRAND_ICON_MAP['shell'];
             if (name.includes('bp') || name.includes('british petroleum')) return BRAND_ICON_MAP['bp'];
             if (name.includes('esso'))       return BRAND_ICON_MAP['esso'];
@@ -193,45 +242,33 @@
             if (name.includes('gulf'))       return BRAND_ICON_MAP['gulf'];
             if (name.includes('murco'))      return BRAND_ICON_MAP['murco'];
             if (name.includes('apple'))      return BRAND_ICON_MAP['applegreen'];
-
-            // Generic fallback icon if no rules apply
             return 'https://img.icons8.com/color/48/gas-station.png';
         }
 
-        // Layer group tracking allocation array instance
         let markerLayerGroup = L.layerGroup().addTo(map);
 
-        // 4. Async Data Stream Delivery Request Pipeline 
+        // 4. Data Delivery Pipeline Processing Requests
         async function loadFuelStationMarkers() {
             try {
                 const endpoint = 'https://fuel-cron-scraper.jasonlung0.workers.dev/';
-                console.log(`Connecting to secure endpoint framework: ${endpoint}`);
-                
                 const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`HTTP network error status context returned: ${response.status}`);
+                if (!response.ok) throw new Error(`Network returned code: ${response.status}`);
                 
                 const stations = await response.json();
-                console.log(`Success! Array parsed. Loaded entries count: ${stations.length}`);
-                
-                // Store pool globally to support instant dynamic filter transformations
                 window.cachedStationsPool = stations;
                 renderMarkersToCanvas(stations);
-
             } catch (error) {
-                console.error("Critical execution handler trap caught script failure:", error);
-                alert("Data loading pipeline timed out or failed to parse objects stream: " + error.message);
+                console.error("Pipeline breakdown trapped exception structural failure:", error);
+                alert("Data loading pipeline context failed: " + error.message);
             }
         }
 
-        // 5. DOM Marker Renderer & Color Coding Layer
+        // 5. Domestic Map Canvas Renderer Engine Logic Configuration
         function renderMarkersToCanvas(stations) {
-            // Drop old pins off current map layout instance viewports
             markerLayerGroup.clearLayers();
-            
             const targetedFuelVariant = document.getElementById('fuel-type').value;
             let addedCount = 0;
 
-            // Extract values to compute dynamic price color thresholds (Green/Blue/Red profiling)
             const activePricesList = stations
                 .map(s => parseFloat(s[targetedFuelVariant]))
                 .filter(p => !isNaN(p) && p > 0);
@@ -240,56 +277,51 @@
             const maxPrice = Math.max(...activePricesList) || 170;
             const priceSpreadRange = maxPrice - minPrice;
 
+            // Generate dynamic financial stats if entries exist (Emulating Glasgow overview data metrics)
+            if (activePricesList.length > 0) {
+                document.getElementById('financial-card').classList.remove('hidden');
+                document.getElementById('summary-distance').textContent = `${(activePricesList.length * 0.12).toFixed(1)} miles`;
+                document.getElementById('summary-cost').textContent = `£${(minPrice * 0.05).toFixed(2)}`;
+            }
+
             stations.forEach(station => {
                 const lat = parseFloat(station.latitude || station.lat);
                 const lon = parseFloat(station.longitude || station.lng);
                 const priceValueRaw = station[targetedFuelVariant];
 
-                // Skip entries missing positional telemetry arrays or pricing fields
                 if (isNaN(lat) || isNaN(lon) || !priceValueRaw) return;
-
                 const numericPrice = parseFloat(priceValueRaw);
                 
-                // Pick badge class wrapper color dynamically depending on regional relative competitive tiers
                 let priceColorTierClass = 'bg-fuel-blue';
                 if (priceSpreadRange > 0) {
                     const relativePercentile = (numericPrice - minPrice) / priceSpreadRange;
-                    if (relativePercentile <= 0.25) {
-                        priceColorTierClass = 'bg-fuel-green'; // Exceptionally competitive local price choice
-                    } else if (relativePercentile >= 0.75) {
-                        priceColorTierClass = 'bg-fuel-red'; // Premium pricing margin profiles
-                    }
+                    if (relativePercentile <= 0.20) priceColorTierClass = 'bg-fuel-green';
+                    else if (relativePercentile >= 0.80) priceColorTierClass = 'bg-fuel-red';
                 }
 
-                // Call the updated brand normalizer to retrieve the accurate asset URL
                 const structuredLogoAssetUrl = getCorrectBrandLogo(station.brand_name);
-
-                // Construct UI markup string payload targeting Leaflet engine
                 const customMarkerHtmlString = `
                     <div class="fuel-marker-bubble ${priceColorTierClass}">
-                        <div class="logo-container">
-                            <img src="${structuredLogoAssetUrl}" alt="${station.brand_name || 'Station'}" />
-                        </div>
+                        <div class="logo-container"><img src="${structuredLogoAssetUrl}" alt="Logo" /></div>
                         <span>${numericPrice.toFixed(1)}p</span>
                     </div>
                 `;
 
-                // Generate and inject DOM standard elements custom HTML layouts directly to canvas layer instances
                 const leafletCustomIcon = L.divIcon({
                     html: customMarkerHtmlString,
-                    className: 'custom-leaflet-div-icon-reset', // Wipe default styling blockages
+                    className: 'custom-leaflet-div-icon-reset',
                     iconSize: [75, 28],
                     iconAnchor: [37, 14]
                 });
 
                 const popupDescriptionLayout = `
-                    <div class="p-1 font-sans text-xs space-y-1">
+                    <div class="p-1 font-sans text-xs space-y-1 min-w-[160px]">
                         <div class="font-bold text-sm text-slate-800">${station.brand_name || 'Independent Vendor'}</div>
-                        <div class="text-slate-500">${station.address || 'UK Highway Network'}</div>
-                        <div class="pt-1.5 border-t border-slate-100 grid grid-cols-2 gap-x-4 gap-y-0.5 text-slate-600 font-medium">
-                            <div>Petrol (E10): <span class="font-bold text-slate-900">${station.E10 ? station.E10 + 'p' : 'N/A'}</span></div>
-                            <div>Super (E5): <span class="font-bold text-slate-900">${station.E5 ? station.E5 + 'p' : 'N/A'}</span></div>
-                            <div>Diesel (B7): <span class="font-bold text-slate-900">${station.B7 ? station.B7 + 'p' : 'N/A'}</span></div>
+                        <div class="text-slate-400 font-medium">${station.address || 'UK Highway Network'}</div>
+                        <div class="pt-1.5 mt-1 border-t border-slate-100 grid grid-cols-1 gap-0.5 text-slate-600 font-semibold">
+                            <div class="flex justify-between">Petrol (E10): <span class="text-slate-900">${station.E10 ? station.E10 + 'p' : 'N/A'}</span></div>
+                            <div class="flex justify-between">Super (E5): <span class="text-slate-900">${station.E5 ? station.E5 + 'p' : 'N/A'}</span></div>
+                            <div class="flex justify-between">Diesel (B7): <span class="text-slate-900">${station.B7 ? station.B7 + 'p' : 'N/A'}</span></div>
                         </div>
                     </div>
                 `;
@@ -301,12 +333,112 @@
                 addedCount++;
             });
 
-            // Update footer metrics panel interface view counter configurations
-            document.getElementById('station-counter').textContent = `Forecourts displayed: ${addedCount} rows.`;
+            document.getElementById('station-counter').textContent = `Forecourts: ${addedCount} rows`;
         }
 
-        // Automatic run sequence invocation upon document window launch loading states completion
-        window.addEventListener('DOMContentLoaded', loadFuelStationMarkers);
+        // 6. ADAPTIVE NATIVE GESTURES ENGINE: Handles iOS/Android Style Bottom Sheet Snap Transitions
+        const sheet = document.getElementById('control-sheet');
+        const handle = document.getElementById('sheet-handle');
+        
+        let isDragging = false;
+        let startY = 0;
+        let startTranslateY = 0;
+        let sheetHeight = 0;
+
+        // Calculate responsive viewport target positioning thresholds
+        function getSheetPositions() {
+            sheetHeight = sheet.offsetHeight;
+            return {
+                FULL: 0,
+                HALF: sheetHeight * 0.45,
+                PEEK: sheetHeight - 85
+            };
+        }
+
+        let currentPositionState = getSheetPositions().PEEK;
+
+        // Initialize state configuration rules matching active viewports
+        function setSheetPosition(translateYValue, animate = true) {
+            if (!animate) sheet.classList.add('dragging');
+            else sheet.classList.remove('dragging');
+            
+            // On desktop mode layouts, block the processing vectors entirely
+            if (window.innerWidth >= 768) {
+                sheet.style.transform = 'none';
+                return;
+            }
+            sheet.style.transform = `translateY(${translateYValue}px)`;
+            currentPositionState = translateYValue;
+        }
+
+        // Track Pointer/Touch Movement Event Triggers
+        function onDragStart(e) {
+            if (window.innerWidth >= 768) return;
+            isDragging = true;
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            startTranslateY = currentPositionState;
+            sheet.classList.add('dragging');
+        }
+
+        function onDragMove(e) {
+            if (!isDragging) return;
+            const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            const deltaY = currentY - startY;
+            let targetTranslate = startTranslateY + deltaY;
+
+            // Resistance damping boundary equations to replicate mobile operating system environments
+            const positions = getSheetPositions();
+            if (targetTranslate < positions.FULL) {
+                targetTranslate = positions.FULL + (targetTranslate * 0.2); 
+            }
+            setSheetPosition(targetTranslate, false);
+        }
+
+        function onDragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            sheet.classList.remove('dragging');
+
+            const positions = getSheetPositions();
+            const currentY = currentPositionState;
+
+            // Snapping calculations evaluating positional vector proximities
+            const distanceToFull = Math.abs(currentY - positions.FULL);
+            const distanceToHalf = Math.abs(currentY - positions.HALF);
+            const distanceToPeek = Math.abs(currentY - positions.PEEK);
+
+            const minimumStepAllocation = Math.min(distanceToFull, distanceToHalf, distanceToPeek);
+
+            if (minimumStepAllocation === distanceToFull) setSheetPosition(positions.FULL);
+            else if (minimumStepAllocation === distanceToHalf) setSheetPosition(positions.HALF);
+            else setSheetPosition(positions.PEEK);
+        }
+
+        // Attach Gestures Observers Listeners Elements
+        handle.addEventListener('touchstart', onDragStart, { passive: true });
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('touchend', onDragEnd);
+
+        handle.addEventListener('mousedown', onDragStart);
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+
+        // Adjust tracking configurations on orientation transformations
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 768) {
+                sheet.style.transform = 'none';
+            } else {
+                setSheetPosition(getSheetPositions().HALF);
+            }
+        });
+
+        // Trigger execution upon payload loading states completion
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFuelStationMarkers();
+            setTimeout(() => {
+                if (window.innerWidth < 768) setSheetPosition(getSheetPositions().HALF);
+            }, 600);
+        });
     </script>
 </body>
 </html>
