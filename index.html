@@ -64,9 +64,9 @@
             font-size: 10px;
         }
         
-        .bg-fuel-blue { background-color: #2563eb; }
-        .bg-fuel-green { background-color: #10b981; }
-        .bg-fuel-red { background-color: #ef4444; }
+        .bg-fuel-green { background-color: #10b981 !important; }
+        .bg-fuel-blue { background-color: #2563eb !important; }
+        .bg-fuel-red { background-color: #ef4444 !important; }
 
         /* Multi-Stage Interactive Bottom Sheet Layout Engine */
         .adaptive-control-sidebar {
@@ -253,15 +253,15 @@
             </div>
             
             <div class="grid grid-cols-3 gap-2.5 pt-1">
-                <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-all duration-200">
                     <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Unleaded E10</div>
                     <div id="sheet-price-e10" class="text-base font-black mt-0.5">-</div>
                 </div>
-                <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-all duration-200">
                     <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Super E5</div>
                     <div id="sheet-price-e5" class="text-base font-black mt-0.5">-</div>
                 </div>
-                <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-all duration-200">
                     <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Diesel B7</div>
                     <div id="sheet-price-b7" class="text-base font-black mt-0.5">-</div>
                 </div>
@@ -274,6 +274,7 @@
     <script>
         // Memory Registries
         let rawGlobalStationsPool = [];
+        let currentlyVisibleStations = []; // Critical tracking layer to calculate relative local ranges
         let markerLayerGroup = L.layerGroup();
         let routePolylineLayer = null;
         let activeTabContext = 'local';
@@ -625,33 +626,48 @@
                 });
             }
 
+            // Lock the visible stations reference array strictly into local scope
+            currentlyVisibleStations = dynamicBoundedStations;
+
             const renderingDisplayLimitCap = 250;
             const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
 
             paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
         }
 
-        // Helper Strategy to dynamic assign premium pricing tier card color configurations
+        // Dynamic local range styling generator engine strategy
         function assignPricingTierColorStyles(valueRaw, variantKey) {
-            const fallbackClasses = "bg-slate-50 border-slate-100 text-slate-400";
+            const fallbackClasses = "bg-slate-50 border-slate-200 text-slate-400";
             if (!valueRaw) return fallbackClasses;
             
             const numericVal = parseFloat(valueRaw);
             if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
-            const referencePool = rawGlobalStationsPool.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
-            if (referencePool.length === 0) return "bg-slate-50 border-slate-200 text-slate-800";
+            // CRITICAL REPAIR: We extract ranges strictly out of currentlyVisibleStations instead of rawGlobalStationsPool
+            const referencePool = currentlyVisibleStations
+                .map(item => parseFloat(item[variantKey]))
+                .filter(p => !isNaN(p) && p > 0);
+
+            if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900";
 
             const min = Math.min(...referencePool);
             const max = Math.max(...referencePool);
             const delta = max - min;
 
-            if (delta <= 0) return "bg-blue-50 border-blue-200 text-blue-900";
+            if (delta <= 0) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
 
-            const percentageRank = (numericVal - min) / delta;
-            if (percentageRank <= 0.25) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
-            if (percentageRank >= 0.75) return "bg-rose-50 border-rose-300 text-rose-950 font-bold";
-            return "bg-blue-50 border-blue-300 text-blue-950 font-bold";
+            // Define exact third-tier break brackets locally
+            const stepThreshold = delta / 3;
+            const greenLimit = min + stepThreshold;
+            const blueLimit = min + (stepThreshold * 2);
+
+            if (numericVal <= greenLimit) {
+                return "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-xs";
+            } else if (numericVal <= blueLimit) {
+                return "bg-blue-50 border-blue-400 text-blue-950 font-black shadow-xs";
+            } else {
+                return "bg-rose-50 border-rose-400 text-rose-950 font-black shadow-xs";
+            }
         }
 
         // Render Pricing Nodes to Map View
@@ -691,9 +707,16 @@
                 
                 let tierBgClassColor = 'bg-fuel-blue';
                 if (spreadDelta > 0) {
-                    const pricePercentileValue = (numericPrice - minPrice) / spreadDelta;
-                    if (pricePercentileValue <= 0.25) tierBgClassColor = 'bg-fuel-green';
-                    else if (pricePercentileValue >= 0.75) tierBgClassColor = 'bg-fuel-red';
+                    const step = spreadDelta / 3;
+                    if (numericPrice <= (minPrice + step)) {
+                        tierBgClassColor = 'bg-fuel-green';
+                    } else if (numericPrice <= (minPrice + (step * 2))) {
+                        tierBgClassColor = 'bg-fuel-blue';
+                    } else {
+                        tierBgClassColor = 'bg-fuel-red';
+                    }
+                } else {
+                    tierBgClassColor = 'bg-fuel-green';
                 }
 
                 const brandVisualSymbol = resolveBrandVisualSymbol(station.brand_name);
@@ -737,9 +760,9 @@
             const wrapB7 = document.getElementById('card-wrap-b7');
 
             // Map and resolve tier coloring strategies dynamically across all parameters
-            wrapE10.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-            wrapE5.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-            wrapB7.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+            wrapE10.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+            wrapE5.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+            wrapB7.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
 
             document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
