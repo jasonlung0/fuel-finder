@@ -36,7 +36,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 5px 12px; /* Enforced identical left/right balance */
+            padding: 5px 12px;
             gap: 6px;
             border-radius: 9999px;
             color: white;
@@ -132,8 +132,8 @@
                 <div>
                     <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
                     <p id="live-timestamp-label" class="text-xs text-slate-400 mt-0.5 font-semibold flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        🕒 Prices updated: Today, 12:15 AM
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        🕒 Checking price update sync logs...
                     </p>
                 </div>
             </div>
@@ -253,17 +253,17 @@
             </div>
             
             <div class="grid grid-cols-3 gap-2.5 pt-1">
-                <div class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unleaded E10</div>
-                    <div id="sheet-price-e10" class="text-base font-black text-slate-800 mt-0.5">-</div>
+                <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Unleaded E10</div>
+                    <div id="sheet-price-e10" class="text-base font-black mt-0.5">-</div>
                 </div>
-                <div class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Super E5</div>
-                    <div id="sheet-price-e5" class="text-base font-black text-slate-800 mt-0.5">-</div>
+                <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Super E5</div>
+                    <div id="sheet-price-e5" class="text-base font-black mt-0.5">-</div>
                 </div>
-                <div class="bg-slate-50 border border-slate-100 p-3 rounded-xl text-center">
-                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Diesel B7</div>
-                    <div id="sheet-price-b7" class="text-base font-black text-slate-800 mt-0.5">-</div>
+                <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-colors duration-200">
+                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Diesel B7</div>
+                    <div id="sheet-price-b7" class="text-base font-black mt-0.5">-</div>
                 </div>
             </div>
         </div>
@@ -278,9 +278,9 @@
         let routePolylineLayer = null;
         let activeTabContext = 'local';
         let plottedRouteCoordinates = [];
-        let mapSearchAnchorCoordinates = [56.07, -3.45]; // Dunfermline focal context coordinate vector 
+        let mapSearchAnchorCoordinates = [56.07, -3.45]; 
         let autocompleteDebounceTimer = null;
-        let currentMobileDetentState = 'mid'; // Possibilities: minimal, mid, full
+        let currentMobileDetentState = 'mid'; 
         
         // Initializing Map Layout Canvas
         const map = L.map('map', { zoomControl: false }).setView(mapSearchAnchorCoordinates, 12);
@@ -290,6 +290,16 @@
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
+
+        // Collapse Mobile Side Drawer to Peek View Interface
+        function forceMobileSidebarMinimalState() {
+            const sidebar = document.getElementById('control-sidebar');
+            if (window.innerWidth < 768 && sidebar) {
+                sidebar.classList.remove('state-minimal', 'state-mid', 'state-full');
+                sidebar.classList.add('state-minimal');
+                currentMobileDetentState = 'minimal';
+            }
+        }
 
         // Mobile Sidebar Drawer Snap State Handler Cycle
         function cycleMobileSidebarDetents() {
@@ -384,6 +394,7 @@
                             if (inputField.id === 'location-input') {
                                 mapSearchAnchorCoordinates = [parseFloat(item.lat), parseFloat(item.lon)];
                                 map.setView(mapSearchAnchorCoordinates, 12);
+                                forceMobileSidebarMinimalState();
                                 refreshViewportViewFilter();
                             }
                         };
@@ -409,6 +420,7 @@
                 if (matchingNodes && matchingNodes.length > 0) {
                     mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
                     map.setView(mapSearchAnchorCoordinates, 12);
+                    forceMobileSidebarMinimalState();
                     refreshViewportViewFilter();
                 } else {
                     alert("Location context coordinate matrices match not verified.");
@@ -468,13 +480,7 @@
 
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
-                // Shrink mobile drawer automatically upon computing a route view context layout
-                const sidebar = document.getElementById('control-sidebar');
-                if (window.innerWidth < 768 && sidebar) {
-                    sidebar.className = "adaptive-control-sidebar fixed z-[500] bg-white/95 backdrop-blur-md border-slate-200 shadow-2xl flex flex-col justify-between max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:rounded-t-[2rem] max-md:border-t state-minimal";
-                    currentMobileDetentState = 'minimal';
-                }
-
+                forceMobileSidebarMinimalState();
                 refreshViewportViewFilter(distanceMiles);
 
             } catch (err) {
@@ -564,7 +570,6 @@
                 
                 rawGlobalStationsPool = await response.json();
                 
-                // Format current time into structural design layout parameter
                 const liveClock = new Date();
                 let hours = liveClock.getHours();
                 const minutes = liveClock.getMinutes().toString().padStart(2, '0');
@@ -600,7 +605,6 @@
                         return mapScreenBounds.contains([lat, lon]);
                     });
                 } else {
-                    // Capped dynamically within explicit search radius threshold settings by default 
                     dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
                         const lat = parseFloat(station.latitude || station.lat);
                         const lon = parseFloat(station.longitude || station.lng);
@@ -625,6 +629,29 @@
             const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
 
             paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
+        }
+
+        // Helper Strategy to dynamic assign premium pricing tier card color configurations
+        function assignPricingTierColorStyles(valueRaw, variantKey) {
+            const fallbackClasses = "bg-slate-50 border-slate-100 text-slate-400";
+            if (!valueRaw) return fallbackClasses;
+            
+            const numericVal = parseFloat(valueRaw);
+            if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
+
+            const referencePool = rawGlobalStationsPool.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
+            if (referencePool.length === 0) return "bg-slate-50 border-slate-200 text-slate-800";
+
+            const min = Math.min(...referencePool);
+            const max = Math.max(...referencePool);
+            const delta = max - min;
+
+            if (delta <= 0) return "bg-blue-50 border-blue-200 text-blue-900";
+
+            const percentageRank = (numericVal - min) / delta;
+            if (percentageRank <= 0.25) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
+            if (percentageRank >= 0.75) return "bg-rose-50 border-rose-300 text-rose-950 font-bold";
+            return "bg-blue-50 border-blue-300 text-blue-950 font-bold";
         }
 
         // Render Pricing Nodes to Map View
@@ -685,12 +712,7 @@
                 });
 
                 const markerInstanceElement = L.marker([lat, lon], { icon: layoutCustomIconInstance });
-                
-                // Structural Trigger: Intercept click event actions to output modal sheets across all sizes
-                markerInstanceElement.on('click', () => {
-                    openForecourtDetailSheet(station);
-                });
-
+                markerInstanceElement.on('click', () => openForecourtDetailSheet(station));
                 markerInstanceElement.addTo(markerLayerGroup);
             });
 
@@ -708,6 +730,16 @@
 
             title.textContent = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
             address.textContent = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
+
+            // Target DOM display wrapper layers
+            const wrapE10 = document.getElementById('card-wrap-e10');
+            const wrapE5 = document.getElementById('card-wrap-e5');
+            const wrapB7 = document.getElementById('card-wrap-b7');
+
+            // Map and resolve tier coloring strategies dynamically across all parameters
+            wrapE10.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+            wrapE5.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+            wrapB7.className = `border p-3 rounded-xl text-center transition-colors duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
 
             document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
