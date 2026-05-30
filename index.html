@@ -211,6 +211,19 @@
                     <div id="location-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                 </div>
 
+                <div id="sidebar-active-station-box" class="hidden border border-slate-200/80 bg-slate-50 p-3 rounded-xl flex items-center justify-between transition-all duration-200 animate-fadeIn">
+                    <div class="min-w-0 pr-2">
+                        <div class="text-[9px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">
+                            <span class="inline-block w-1.5 h-1.5 rounded-full bg-blue-500"></span> Selected Station
+                        </div>
+                        <div id="sidebar-active-brand" class="text-xs font-extrabold text-slate-800 truncate mt-0.5">Forecourt Brand</div>
+                        <div id="sidebar-active-address" class="text-[10px] font-medium text-slate-400 truncate">Address details...</div>
+                    </div>
+                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2 text-slate-300 hover:text-amber-500 rounded-full hover:bg-white border border-transparent hover:border-slate-200 hover:shadow-xs transition cursor-pointer shrink-0" title="Star Station">
+                        <svg id="sidebar-star-icon" class="w-4 h-4 fill-none stroke-currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
+                    </button>
+                </div>
+
                 <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-bold text-slate-600">🎯 Scan Window Radius</span>
@@ -892,7 +905,7 @@
             if (statusCounter) statusCounter.textContent = `Forecourts: ${fallbackTotalCount} rows`;
         }
 
-        // FEATURE 1: Toggle Favorite/Starred Pipeline
+        // Toggle Favorite/Starred Pipeline Configuration Thread
         function toggleCurrentStationStar() {
             if (!activeSheetStation) return;
             
@@ -910,33 +923,53 @@
             // Save to localStorage
             localStorage.setItem('uk_fuel_starred_stations', JSON.stringify(starredStations));
             
-            // Re-render subcomponent UIs
-            updateDetailSheetStarIconState();
+            // Re-render completely synchronized state triggers across both elements
+            updateAllStarUIStates();
+        }
+
+        // Synchronize star graphic styling attributes across both sidebar and modal sheet detail frameworks
+        function updateAllStarUIStates() {
+            if (!activeSheetStation) return;
+
+            const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
+            
+            // 1. Sync Bottom/Detail Sheet Control Layout Elements
+            const sheetIcon = document.getElementById('sheet-star-icon');
+            const sheetBtn = document.getElementById('sheet-star-btn');
+            if (sheetIcon && sheetBtn) {
+                if (isStarred) {
+                    sheetIcon.classList.remove('fill-none', 'text-slate-300');
+                    sheetIcon.classList.add('fill-amber-400', 'text-amber-500');
+                    sheetBtn.classList.add('bg-amber-50');
+                } else {
+                    sheetIcon.classList.remove('fill-amber-400', 'text-amber-500');
+                    sheetIcon.classList.add('fill-none', 'text-slate-300');
+                    sheetBtn.classList.remove('bg-amber-50');
+                }
+            }
+
+            // 2. Sync Left Sidebar Quick-View Control Layout Elements
+            const sidebarIcon = document.getElementById('sidebar-star-icon');
+            const sidebarBtn = document.getElementById('sidebar-star-btn');
+            if (sidebarIcon && sidebarBtn) {
+                if (isStarred) {
+                    sidebarIcon.classList.remove('fill-none', 'text-slate-300');
+                    sidebarIcon.classList.add('fill-amber-400', 'text-amber-500');
+                    sidebarBtn.classList.add('bg-amber-50', 'border-slate-200', 'shadow-xs');
+                } else {
+                    sidebarIcon.classList.remove('fill-amber-400', 'text-amber-500');
+                    sidebarIcon.classList.add('fill-none', 'text-slate-300');
+                    sidebarBtn.classList.remove('bg-amber-50', 'border-slate-200', 'shadow-xs');
+                }
+            }
+
+            // 3. Keep drop panel updated live if visible
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) {
                 renderStarredDropdownDashboard();
             }
         }
 
-        // Sync star graphic styling attributes inside modal sheet details framework
-        function updateDetailSheetStarIconState() {
-            const icon = document.getElementById('sheet-star-icon');
-            const btn = document.getElementById('sheet-star-btn');
-            if (!activeSheetStation || !icon || !btn) return;
-
-            const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
-            
-            if (isStarred) {
-                icon.classList.remove('fill-none', 'text-slate-300');
-                icon.classList.add('fill-amber-400', 'text-amber-500');
-                btn.classList.add('bg-amber-50');
-            } else {
-                icon.classList.remove('fill-amber-400', 'text-amber-500');
-                icon.classList.add('fill-none', 'text-slate-300');
-                btn.classList.remove('bg-amber-50');
-            }
-        }
-
-        // FEATURE 2: Toggle Visibility of Top-Right Floating Starred Modal
+        // Toggle Visibility of Top-Right Floating Starred Modal
         function toggleStarredDropdown() {
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
@@ -1025,8 +1058,21 @@
 
             activeSheetStation = stationData;
 
-            title.textContent = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
-            address.textContent = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
+            const cleanBrandText = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
+            const cleanAddressText = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
+
+            title.textContent = cleanBrandText;
+            address.textContent = cleanAddressText;
+
+            // Populate the newly configured sidebar active selection container live parameters
+            const sidebarBox = document.getElementById('sidebar-active-station-box');
+            const sidebarBrand = document.getElementById('sidebar-active-brand');
+            const sidebarAddress = document.getElementById('sidebar-active-address');
+            if (sidebarBox && sidebarBrand && sidebarAddress) {
+                sidebarBrand.textContent = cleanBrandText;
+                sidebarAddress.textContent = cleanAddressText;
+                sidebarBox.classList.remove('hidden');
+            }
 
             const wrapE10 = document.getElementById('card-wrap-e10');
             const wrapE5 = document.getElementById('card-wrap-e5');
@@ -1040,13 +1086,17 @@
             document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-b7').textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
 
-            updateDetailSheetStarIconState();
+            updateAllStarUIStates();
             sheet.classList.add('active');
         }
 
         function closeForecourtDetailSheet() {
             const sheet = document.getElementById('global-detail-sheet');
             if (sheet) sheet.classList.remove('active');
+            
+            const sidebarBox = document.getElementById('sidebar-active-station-box');
+            if (sidebarBox) sidebarBox.classList.add('hidden');
+
             activeSheetStation = null;
         }
 
