@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>UK Fuel Price Finder</title>
     
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
     <style>
-        /* Map Layout Reset */
         html, body {
             margin: 0;
             padding: 0;
@@ -29,7 +30,7 @@
             z-index: 1;
         }
 
-        /* Custom pricing bubbles matching your layout */
+        /* Marker Bubble Styles */
         .fuel-marker-bubble {
             display: flex;
             align-items: center;
@@ -37,17 +38,17 @@
             padding: 4px 10px;
             border-radius: 50px;
             color: white;
-            font-weight: 600;
+            font-weight: 700;
             font-family: ui-sans-serif, system-ui, sans-serif;
             font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            border: 1.5px solid rgba(255, 255, 255, 0.45);
             white-space: nowrap;
-            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .fuel-marker-bubble:hover {
-            transform: scale(1.1);
-            z-index: 1000 !important;
+            transform: scale(1.12);
+            z-index: 99999 !important;
         }
         .logo-container {
             width: 18px;
@@ -65,11 +66,13 @@
             height: 85%;
             object-fit: contain;
         }
+        
+        /* Pricing Heatmap Tiers */
         .bg-fuel-blue { background-color: #2563eb; }
         .bg-fuel-green { background-color: #059669; }
         .bg-fuel-red { background-color: #dc2626; }
 
-        /* Smooth CSS Transitions for Mobile Drawer Snapping */
+        /* Bottom Sheet Gesture Classes */
         .interactive-sheet {
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
@@ -77,9 +80,9 @@
             transition: none;
         }
 
-        /* Shift Leaflet Controls out of the way of UI Panels */
+        /* Prevent Layout Collisions with Native Map Controllers */
         .leaflet-top.leaflet-left {
-            top: 80px !important;
+            top: 75px !important;
         }
         @media (min-width: 768px) {
             .leaflet-top.leaflet-left {
@@ -93,35 +96,32 @@
 
     <div id="map"></div>
 
-    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] max-md:w-auto">
-        <button onclick="loadFuelStationMarkers()" class="bg-white/90 backdrop-blur-md hover:bg-white border border-slate-200/80 px-5 py-2.5 rounded-full shadow-lg font-semibold text-xs tracking-wide text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
-            <svg class="w-3.5 h-3.5 text-blue-600 animate-pulse" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            Scan Viewport Area
+    <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[500]">
+        <button onclick="refreshViewFilter(true)" class="bg-white/95 backdrop-blur-md hover:bg-white border border-slate-200 px-5 py-2.5 rounded-full shadow-xl font-bold text-xs tracking-wider text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            Scan This Viewport Area
         </button>
     </div>
 
     <aside id="control-sheet" class="interactive-sheet fixed z-[1000] bg-white md:bg-white/95 md:backdrop-blur-md border-slate-200 shadow-2xl flex flex-col justify-between
-        /* Mobile configuration layout frames */
-        max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:rounded-t-[2rem] max-md:border-t max-md:h-[88vh] max-md:translate-y-[calc(88vh-100px)]
-        /* Desktop configuration layout frames */
+        max-md:left-0 max-md:right-0 max-md:bottom-0 max-md:rounded-t-[2rem] max-md:border-t max-md:h-[85vh] max-md:translate-y-[calc(85vh-95px)]
         md:top-6 md:left-6 md:bottom-6 md:w-[380px] md:rounded-2xl md:border md:h-auto">
         
-        <div id="sheet-handle" class="w-full py-3.5 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing md:hidden shrink-0 select-none">
-            <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1"></div>
+        <div id="sheet-handle" class="w-full py-4 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing md:hidden shrink-0 select-none">
+            <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-4 space-y-5 scrollbar-none">
-            
-            <div class="max-md:mt-1">
+        <div class="flex-1 overflow-y-auto px-6 pb-5 space-y-5">
+            <div>
                 <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
                 <p class="text-xs text-slate-400 mt-0.5 font-medium flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                     Live Parameters Engine Control
                 </p>
             </div>
 
             <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold tracking-wide uppercase">
-                <button class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-sm border border-slate-200/40 flex items-center justify-center gap-1.5">
+                <button class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-sm border border-slate-200/30 flex items-center justify-center gap-1.5">
                     📍 Local Area
                 </button>
                 <button class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 transition">
@@ -132,27 +132,27 @@
             <div class="space-y-1.5">
                 <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
                 <div class="relative">
-                    <input type="text" placeholder="Enter town, city or postcode..." 
+                    <input type="text" id="location-input" placeholder="Enter town, city or postcode..." 
                            class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition" />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                    <button onclick="triggerDefaultLocationLookup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition text-sm">🎯</button>
                 </div>
             </div>
 
             <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-600 flex items-center gap-1.5">🎯 Scan Window Radius</span>
+                    <span class="text-xs font-bold text-slate-600">🎯 Scan Window Radius</span>
                     <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="radius-val">5 Miles</span>
                 </div>
                 <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
             </div>
 
-            <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/60 border border-emerald-100/80 p-4 rounded-xl space-y-2 hidden">
-                <div class="text-xs font-bold text-emerald-800 tracking-wide uppercase flex items-center gap-1.5">
+            <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/40 border border-emerald-100 p-4 rounded-xl space-y-2 hidden">
+                <div class="text-[11px] font-bold text-emerald-800 tracking-wider uppercase flex items-center gap-1.5">
                     📊 Financial Calculations Summary
                 </div>
-                <div class="grid grid-cols-2 gap-2 text-xs font-medium text-slate-600">
-                    <div>Total Route Area: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
-                    <div>Minimum Cost Target: <span id="summary-cost" class="font-extrabold text-emerald-600">£0.00</span></div>
+                <div class="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
+                    <div>Visible Scope Area: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
+                    <div>Lowest Regional Tier: <span id="summary-cost" class="font-extrabold text-emerald-600">0.0p</span></div>
                 </div>
             </div>
 
@@ -179,38 +179,62 @@
             </div>
         </div>
 
-        <div class="p-5 bg-slate-50/80 border-t border-slate-100 rounded-b-2xl flex items-center justify-between text-xs text-slate-500 shrink-0 select-none">
-            <button onclick="loadFuelStationMarkers()" class="flex items-center gap-1 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">
-                🔄 Refresh Data
+        <div class="p-4 bg-slate-50 border-t border-slate-100 md:rounded-b-2xl flex items-center justify-between text-xs text-slate-500 shrink-0 select-none">
+            <button onclick="forceReloadPipeline()" class="flex items-center gap-1 text-slate-600 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">
+                🔄 Fetch Remote Pool
             </button>
-            <span id="station-counter" class="font-semibold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-200/60">Forecourts: 0 rows</span>
+            <span id="station-counter" class="font-bold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200/80 shadow-2xs">Forecourts: 0</span>
         </div>
     </aside>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // 1. Map Coordinates Initialization Frame (Defaults to Central Scotland Corridor)
-        const map = L.map('map', { zoomControl: false }).setView([55.92, -4.05], 10);
+        // Global variables for global operational states
+        let rawGlobalStationsPool = [];
+        let markerLayerGroup = L.layerGroup();
         
+        // Base Safe Vector Graphic Resource Fallback for Ad-Blocker Failures
+        const SAFE_FALLBACK_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2364748b"><path d="M19 12h-2v3.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V9c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v13h10v-6h1v3.5c0 1.93 1.57 3.5 3.5 3.5s3.5-1.57 3.5-3.5V12zM12 11H4V9h8v2zm6.5 0c-.83 0-1.5-.67-1.5-1.5S17.67 8 18.5 8s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>`;
+
+        // 1. Initialize Map Instance Layer Window Coordinates
+        const map = L.map('map', { zoomControl: false }).setView([55.92, -4.05], 11);
         L.control.zoom({ position: 'topleft' }).addTo(map);
+        markerLayerGroup.addTo(map);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Core UI Parameter Observers Controls Logic Connections
+        // 2. Hardware/Native Browser Location Telemetry Discovery Pipeline
+        function runInitialPositionMatrix() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        document.getElementById('location-input').placeholder = "📍 Using Device Current Location";
+                        map.setView([lat, lon], 12);
+                    },
+                    (error) => {
+                        console.warn("Location tracking refused by user. Defaulting layout to fallback coordinates context frame.");
+                    },
+                    { enableHighAccuracy: true, timeout: 6000 }
+                );
+            }
+        }
+
+        // UI Event Hook Registration Pipeline Elements
         const slider = document.getElementById('radius-slider');
         const sliderVal = document.getElementById('radius-val');
-        slider.addEventListener('input', (e) => {
-            sliderVal.textContent = `${e.target.value} Miles`;
-        });
+        slider.addEventListener('input', (e) => { sliderVal.textContent = `${e.target.value} Miles`; });
 
-        document.getElementById('fuel-type').addEventListener('change', () => {
-            if(window.cachedStationsPool) renderMarkersToCanvas(window.cachedStationsPool);
-        });
+        document.getElementById('fuel-type').addEventListener('change', () => refreshViewFilter(false));
+        
+        // Native View Filtering Observers: Repaint only when mapping coordinates adjustments conclude
+        map.on('moveend', () => refreshViewFilter(false));
 
-        // 2. Clearbit Mapping Dictionary Asset Configuration
+        // 3. Clearbit Dictionary Mapping Strategy Configurations
         const BRAND_ICON_MAP = {
             'shell': 'https://logo.clearbit.com/shell.co.uk',
             'bp': 'https://logo.clearbit.com/bp.com',
@@ -226,9 +250,8 @@
             'applegreen': 'https://logo.clearbit.com/applegreenstores.com'
         };
 
-        // 3. High-Tolerance Brand String Normalizer Pattern Matches
         function getCorrectBrandLogo(rawBrandName) {
-            if (!rawBrandName) return 'https://img.icons8.com/color/48/gas-station.png';
+            if (!rawBrandName) return SAFE_FALLBACK_SVG;
             const name = rawBrandName.toLowerCase().trim();
             if (name.includes('shell'))      return BRAND_ICON_MAP['shell'];
             if (name.includes('bp') || name.includes('british petroleum')) return BRAND_ICON_MAP['bp'];
@@ -242,67 +265,95 @@
             if (name.includes('gulf'))       return BRAND_ICON_MAP['gulf'];
             if (name.includes('murco'))      return BRAND_ICON_MAP['murco'];
             if (name.includes('apple'))      return BRAND_ICON_MAP['applegreen'];
-            return 'https://img.icons8.com/color/48/gas-station.png';
+            return SAFE_FALLBACK_SVG;
         }
 
-        let markerLayerGroup = L.layerGroup().addTo(map);
-
-        // 4. Data Delivery Pipeline Processing Requests
-        async function loadFuelStationMarkers() {
+        // 4. Remote Data Network Ingestion Script Operations 
+        async function forceReloadPipeline() {
+            const counterElement = document.getElementById('station-counter');
             try {
+                counterElement.textContent = "Loading Data...";
                 const endpoint = 'https://fuel-cron-scraper.jasonlung0.workers.dev/';
                 const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`Network returned code: ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP target exception status context: ${response.status}`);
                 
-                const stations = await response.json();
-                window.cachedStationsPool = stations;
-                renderMarkersToCanvas(stations);
+                rawGlobalStationsPool = await response.json();
+                refreshViewFilter(false);
             } catch (error) {
-                console.error("Pipeline breakdown trapped exception structural failure:", error);
-                alert("Data loading pipeline context failed: " + error.message);
+                console.error("Critical parsing error: ", error);
+                counterElement.textContent = "Error Loading Data";
             }
         }
 
-        // 5. Domestic Map Canvas Renderer Engine Logic Configuration
-        function renderMarkersToCanvas(stations) {
-            markerLayerGroup.clearLayers();
+        // 5. VIEWPORT BOUNDING-BOX SPATIAL FILTER: Eliminates UI Lag and node overloading
+        function refreshViewFilter(explicitFly = false) {
+            if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
+
+            // Extract Map Geographical Framework Screen Boundaries
+            const currentMapViewportBounds = map.getBounds();
             const targetedFuelVariant = document.getElementById('fuel-type').value;
-            let addedCount = 0;
 
-            const activePricesList = stations
-                .map(s => parseFloat(s[targetedFuelVariant]))
-                .filter(p => !isNaN(p) && p > 0);
-
-            const minPrice = Math.min(...activePricesList) || 150;
-            const maxPrice = Math.max(...activePricesList) || 170;
-            const priceSpreadRange = maxPrice - minPrice;
-
-            // Generate dynamic financial stats if entries exist (Emulating Glasgow overview data metrics)
-            if (activePricesList.length > 0) {
-                document.getElementById('financial-card').classList.remove('hidden');
-                document.getElementById('summary-distance').textContent = `${(activePricesList.length * 0.12).toFixed(1)} miles`;
-                document.getElementById('summary-cost').textContent = `£${(minPrice * 0.05).toFixed(2)}`;
-            }
-
-            stations.forEach(station => {
+            // Strategy: Only process elements visible inside user view bounds box matrix
+            const targetedLocalStations = rawGlobalStationsPool.filter(station => {
                 const lat = parseFloat(station.latitude || station.lat);
                 const lon = parseFloat(station.longitude || station.lng);
-                const priceValueRaw = station[targetedFuelVariant];
+                if (isNaN(lat) || isNaN(lon)) return false;
+                
+                // Leaflet contains checker validation parameter
+                return currentMapViewportBounds.contains([lat, lon]);
+            });
 
-                if (isNaN(lat) || isNaN(lon) || !priceValueRaw) return;
+            // Prevent UI locking/lag conditions if data scale sizes are too high
+            const displayLimitThreshold = 350;
+            const sliceRenderList = targetedLocalStations.slice(0, displayLimitThreshold);
+
+            renderMarkersToCanvas(sliceRenderList, targetedFuelVariant, targetedLocalStations.length);
+        }
+
+        // 6. DOM Marker Rendering Matrix
+        function renderMarkersToCanvas(stationsList, variant, absoluteMatchesCount) {
+            markerLayerGroup.clearLayers();
+
+            const pricesList = stationsList
+                .map(s => parseFloat(s[variant]))
+                .filter(p => !isNaN(p) && p > 0);
+
+            const minPrice = Math.min(...pricesList) || 140;
+            const maxPrice = Math.max(...pricesList) || 175;
+            const spread = maxPrice - minPrice;
+
+            // Paint Data Dashboard Summary calculations metrics updates
+            if (pricesList.length > 0) {
+                document.getElementById('financial-card').classList.remove('hidden');
+                document.getElementById('summary-distance').textContent = `${(absoluteMatchesCount * 0.04).toFixed(1)} miles area`;
+                document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
+            } else {
+                document.getElementById('financial-card').classList.add('hidden');
+            }
+
+            stationsList.forEach(station => {
+                const lat = parseFloat(station.latitude || station.lat);
+                const lon = parseFloat(station.longitude || station.lng);
+                const priceValueRaw = station[variant];
+
+                if (!priceValueRaw) return;
                 const numericPrice = parseFloat(priceValueRaw);
                 
                 let priceColorTierClass = 'bg-fuel-blue';
-                if (priceSpreadRange > 0) {
-                    const relativePercentile = (numericPrice - minPrice) / priceSpreadRange;
-                    if (relativePercentile <= 0.20) priceColorTierClass = 'bg-fuel-green';
-                    else if (relativePercentile >= 0.80) priceColorTierClass = 'bg-fuel-red';
+                if (spread > 0) {
+                    const percentile = (numericPrice - minPrice) / spread;
+                    if (percentile <= 0.25) priceColorTierClass = 'bg-fuel-green';
+                    else if (percentile >= 0.75) priceColorTierClass = 'bg-fuel-red';
                 }
 
-                const structuredLogoAssetUrl = getCorrectBrandLogo(station.brand_name);
+                const logoUrl = getCorrectBrandLogo(station.brand_name);
+
+                // Safe HTML string formatting structure including robust error state mitigation script actions
                 const customMarkerHtmlString = `
                     <div class="fuel-marker-bubble ${priceColorTierClass}">
-                        <div class="logo-container"><img src="${structuredLogoAssetUrl}" alt="Logo" /></div>
+                        <div class="logo-container">
+                            <img src="${logoUrl}" alt="Brand" onerror="this.onerror=null; this.src='${SAFE_FALLBACK_SVG}';" />
+                        </div>
                         <span>${numericPrice.toFixed(1)}p</span>
                     </div>
                 `;
@@ -329,40 +380,28 @@
                 L.marker([lat, lon], { icon: leafletCustomIcon })
                     .bindPopup(popupDescriptionLayout)
                     .addTo(markerLayerGroup);
-
-                addedCount++;
             });
 
-            document.getElementById('station-counter').textContent = `Forecourts: ${addedCount} rows`;
+            document.getElementById('station-counter').textContent = `Viewport: ${stationsList.length} rows`;
         }
 
-        // 6. ADAPTIVE NATIVE GESTURES ENGINE: Handles iOS/Android Style Bottom Sheet Snap Transitions
+        // 7. GESTURE ENGINE CODE: Controls iOS / Android bottom sheet interactions
         const sheet = document.getElementById('control-sheet');
         const handle = document.getElementById('sheet-handle');
         
-        let isDragging = false;
-        let startY = 0;
-        let startTranslateY = 0;
-        let sheetHeight = 0;
+        let isDragging = false, startY = 0, startTranslateY = 0, sheetHeight = 0;
 
-        // Calculate responsive viewport target positioning thresholds
         function getSheetPositions() {
             sheetHeight = sheet.offsetHeight;
-            return {
-                FULL: 0,
-                HALF: sheetHeight * 0.45,
-                PEEK: sheetHeight - 85
-            };
+            return { FULL: 0, HALF: sheetHeight * 0.45, PEEK: sheetHeight - 95 };
         }
 
-        let currentPositionState = getSheetPositions().PEEK;
+        let currentPositionState = 0;
 
-        // Initialize state configuration rules matching active viewports
         function setSheetPosition(translateYValue, animate = true) {
             if (!animate) sheet.classList.add('dragging');
             else sheet.classList.remove('dragging');
             
-            // On desktop mode layouts, block the processing vectors entirely
             if (window.innerWidth >= 768) {
                 sheet.style.transform = 'none';
                 return;
@@ -371,7 +410,6 @@
             currentPositionState = translateYValue;
         }
 
-        // Track Pointer/Touch Movement Event Triggers
         function onDragStart(e) {
             if (window.innerWidth >= 768) return;
             isDragging = true;
@@ -386,11 +424,8 @@
             const deltaY = currentY - startY;
             let targetTranslate = startTranslateY + deltaY;
 
-            // Resistance damping boundary equations to replicate mobile operating system environments
             const positions = getSheetPositions();
-            if (targetTranslate < positions.FULL) {
-                targetTranslate = positions.FULL + (targetTranslate * 0.2); 
-            }
+            if (targetTranslate < positions.FULL) targetTranslate = positions.FULL + (targetTranslate * 0.15);
             setSheetPosition(targetTranslate, false);
         }
 
@@ -402,42 +437,35 @@
             const positions = getSheetPositions();
             const currentY = currentPositionState;
 
-            // Snapping calculations evaluating positional vector proximities
-            const distanceToFull = Math.abs(currentY - positions.FULL);
-            const distanceToHalf = Math.abs(currentY - positions.HALF);
-            const distanceToPeek = Math.abs(currentY - positions.PEEK);
+            const dFull = Math.abs(currentY - positions.FULL);
+            const dHalf = Math.abs(currentY - positions.HALF);
+            const dPeek = Math.abs(currentY - positions.PEEK);
+            const closest = Math.min(dFull, dHalf, dPeek);
 
-            const minimumStepAllocation = Math.min(distanceToFull, distanceToHalf, distanceToPeek);
-
-            if (minimumStepAllocation === distanceToFull) setSheetPosition(positions.FULL);
-            else if (minimumStepAllocation === distanceToHalf) setSheetPosition(positions.HALF);
+            if (closest === dFull) setSheetPosition(positions.FULL);
+            else if (closest === dHalf) setSheetPosition(positions.HALF);
             else setSheetPosition(positions.PEEK);
         }
 
-        // Attach Gestures Observers Listeners Elements
         handle.addEventListener('touchstart', onDragStart, { passive: true });
         window.addEventListener('touchmove', onDragMove, { passive: false });
         window.addEventListener('touchend', onDragEnd);
-
         handle.addEventListener('mousedown', onDragStart);
         window.addEventListener('mousemove', onDragMove);
         window.addEventListener('mouseup', onDragEnd);
 
-        // Adjust tracking configurations on orientation transformations
         window.addEventListener('resize', () => {
-            if (window.innerWidth >= 768) {
-                sheet.style.transform = 'none';
-            } else {
-                setSheetPosition(getSheetPositions().HALF);
-            }
+            if (window.innerWidth >= 768) sheet.style.transform = 'none';
+            else setSheetPosition(getSheetPositions().HALF);
         });
 
-        // Trigger execution upon payload loading states completion
+        // Trigger bootstrap configuration steps on component initialization lifecycle
         window.addEventListener('DOMContentLoaded', () => {
-            loadFuelStationMarkers();
+            runInitialPositionMatrix();
+            forceReloadPipeline();
             setTimeout(() => {
                 if (window.innerWidth < 768) setSheetPosition(getSheetPositions().HALF);
-            }, 600);
+            }, 750);
         });
     </script>
 </body>
