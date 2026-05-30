@@ -31,12 +31,13 @@
             z-index: 1;
         }
 
-        /* Marker UI Component Bubble Layer Styles */
+        /* Marker UI Symmetrical Content Bubble */
         .fuel-marker-bubble {
             display: flex;
             align-items: center;
-            gap: 5px;
-            padding: 4px 10px;
+            justify-content: center;
+            padding: 4px 12px; /* Uniform, symmetrical padding on right and left */
+            gap: 6px;
             border-radius: 9999px;
             color: white;
             font-weight: 700;
@@ -68,10 +69,10 @@
         .bg-fuel-green { background-color: #10b981; }
         .bg-fuel-red { background-color: #ef4444; }
 
-        /* iOS Detail Drawer Structural Animations */
+        /* iOS Bottom Slide Sheet Overlay Drawer Layout */
         .ios-bottom-sheet {
             transform: translateY(100%);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.12);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.05);
         }
         .ios-bottom-sheet.open {
             transform: translateY(0);
@@ -94,7 +95,7 @@
     <div id="map"></div>
 
     <div class="absolute top-4 left-1/2 -translate-x-1/2 z-[500]">
-        <button onclick="refreshViewportViewFilter()" class="bg-white/95 backdrop-blur-md hover:bg-white border border-slate-200 px-5 py-2.5 rounded-full shadow-xl font-bold text-xs tracking-wider text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
+        <button onclick="refreshViewportViewFilter(null, true)" class="bg-white/95 backdrop-blur-md hover:bg-white border border-slate-200 px-5 py-2.5 rounded-full shadow-xl font-bold text-xs tracking-wider text-slate-700 uppercase flex items-center gap-2 transition active:scale-95 cursor-pointer">
             <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             Scan This Viewport Area
         </button>
@@ -108,7 +109,7 @@
                 <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
                 <p class="text-xs text-slate-400 mt-0.5 font-medium flex items-center gap-1">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live Dashboard Parameters Engine
+                    Live Parameters Engine Control
                 </p>
             </div>
 
@@ -122,14 +123,16 @@
             </div>
 
             <div id="panel-local" class="space-y-4">
-                <div class="space-y-1.5">
+                <div class="space-y-1.5 relative">
                     <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
                     <div class="relative">
-                        <input type="text" id="location-input" placeholder="Enter town, city or postcode..." 
+                        <input type="text" id="location-input" placeholder="Enter town, city or postcode..." autocomplete="off"
+                               oninput="handleAutocompleteDebounce(this, 'location-suggestions')"
                                onkeydown="if(event.key === 'Enter') executeAddressGeocodeLookup();"
-                               class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition" />
+                               class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition" />
                         <button onclick="executeAddressGeocodeLookup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition text-sm cursor-pointer">🎯</button>
                     </div>
+                    <div id="location-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                 </div>
 
                 <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
@@ -142,21 +145,23 @@
             </div>
 
             <div id="panel-route" class="space-y-4 hidden">
-                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-2.5">
-                    <div class="space-y-1">
+                <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-3">
+                    <div class="space-y-1 relative">
                         <label class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase flex items-center gap-1">🟢 Starting Location</label>
-                        <input type="text" id="route-start" placeholder="e.g. London or Glasgow" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                        <input type="text" id="route-start" placeholder="e.g. Dunfermline" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'start-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                        <div id="start-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-1 relative">
                         <label class="text-[10px] font-bold tracking-wider text-red-600 uppercase flex items-center gap-1">🔴 Destination</label>
-                        <input type="text" id="route-end" placeholder="e.g. Edinburgh or Manchester" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                        <input type="text" id="route-end" placeholder="e.g. Edinburgh" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'end-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
+                        <div id="end-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
                     </div>
                 </div>
 
                 <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-bold text-slate-600">🚗 Route Journey Radius</span>
-                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="route-radius-val">2 Miles</span>
+                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="route-radius-val">2 miles</span>
                     </div>
                     <input type="range" min="1" max="10" value="2" id="route-radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                 </div>
@@ -184,7 +189,7 @@
 
             <div class="space-y-1.5">
                 <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Fuel Formulation Variant</label>
-                <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition">
+                <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition">
                     <option value="E10">Petrol Unleaded (E10)</option>
                     <option value="E5">Super Unleaded (E5)</option>
                     <option value="B7">Diesel (B7)</option>
@@ -205,7 +210,7 @@
         </div>
     </aside>
 
-    <div id="ios-detail-sheet" class="ios-bottom-sheet fixed bottom-0 left-0 right-0 z-[999] bg-white/95 backdrop-blur-xl rounded-t-[2rem] border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.15)] md:hidden flex flex-col max-h-[50vh]">
+    <div id="ios-detail-sheet" class="ios-bottom-sheet fixed bottom-0 left-0 right-0 z-[999] bg-white/95 backdrop-blur-xl rounded-t-[2rem] border-t border-slate-200 shadow-[0_-10px_30px_rgba(0,0,0,0.15)] md:hidden flex flex-col max-h-[45vh]">
         <div class="w-full py-3.5 flex justify-center cursor-pointer" onclick="closeIosDetailDrawer()">
             <div class="w-10 h-1 bg-slate-300 rounded-full"></div>
         </div>
@@ -214,7 +219,7 @@
             <div class="flex justify-between items-start">
                 <div>
                     <h3 id="ios-sheet-title" class="text-xl font-black text-slate-900 tracking-tight">Select a Forecourt</h3>
-                    <p id="ios-sheet-address" class="text-xs font-medium text-slate-400 mt-0.5">Click a price marker asset capsule to display metadata details summary.</p>
+                    <p id="ios-sheet-address" class="text-xs font-medium text-slate-400 mt-0.5">Click a price capsule on the map to display metadata logs.</p>
                 </div>
                 <button onclick="closeIosDetailDrawer()" class="bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full p-2 text-xs font-bold transition">✕</button>
             </div>
@@ -239,15 +244,17 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
     <script>
-        // Global Operational Environment Runtime States Variable Registry
+        // Global State Variables Pool Registry
         let rawGlobalStationsPool = [];
         let markerLayerGroup = L.layerGroup();
         let routePolylineLayer = null;
         let activeTabContext = 'local';
         let plottedRouteCoordinates = [];
+        let mapSearchAnchorCoordinates = [56.07, -3.45]; // Default center (Dunfermline area coordinate context)
+        let autocompleteDebounceTimer = null;
         
-        // 1. Initialize Map Canvas Coordinates
-        const map = L.map('map', { zoomControl: false }).setView([55.92, -4.05], 12);
+        // Initialize Map View
+        const map = L.map('map', { zoomControl: false }).setView(mapSearchAnchorCoordinates, 12);
         L.control.zoom({ position: 'topleft' }).addTo(map);
         markerLayerGroup.addTo(map);
 
@@ -255,7 +262,7 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        // Tab Subsystem Toggle Routing Panels
+        // Switch Panel Context
         function toggleSearchTab(targetTab) {
             activeTabContext = targetTab;
             const localBtn = document.getElementById('tab-local-btn');
@@ -278,21 +285,17 @@
             refreshViewportViewFilter();
         }
 
-        // 2. Hardware Native Location Telemetry Autodetect Framework
+        // Native Geolocation Hardware Capture Framework
         function checkNativeHardwarePositionMatrix() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
+                        mapSearchAnchorCoordinates = [position.coords.latitude, position.coords.longitude];
                         document.getElementById('location-input').placeholder = "📍 Using Device Current Location";
-                        map.setView([lat, lon], 12);
+                        map.setView(mapSearchAnchorCoordinates, 12);
                         refreshViewportViewFilter();
                     },
-                    (error) => {
-                        console.warn("Telemetry hardware capture parameters declined by host sandbox user.");
-                        refreshViewportViewFilter();
-                    },
+                    () => { refreshViewportViewFilter(); },
                     { enableHighAccuracy: true, timeout: 5000 }
                 );
             } else {
@@ -300,7 +303,53 @@
             }
         }
 
-        // 3. Live Geocoding Text Input Search Feature Lookup Function
+        // Autocomplete Live Search Thread Logic Layer
+        function handleAutocompleteDebounce(inputField, suggestionContainerId) {
+            clearTimeout(autocompleteDebounceTimer);
+            const textQuery = inputField.value.trim();
+            const matchingBox = document.getElementById(suggestionContainerId);
+            
+            if (textQuery.length < 3) {
+                matchingBox.classList.add('hidden');
+                return;
+            }
+
+            autocompleteDebounceTimer = setTimeout(async () => {
+                try {
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=5`;
+                    const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
+                    const optionsList = await res.json();
+
+                    if (!optionsList || optionsList.length === 0) {
+                        matchingBox.classList.add('hidden');
+                        return;
+                    }
+
+                    matchingBox.innerHTML = '';
+                    optionsList.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = "p-2.5 hover:bg-slate-50 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap";
+                        row.textContent = item.display_name;
+                        row.onclick = () => {
+                            inputField.value = item.display_name;
+                            matchingBox.classList.add('hidden');
+                            
+                            if (inputField.id === 'location-input') {
+                                mapSearchAnchorCoordinates = [parseFloat(item.lat), parseFloat(item.lon)];
+                                map.setView(mapSearchAnchorCoordinates, 12);
+                                refreshViewportViewFilter();
+                            }
+                        };
+                        matchingBox.appendChild(row);
+                    });
+                    matchingBox.classList.remove('hidden');
+                } catch (e) {
+                    console.error("Autocomplete processing error thread exception:", e);
+                }
+            }, 350);
+        }
+
+        // Execute Geocode Address Field Lookup Coordinates
         async function executeAddressGeocodeLookup() {
             const searchString = document.getElementById('location-input').value.trim();
             if (!searchString) return;
@@ -311,52 +360,48 @@
                 const matchingNodes = await res.json();
 
                 if (matchingNodes && matchingNodes.length > 0) {
-                    const targetLat = parseFloat(matchingNodes[0].lat);
-                    const targetLon = parseFloat(matchingNodes[0].lon);
-                    map.setView([targetLat, targetLon], 12);
+                    mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
+                    map.setView(mapSearchAnchorCoordinates, 12);
                     refreshViewportViewFilter();
                 } else {
-                    alert("Location not found inside the UK system mesh. Please check your query or postcode spelling.");
+                    alert("Location context coordinates match not found inside the UK matrix grid.");
                 }
             } catch (err) {
-                console.error("Geocoding fetch operation error:", err);
+                console.error("Geocoding lookup exception logs:", err);
             }
         }
 
-        // 4. Live Core Route Corridor Computation Engine Pipeline
+        // Live Road Tracking Route Compilation Engine Pipeline
         async function executeRouteGenerationPipeline() {
             const startVal = document.getElementById('route-start').value.trim();
             const endVal = document.getElementById('route-end').value.trim();
 
             if (!startVal || !endVal) {
-                alert("Please declare both starting point and destination fields.");
+                alert("Please declare both starting point and destination tracking query inputs.");
                 return;
             }
 
             try {
-                // Geocode Start
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
                 const startNodes = await startRes.json();
                 
-                // Geocode End
                 const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
                 const endNodes = await endRes.json();
 
                 if (!startNodes.length || !endNodes.length) {
-                    alert("Unable to map route. Ensure locations exist in the UK grid map framework.");
+                    alert("Unable to map route track bounds. Verify parameter names spelling accuracy.");
                     return;
                 }
 
                 const sLat = startNodes[0].lat, sLon = startNodes[0].lon;
                 const eLat = endNodes[0].lat, eLon = endNodes[0].lon;
 
-                // Query OSRM Public Routing System Engine APIs
                 const osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
                 const routeRes = await fetch(osrmQuery);
                 const routeData = await routeRes.json();
 
                 if (!routeData.routes || !routeData.routes.length) {
-                    alert("No valid road tracks could be linked between points.");
+                    alert("No open highway links could be charted between locations.");
                     return;
                 }
 
@@ -364,8 +409,7 @@
                 const pathDistanceMeters = routeData.routes[0].distance;
                 const distanceMiles = pathDistanceMeters * 0.000621371;
 
-                // Strip down layout arrays coords context coordinates arrays layer
-                plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]); // Swap to Leaflet Lat/Lon order
+                plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
 
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 
@@ -376,12 +420,10 @@
                 }).addTo(map);
 
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
-
-                // Trigger filtering view based around the calculated route path corridor trace
                 refreshViewportViewFilter(distanceMiles);
 
             } catch (err) {
-                console.error("Routing network thread malfunction context track:", err);
+                console.error("Routing network framework fatal failure:", err);
             }
         }
 
@@ -395,16 +437,18 @@
             refreshViewportViewFilter();
         }
 
-        // Helper function: Calculates geometric shortest point-to-line segment separation
+        // Symmetrical Approximation Distance Formula
+        function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
+            const dLat = (lat2 - lat1) * 69.1;
+            const dLon = (lon2 - lon1) * 53.0; // Scaled rough paralells mesh for UK bounds
+            return Math.sqrt(dLat * dLat + dLon * dLon);
+        }
+
         function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
             let minimumTrackSeparationMiles = Infinity;
-            
-            // Core scanning vector matrix sweep logic checks for localized points proximity
             for (let i = 0; i < plottedRouteCoordinates.length; i++) {
                 const node = plottedRouteCoordinates[i];
-                const dLat = (node[0] - pointLat) * 69.1;
-                const dLon = (node[1] - pointLon) * 53.0; // Approximation adjusted roughly for UK parallels
-                const distanceEstimate = Math.sqrt(dLat * dLat + dLon * dLon);
+                const distanceEstimate = computeDistanceVectorMiles(node[0], node[1], pointLat, pointLon);
                 if (distanceEstimate < minimumTrackSeparationMiles) {
                     minimumTrackSeparationMiles = distanceEstimate;
                 }
@@ -412,7 +456,7 @@
             return minimumTrackSeparationMiles;
         }
 
-        // 5. Version 1 Standard Branding Mapping Dictionary Lookup Logic Matrix
+        // Brand Visual Symbol Resolver
         const BRAND_EMOJI_DICT = {
             'shell': '⛽', 'bp': '🟢', 'esso': '🔴', 'tesco': '🔵', 
             'asda': '🟢', 'sainsbury': '🟠', 'morrison': '💛', 
@@ -428,11 +472,14 @@
             return '⛽';
         }
 
-        // Event Interface Binding Configuration Registry Subsystems
+        // Setup DOM Event UI Binding Hook Configurations
         const slider = document.getElementById('radius-slider');
         const sliderVal = document.getElementById('radius-val');
         if (slider) {
-            slider.addEventListener('input', (e) => { sliderVal.textContent = `${e.target.value} Miles`; });
+            slider.addEventListener('input', (e) => { 
+                sliderVal.textContent = `${e.target.value} Miles`; 
+                refreshViewportViewFilter();
+            });
         }
 
         const rSlider = document.getElementById('route-radius-slider');
@@ -441,16 +488,19 @@
             rSlider.addEventListener('input', (e) => { rSliderVal.textContent = `${e.target.value} Miles`; });
         }
         
-        const fuelSelector = document.getElementById('fuel-type');
-        if (fuelSelector) {
-            fuelSelector.addEventListener('change', () => refreshViewportViewFilter());
-        }
-        
-        map.on('moveend', () => {
-            if (activeTabContext === 'local') refreshViewportViewFilter();
+        document.getElementById('fuel-type')?.addEventListener('change', () => refreshViewportViewFilter());
+
+        // Document Click Listener to auto close drop panels out of focus area boundary boxes
+        document.addEventListener('click', (e) => {
+            ['location-suggestions', 'start-suggestions', 'end-suggestions'].forEach(id => {
+                const box = document.getElementById(id);
+                if (box && !box.contains(e.target) && e.target.id !== id.replace('-suggestions', '-input')) {
+                    box.classList.add('hidden');
+                }
+            });
         });
 
-        // 6. Remote Core Data Ingestion Network Pipeline
+        // Remote Core Payload Ingestion Data Thread
         async function forceReloadRemotePipelineData() {
             const counterElement = document.getElementById('station-counter');
             if (counterElement) counterElement.textContent = "Loading Data...";
@@ -458,36 +508,49 @@
             try {
                 const endpoint = 'https://fuel-cron-scraper.jasonlung0.workers.dev/';
                 const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`HTTP Exception pipeline context state status: ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP network exception state: ${response.status}`);
                 
                 rawGlobalStationsPool = await response.json();
                 refreshViewportViewFilter();
             } catch (error) {
-                console.error("Data tracking failure execution scope stack:", error);
+                console.error("Ingestion data stream processing crash logic stack:", error);
                 if (counterElement) counterElement.textContent = "Error Reloading Data";
             }
         }
 
-        // 7. High-Performance Overload Safe Viewport / Corridor Filter
-        function refreshViewportViewFilter(routeDistanceContext = null) {
+        // Viewport and Strict Local Distance Radius Filtering Logic System
+        function refreshViewportViewFilter(routeDistanceContext = null, manualScanTriggered = false) {
             if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
 
-            const mapScreenBounds = map.getBounds();
             const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
+            const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
             const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
-
+            
             let dynamicBoundedStations = [];
 
             if (activeTabContext === 'local' || plottedRouteCoordinates.length === 0) {
-                // Viewport Box Filtering Scheme
-                dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
-                    const lat = parseFloat(station.latitude || station.lat);
-                    const lon = parseFloat(station.longitude || station.lng);
-                    if (isNaN(lat) || isNaN(lon)) return false;
-                    return mapScreenBounds.contains([lat, lon]);
-                });
+                if (manualScanTriggered) {
+                    // Manual override bounding box search capture mesh
+                    const mapScreenBounds = map.getBounds();
+                    dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
+                        const lat = parseFloat(station.latitude || station.lat);
+                        const lon = parseFloat(station.longitude || station.lng);
+                        if (isNaN(lat) || isNaN(lon)) return false;
+                        return mapScreenBounds.contains([lat, lon]);
+                    });
+                } else {
+                    // Strict radius fallback capping scheme around search area location anchors
+                    dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
+                        const lat = parseFloat(station.latitude || station.lat);
+                        const lon = parseFloat(station.longitude || station.lng);
+                        if (isNaN(lat) || isNaN(lon)) return false;
+                        
+                        const distanceMiles = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], lat, lon);
+                        return distanceMiles <= targetLocalRadiusThreshold;
+                    });
+                }
             } else {
-                // Route Corridor Filtering Spatial Map Calculations
+                // Route Corridor Filtering Layout
                 dynamicBoundedStations = rawGlobalStationsPool.filter(station => {
                     const lat = parseFloat(station.latitude || station.lat);
                     const lon = parseFloat(station.longitude || station.lng);
@@ -498,14 +561,13 @@
                 });
             }
 
-            // Prevent engine locking by adding an explicit display cap window threshold
             const renderingDisplayLimitCap = 250;
             const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
 
             paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
         }
 
-        // 8. Safe Node Renderer Engine 
+        // Safe Node Canvas Marker Layer Renderer
         function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
             markerLayerGroup.clearLayers();
 
@@ -517,21 +579,19 @@
             const maxPrice = Math.max(...pricesArray) || 175;
             const spreadDelta = maxPrice - minPrice;
 
-            // Update Summary Financial Statistics Module Cards
+            // Render Financial calculations panel board data output matrices metric widgets
             const finCard = document.getElementById('financial-card');
             if (finCard && pricesArray.length > 0) {
                 finCard.classList.remove('hidden');
                 
                 if (activeTabContext === 'route' && routeDistanceContext) {
                     const vehicleMpg = parseFloat(document.getElementById('vehicle-mpg').value || 45);
-                    const fuelGallonsConsumed = routeDistanceContext / vehicleMpg;
-                    const fuelLitresConsumed = fuelGallonsConsumed * 4.54609;
-                    const totalTripPriceCostPounds = (fuelLitresConsumed * minPrice) / 100;
+                    const totalTripPriceCostPounds = ((routeDistanceContext / vehicleMpg) * 4.54609 * minPrice) / 100;
 
                     document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
                     document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
                 } else {
-                    document.getElementById('summary-distance').textContent = `${(fallbackTotalCount * 0.03).toFixed(1)} miles area`;
+                    document.getElementById('summary-distance').textContent = `Radius Area Scope`;
                     document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
                 }
             }
@@ -552,8 +612,6 @@
                 }
 
                 const brandVisualSymbol = resolveBrandVisualSymbol(station.brand_name);
-
-                // Build custom token markup container layout string arrays safely without broken quotes
                 const designHTMLTemplateString = `
                     <div class="fuel-marker-bubble ${tierBgClassColor}">
                         <div class="logo-container">${brandVisualSymbol}</div>
@@ -564,11 +622,10 @@
                 const layoutCustomIconInstance = L.divIcon({
                     html: designHTMLTemplateString,
                     className: 'leaflet-div-icon-reset-layout-layer',
-                    iconSize: [75, 28],
-                    iconAnchor: [37, 14]
+                    iconSize: [80, 28],
+                    iconAnchor: [40, 14]
                 });
 
-                // Generate completely safe non-breaking token text strings
                 const safeBrandTitle = (station.brand_name || 'Independent Vendor').replace(/['"]/g, '');
                 const safeAddressDetails = (station.address || 'UK Road Network').replace(/['"]/g, '');
                 
@@ -587,7 +644,6 @@
                 const markerInstanceElement = L.marker([lat, lon], { icon: layoutCustomIconInstance });
                 markerInstanceElement.bindPopup(popupLayoutContent);
                 
-                // Intercept clicks to power mobile bottom drawer
                 markerInstanceElement.on('click', () => {
                     if (window.innerWidth < 768) {
                         map.closePopup();
@@ -599,10 +655,10 @@
             });
 
             const statusCounter = document.getElementById('station-counter');
-            if (statusCounter) statusCounter.textContent = `Pool Metrics: ${fallbackTotalCount} records`;
+            if (statusCounter) statusCounter.textContent = `Forecourts: ${fallbackTotalCount} rows`;
         }
 
-        // 9. Interactive Native iOS Drawer Action Trigger Systems Controller Matrix
+        // Native High-Fidelity Mobile Interactive iOS Swipe Modal Sheet Controllers
         function launchIosDetailMobileDrawer(stationData) {
             const drawer = document.getElementById('ios-detail-sheet');
             const title = document.getElementById('ios-sheet-title');
@@ -612,7 +668,7 @@
             if (!drawer) return;
 
             title.textContent = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
-            address.textContent = (stationData.address || 'UK Highway Network Info Layer Area').replace(/['"]/g, '');
+            address.textContent = (stationData.address || 'UK Highway Network Area').replace(/['"]/g, '');
 
             document.getElementById('ios-price-e10').textContent = stationData.E10 ? `${stationData.E10}p` : 'N/A';
             document.getElementById('ios-price-e5').textContent = stationData.E5 ? `${stationData.E5}p` : 'N/A';
@@ -627,7 +683,7 @@
             if (drawer) drawer.classList.remove('open');
         }
 
-        // Global lifecycle layout boot procedures
+        // Global Boot Initialization Execution Hook
         window.addEventListener('DOMContentLoaded', () => {
             checkNativeHardwarePositionMatrix();
             forceReloadRemotePipelineData();
