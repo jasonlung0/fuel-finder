@@ -79,11 +79,11 @@
                 transform: translateY(0);
             }
             .adaptive-control-sidebar.state-mid {
-                height: 45vh;
+                height: 50vh;
                 transform: translateY(0);
             }
             .adaptive-control-sidebar.state-full {
-                height: 88vh;
+                height: 90vh;
                 transform: translateY(0);
             }
         }
@@ -127,13 +127,13 @@
             <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1"></div>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-6 space-y-5">
+        <div class="flex-1 overflow-y-auto px-6 pb-6 pt-5 md:pt-7 space-y-5">
             <div class="flex justify-between items-start">
                 <div>
                     <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
                     <p id="live-timestamp-label" class="text-xs text-slate-400 mt-0.5 font-semibold flex items-center gap-1">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        🕒 Checking price update sync logs...
+                        Checking price update sync logs...
                     </p>
                 </div>
             </div>
@@ -212,6 +212,12 @@
                 </div>
             </div>
 
+            <div id="cheapest-ranking-block" class="space-y-2 hidden">
+                <label class="text-[10px] font-black tracking-wider text-amber-600 uppercase flex items-center gap-1">🏆 Cheapest Selection Choices</label>
+                <div id="cheapest-cards-stack" class="space-y-2">
+                    </div>
+            </div>
+
             <div class="space-y-1.5">
                 <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Fuel Formulation Variant</label>
                 <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition">
@@ -274,7 +280,7 @@
     <script>
         // Memory Registries
         let rawGlobalStationsPool = [];
-        let currentlyVisibleStations = []; // Critical tracking layer to calculate relative local ranges
+        let currentlyVisibleStations = []; 
         let markerLayerGroup = L.layerGroup();
         let routePolylineLayer = null;
         let activeTabContext = 'local';
@@ -496,6 +502,7 @@
             }
             plottedRouteCoordinates = [];
             document.getElementById('financial-card').classList.add('hidden');
+            document.getElementById('cheapest-ranking-block').classList.add('hidden');
             refreshViewportViewFilter();
         }
 
@@ -586,6 +593,26 @@
             }
         }
 
+        // Interactively jump and zoom into a clean map marker node anchor context
+        function focusAndHighlightMapMarker(lat, lon, stationIndex) {
+            if (isNaN(lat) || isNaN(lon)) return;
+            
+            // Recenter canvas smoothly
+            map.setView([lat, lon], 14, { animate: true, duration: 0.6 });
+            
+            // Extract the correct raw structure matching the index matching the filtered visible pool
+            const selectedStation = currentlyVisibleStations.find(s => 
+                parseFloat(s.latitude || s.lat) === lat && 
+                parseFloat(s.longitude || s.lng) === lon
+            );
+            
+            if (selectedStation) {
+                setTimeout(() => {
+                    openForecourtDetailSheet(selectedStation);
+                }, 400);
+            }
+        }
+
         // Viewport & Strict Radius Filter Rules Layout Grid Matrix
         function refreshViewportViewFilter(routeDistanceContext = null, manualScanTriggered = false) {
             if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) return;
@@ -633,6 +660,58 @@
             const sliceRenderQueueList = dynamicBoundedStations.slice(0, renderingDisplayLimitCap);
 
             paintMarkerCanvasLayersToMap(sliceRenderQueueList, chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
+            generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
+        }
+
+        // Compute and compile the top 3 cheapest locations matching active view filters
+        function generateCheapestRankingListDeck(pool, fuelVariant) {
+            const block = document.getElementById('cheapest-ranking-block');
+            const container = document.getElementById('cheapest-cards-stack');
+            if (!block || !container) return;
+
+            // Sort target array strictly by numeric value matching current fuel parameter assignment scope
+            const validPool = pool.filter(s => s[fuelVariant] && !isNaN(parseFloat(s[fuelVariant])) && parseFloat(s[fuelVariant]) > 0);
+            
+            if (validPool.length === 0) {
+                block.classList.add('hidden');
+                return;
+            }
+
+            validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
+            const top3 = validPool.slice(0, 3);
+
+            container.innerHTML = '';
+            top3.forEach((station, idx) => {
+                const lat = parseFloat(station.latitude || station.lat);
+                const lon = parseFloat(station.longitude || station.lng);
+                const val = parseFloat(station[fuelVariant]).toFixed(1);
+                const emoji = resolveBrandVisualSymbol(station.brand_name);
+                const cleanBrand = (station.brand_name || 'Independent').replace(/['"]/g, '');
+                
+                const card = document.createElement('div');
+                card.className = "flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl hover:border-amber-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
+                card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-7 h-7 rounded-full bg-amber-50 text-xs flex items-center justify-center shrink-0 font-black text-amber-600 border border-amber-100">
+                            #${idx + 1}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-xs font-black text-slate-800 truncate flex items-center gap-1">
+                                <span>${emoji}</span> ${cleanBrand}
+                            </div>
+                            <div class="text-[10px] font-medium text-slate-400 truncate">${station.address || ''}</div>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <div class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 border border-emerald-100 rounded-md">${val}p</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            block.classList.remove('hidden');
         }
 
         // Dynamic local range styling generator engine strategy
@@ -643,7 +722,6 @@
             const numericVal = parseFloat(valueRaw);
             if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
-            // CRITICAL REPAIR: We extract ranges strictly out of currentlyVisibleStations instead of rawGlobalStationsPool
             const referencePool = currentlyVisibleStations
                 .map(item => parseFloat(item[variantKey]))
                 .filter(p => !isNaN(p) && p > 0);
@@ -656,7 +734,6 @@
 
             if (delta <= 0) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
 
-            // Define exact third-tier break brackets locally
             const stepThreshold = delta / 3;
             const greenLimit = min + stepThreshold;
             const blueLimit = min + (stepThreshold * 2);
@@ -754,12 +831,10 @@
             title.textContent = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
             address.textContent = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
 
-            // Target DOM display wrapper layers
             const wrapE10 = document.getElementById('card-wrap-e10');
             const wrapE5 = document.getElementById('card-wrap-e5');
             const wrapB7 = document.getElementById('card-wrap-b7');
 
-            // Map and resolve tier coloring strategies dynamically across all parameters
             wrapE10.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
             wrapE5.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
             wrapB7.className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
