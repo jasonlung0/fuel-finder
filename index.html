@@ -1,536 +1,406 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-slate-50">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>UK Fuel Price Finder</title>
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>95</text></svg>">
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UK Fuel Price Finder App</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        body { font-family: 'Inter', sans-serif; }
+        /* Reset defaults for Leaflet custom canvas divIcons */
+        .leaflet-div-icon-reset-layout-layer {
+            background: transparent !important;
+            border: none !important;
         }
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        /* Symmetrical Map Pricing Markers Layout */
+        /* Custom Map Canvas Price Bubble Elements */
         .fuel-marker-bubble {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 5px 12px;
-            gap: 6px;
-            border-radius: 9999px;
-            color: white;
-            font-weight: 700;
-            font-size: 13px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            border: 1.5px solid rgba(255, 255, 255, 0.45);
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 1.5px solid rgba(255, 255, 255, 0.85);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             white-space: nowrap;
-            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .fuel-marker-bubble:hover {
             transform: scale(1.08);
             z-index: 99999 !important;
         }
-        .logo-container {
-            width: 16px;
-            height: 16px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            flex-shrink: 0;
-            font-size: 10px;
-        }
+        .bg-fuel-green { background-color: #059669; }
+        .bg-fuel-blue { background-color: #2563eb; }
+        .bg-fuel-red { background-color: #dc2626; }
         
-        .bg-fuel-green { background-color: #10b981 !important; }
-        .bg-fuel-blue { background-color: #2563eb !important; }
-        .bg-fuel-red { background-color: #ef4444 !important; }
-
-        /* Control Sidebar Transitions */
-        .adaptive-control-sidebar {
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), height 0.35s cubic-bezier(0.25, 1, 0.5, 1);
-        }
+        /* Mobile Slide Out Detail Sheet Animations */
         @media (max-width: 767px) {
-            .adaptive-control-sidebar.state-minimal { height: 70px; transform: translateY(0); }
-            .adaptive-control-sidebar.state-mid { height: 50vh; transform: translateY(0); }
-            .adaptive-control-sidebar.state-full { height: 90vh; transform: translateY(0); }
-        }
-
-        /* Responsive 3-Stage Detent Mechanical Engine for Forecourt Sheet */
-        @media (max-width: 767px) {
-            .detail-sheet-mobile {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 999;
-                background-color: rgba(255, 255, 255, 0.98);
-                backdrop-filter: blur(20px);
-                border-top-left-radius: 2rem;
-                border-top-right-radius: 2rem;
-                border-top: 1px solid #e2e8f0;
-                box-shadow: 0 -10px 35px rgba(0,0,0,0.15);
-                transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            #global-detail-sheet {
+                transform: translateY(100%);
+                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             }
-            .detail-sheet-mobile.state-hidden { transform: translateY(110%); }
-            .detail-sheet-mobile.state-minimal { height: 75px; transform: translateY(0); overflow: hidden; }
-            .detail-sheet-mobile.state-mid { height: 42vh; transform: translateY(0); }
-            .detail-sheet-mobile.state-full { height: 88vh; transform: translateY(0); }
+            #global-detail-sheet.sheet-mid { transform: translateY(40%); }
+            #global-detail-sheet.sheet-full { transform: translateY(0%); }
+            #global-detail-sheet.sheet-hidden { transform: translateY(100%); }
         }
         @media (min-width: 768px) {
-            .detail-sheet-mobile {
-                position: fixed;
-                bottom: 24px;
-                right: 24px;
-                width: 400px;
-                background-color: rgba(255, 255, 255, 0.96);
-                backdrop-filter: blur(16px);
-                border-radius: 1.25rem;
-                border: 1px solid #e2e8f0;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-                z-index: 999;
-                transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.25s ease;
-                transform: translateY(120%);
+            #global-detail-sheet {
                 opacity: 0;
+                transform: translateX(20px) scale(0.98);
                 pointer-events: none;
+                transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             }
-            .detail-sheet-mobile.active-desktop {
-                transform: translateY(0);
+            #global-detail-sheet.active-desktop {
                 opacity: 1;
+                transform: translateX(0) scale(1);
                 pointer-events: auto;
             }
         }
-
-        /* Pure CSS Tooltip Setup */
-        .nav-tooltip-trigger { position: relative; }
-        .nav-tooltip-trigger::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            top: calc(100% + 10px);
-            left: 50%;
-            transform: translateX(-50%) scale(0.95);
-            background-color: #0f172a;
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 5px 10px;
-            border-radius: 8px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
+        /* Micro-Interaction Animation Keyframe Pop */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.22); }
+            100% { transform: scale(1.1); }
         }
-        .nav-tooltip-trigger:hover::after { opacity: 1; transform: translateX(-50%) scale(1); }
-
-        .leaflet-top.leaflet-left { top: 90px !important; }
-        @media (min-width: 768px) { .leaflet-top.leaflet-left { left: 415px !important; top: 20px !important; } }
+        .animate-pop {
+            animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* Hide scrollbars elegantly */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-900 antialiased">
+<body class="h-full overflow-hidden flex flex-col md:flex-row relative">
 
-    <div id="map"></div>
-
-    <nav class="fixed top-4 right-4 z-[500] bg-white/95 backdrop-blur-md border border-slate-200/80 px-2 py-1.5 rounded-full shadow-2xl flex items-center gap-0.5 select-none max-md:top-3 max-md:right-3">
-        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-full transition cursor-pointer" data-tooltip="Home" onclick="console.log('Navigate Home')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
-        </button>
-        <button id="nav-starred-trigger" class="nav-tooltip-trigger p-2 text-slate-500 hover:text-amber-500 hover:bg-amber-50/50 rounded-full transition cursor-pointer" data-tooltip="Starred" onclick="toggleStarredDropdown()">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
-        </button>
-        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50/50 rounded-full transition cursor-pointer" data-tooltip="Saved" onclick="console.log('View Saved Filters')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0z" /></svg>
-        </button>
-        <button class="nav-tooltip-trigger p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50/50 rounded-full transition cursor-pointer" data-tooltip="Trends" onclick="console.log('View Fuel Price Trends')">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" /></svg>
-        </button>
-        
-        <div class="w-[1px] h-5 bg-slate-200 mx-1"></div>
-        
-        <button onclick="refreshViewportViewFilter(null, true)" class="nav-tooltip-trigger p-2 text-blue-600 hover:bg-blue-50 rounded-full transition cursor-pointer font-bold animate-pulse hover:animate-none" data-tooltip="Scan Viewport">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </button>
-
-        <div id="starred-dropdown-panel" class="absolute top-14 right-0 w-96 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl p-4 hidden flex flex-col max-h-[75vh] max-md:right-[-12px] max-md:w-85">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-100 mb-2 shrink-0">
-                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">⭐ Starred Forecourts</h4>
-                <span id="starred-count-badge" class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">0</span>
+    <aside class="w-full md:w-[380px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col shrink-0 z-[400] text-slate-100 shadow-2xl h-[45%] md:h-full">
+        <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center font-black text-slate-950 text-base shadow-md">⛽</div>
+                <div>
+                    <h1 class="text-sm font-black tracking-tight text-white leading-none">UK Fuel Finder</h1>
+                    <span class="text-[10px] font-medium text-slate-400 tracking-wide">Live Price Pipeline Optimizer</span>
+                </div>
             </div>
-            <div id="starred-list-container" class="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin"></div>
-        </div>
-    </nav>
-
-    <aside id="control-sidebar" class="adaptive-control-sidebar fixed z-[500] bg-white/95 backdrop-blur-md border-slate-200 shadow-2xl flex flex-col justify-between state-mid
-        max-md:bottom-0 max-md:left-0 max-md:right-0 max-md:rounded-t-[2rem] max-md:border-t
-        md:top-6 md:left-6 md:bottom-6 md:w-[380px] md:rounded-2xl md:border md:h-auto">
-        
-        <div class="w-full py-3 flex flex-col items-center justify-center cursor-pointer select-none md:hidden shrink-0" onclick="cycleMobileSidebarDetents()">
-            <div class="w-12 h-1.5 bg-slate-300 rounded-full mb-1"></div>
+            <div id="station-counter" class="text-[11px] font-black bg-slate-800 px-2.5 py-1 rounded-md text-amber-400 border border-slate-700/60 shadow-xs">
+                Forecourts: Initializing...
+            </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-6 pt-6 md:pt-9 space-y-5">
-            <div>
-                <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Search Fuel Price</h1>
-                <p id="live-timestamp-label" class="text-xs text-slate-400 mt-0.5 font-semibold flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Checking price logs...
-                </p>
+        <div class="grid grid-cols-2 bg-slate-950/60 p-1.5 gap-1 shrink-0 border-b border-slate-800">
+            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs">
+                📍 Radius Search
+            </button>
+            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+                🛣️ Route Planner
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+            <div class="space-y-1.5">
+                <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Select Target Fuel Grade</label>
+                <div class="relative">
+                    <select id="fuel-type" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-hidden focus:border-amber-400 appearance-none shadow-xs cursor-pointer">
+                        <option value="E10" selected>Unleaded Petrol (E10)</option>
+                        <option value="E5">Premium Super Unleaded (E5)</option>
+                        <option value="B7">Standard Diesel (B7)</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[10px]">▼</div>
+                </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold tracking-wide uppercase select-none">
-                <button id="tab-local-btn" onclick="toggleSearchTab('local')" class="bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition">📍 Local Area</button>
-                <button id="tab-route-btn" onclick="toggleSearchTab('route')" class="text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition">🚖 Route Corridor</button>
-            </div>
-
-            <div id="panel-local" class="space-y-4">
+            <div id="panel-tab-local" class="space-y-4">
                 <div class="space-y-1.5 relative">
-                    <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Search Area Location</label>
-                    <div class="relative">
-                        <input type="text" id="location-input" placeholder="Enter town, city or postcode..." autocomplete="off"
-                               oninput="handleAutocompleteDebounce(this, 'location-suggestions')"
-                               onkeydown="if(event.key === 'Enter') executeAddressGeocodeLookup();"
-                               class="w-full border border-slate-200 bg-slate-50/50 rounded-xl pl-3 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition" />
-                        <button onclick="executeAddressGeocodeLookup()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition text-sm cursor-pointer">🎯</button>
+                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Search Landmark or Postcode</label>
+                    <div class="flex gap-2">
+                        <input id="location-input" type="text" placeholder="e.g., Manchester, London, EH1 1BB..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
+                        <button onclick="executeAddressGeocodeLookup()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 rounded-xl transition cursor-pointer active:scale-95 shadow-md shrink-0">Scan</button>
                     </div>
-                    <div id="location-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
+                    <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-56 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
                 </div>
 
-                <div id="sidebar-active-station-box" class="hidden border border-slate-200/80 bg-slate-50 p-3 rounded-xl flex items-center justify-between transition-all duration-200">
-                    <div class="min-w-0 pr-2">
-                        <div class="text-[9px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1">📍 Selected Station</div>
-                        <div id="sidebar-active-brand" class="text-xs font-extrabold text-slate-800 truncate mt-0.5">Brand</div>
-                        <div id="sidebar-active-address" class="text-[10px] font-medium text-slate-400 truncate">Address...</div>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-[11px] font-black tracking-wider text-slate-400 uppercase">
+                        <span>Search Range Boundary</span>
+                        <span id="radius-val" class="text-amber-400 normal-case font-black">5 Miles</span>
                     </div>
-                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0" title="Star Station">
-                        <svg id="sidebar-star-icon" class="w-4 h-4 fill-none stroke-currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
+                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                </div>
+                
+                <button onclick="refreshViewportViewFilter(null, true)" class="w-full border border-slate-700 hover:border-slate-500 bg-slate-800/40 hover:bg-slate-800 text-slate-200 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99] shadow-xs">
+                    🔄 Filter within current Map Boundaries
+                </button>
+            </div>
+
+            <div id="panel-tab-route" class="space-y-4 hidden">
+                <div class="space-y-1.5 relative">
+                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Route Starting Point</label>
+                    <input id="route-start" type="text" placeholder="Start Town / Postcode..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
+                    <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
+                </div>
+
+                <div class="space-y-1.5 relative">
+                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Route Ending Destination</label>
+                    <input id="route-end" type="text" placeholder="Destination Town / Postcode..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
+                    <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Vehicle Fuel MPG</label>
+                        <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-bold text-center focus:outline-hidden focus:border-amber-400 shadow-xs" />
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between items-center text-[11px] font-black tracking-wider text-slate-400 uppercase">
+                            <span>Corridor Max</span>
+                        </div>
+                        <div class="relative flex items-center">
+                            <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-3" />
+                            <span id="route-radius-val" class="absolute -top-4 right-0 text-[10px] font-black text-amber-400">2 Miles</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="executeRouteGenerationPipeline()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md">
+                        🚗 Trace Route
+                    </button>
+                    <button onclick="clearCalculatedRouteLayers()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-slate-700/60">
+                        🗑️ Clear
                     </button>
                 </div>
+            </div>
 
-                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-slate-600">🎯 Scan Window Radius</span>
-                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="radius-val">5 Miles</span>
+            <div id="sidebar-active-station-box" class="hidden p-3.5 bg-slate-950/80 border border-blue-500/40 rounded-2xl relative shadow-md space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="text-[9px] font-black bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md uppercase tracking-wider">Active Workspace View</span>
+                        <h4 id="sidebar-active-brand" class="text-xs font-black text-white mt-1 truncate">Forecourt Name</h4>
+                        <p id="sidebar-active-address" class="text-[10px] text-slate-400 truncate font-medium">Station Street Address Coordinates</p>
                     </div>
-                    <input type="range" min="1" max="30" value="5" id="radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9">
+                        </button>
                 </div>
             </div>
 
-            <div id="panel-route" class="space-y-4 hidden">
-                <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl space-y-3">
-                    <div class="space-y-1 relative">
-                        <label class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase">🟢 Starting Location</label>
-                        <input type="text" id="route-start" placeholder="e.g. Dunfermline" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'start-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
-                        <div id="start-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
-                    </div>
-                    <div class="space-y-1 relative">
-                        <label class="text-[10px] font-bold tracking-wider text-red-600 uppercase">🔴 Destination</label>
-                        <input type="text" id="route-end" placeholder="e.g. Edinburgh" autocomplete="off" oninput="handleAutocompleteDebounce(this, 'end-suggestions')" class="w-full border border-slate-200 bg-white rounded-lg px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500" />
-                        <div id="end-suggestions" class="absolute left-0 right-0 bg-white border border-slate-200 rounded-xl mt-1 max-h-48 overflow-y-auto hidden shadow-xl z-[600] divide-y divide-slate-100 text-xs font-medium text-slate-700"></div>
-                    </div>
+            <div id="cheapest-ranking-block" class="hidden space-y-2 pt-1">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs">🏆</span>
+                    <h3 class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Top 3 Cheapest Forecourts Here</h3>
                 </div>
-
-                <div class="space-y-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-slate-600">🚗 Route Journey Radius</span>
-                        <span class="text-xs font-extrabold bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100" id="route-radius-val">2 miles</span>
-                    </div>
-                    <input type="range" min="1" max="10" value="2" id="route-radius-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Vehicle Efficiency (MPG)</label>
-                    <input type="number" id="vehicle-mpg" value="45" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-blue-500" />
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="executeRouteGenerationPipeline()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs py-2.5 px-4 rounded-xl transition shadow-md cursor-pointer text-center">🚀 Search Route</button>
-                    <button onclick="clearCalculatedRouteLayers()" class="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl transition cursor-pointer text-center">Clear Route</button>
-                </div>
-            </div>
-
-            <div id="financial-card" class="bg-gradient-to-br from-emerald-50 to-teal-50/40 border border-emerald-100 p-4 rounded-xl space-y-2 hidden">
-                <div class="text-[11px] font-bold text-emerald-800 tracking-wider uppercase">📊 Calculations Summary</div>
-                <div class="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600">
-                    <div>Scope / Route: <span id="summary-distance" class="font-bold text-slate-900">0.0 miles</span></div>
-                    <div>Lowest Target: <span id="summary-cost" class="font-extrabold text-emerald-600">0.0p</span></div>
-                </div>
-            </div>
-
-            <div id="cheapest-ranking-block" class="space-y-2 hidden">
-                <label class="text-[10px] font-black tracking-wider text-amber-600 uppercase">🏆 Cheapest Selection Choices</label>
                 <div id="cheapest-cards-stack" class="space-y-2"></div>
             </div>
-
-            <div class="space-y-1.5">
-                <label class="text-[10px] font-bold tracking-wider text-slate-400 uppercase">Fuel Formulation Variant</label>
-                <select id="fuel-type" class="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-blue-500 transition">
-                    <option value="E10">Petrol Unleaded (E10)</option>
-                    <option value="E5">Super Unleaded (E5)</option>
-                    <option value="B7">Diesel (B7)</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="p-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl flex items-center justify-between text-xs text-slate-500 shrink-0 select-none max-md:hidden">
-            <button onclick="forceReloadRemotePipelineData()" class="flex items-center gap-1 text-slate-600 hover:text-blue-600 transition font-bold tracking-wide uppercase cursor-pointer">🔄 Fetch Pool</button>
-            <span id="station-counter" class="font-bold text-slate-500 bg-white px-2.5 py-1 rounded-md border border-slate-200/80 shadow-xs">Forecourts: 0</span>
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="detail-sheet-mobile state-hidden">
-        
-        <div id="sheet-drag-handle" class="w-full py-3.5 flex flex-col items-center justify-center cursor-row-resize select-none shrink-0 touch-none">
-            <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
-            <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 md:hidden">Swipe to Resize</div>
-        </div>
-        
-        <div class="px-6 pb-8 space-y-4 overflow-y-auto max-h-[calc(100%-40px)]">
-            <div class="flex justify-between items-start">
-                <div class="space-y-0.5 min-w-0 pr-2">
-                    <h3 id="sheet-brand-title" class="text-xl font-black text-slate-900 tracking-tight truncate">Forecourt Brand</h3>
-                    <p id="sheet-address-details" class="text-xs font-semibold text-slate-400 leading-relaxed truncate">Loading data logs...</p>
+    <main class="flex-1 h-[55%] md:h-full relative z-10 flex flex-col">
+        <div id="map" class="w-full h-full bg-slate-100"></div>
+
+        <div class="absolute top-3 right-3 z-[500] flex flex-col items-end gap-2.5 max-w-sm pointer-events-none">
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <div id="live-timestamp-label" class="bg-slate-900/90 backdrop-blur-md border border-slate-700/60 shadow-lg px-3 py-2 rounded-xl text-[11px] font-semibold text-slate-200 flex items-center gap-2 transition duration-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Connecting to Price Stream...
                 </div>
-                <div class="flex items-center gap-2 shrink-0 select-none">
-                    <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center" title="Star Station">
-                        <svg id="sheet-star-icon" class="w-5 h-5 fill-none stroke-currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.312.592-.312.743 0l2.497 5.059a.5.5 0 0 0 .375.273l5.58 1.05c.342.064.478.487.23.733l-4.03 3.926a.5.5 0 0 0-.144.444l1.1 5.513c.068.34-.289.599-.596.438L12.475 18.15a.5.5 0 0 0-.471 0l-4.95 2.6c-.307.162-.664-.097-.597-.438l1.1-5.513a.5.5 0 0 0-.144-.444L3.41 15.226c-.247-.246-.111-.669.23-.733l5.58-1.05a.5.5 0 0 0 .375-.272l2.497-5.06a.5.5 0 0 0 .344-.434z" /></svg>
-                    </button>
-                    <button onclick="closeForecourtDetailSheet()" class="bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-500 rounded-full p-2.5 text-xs font-bold transition cursor-pointer flex items-center justify-center shadow-xs">✕</button>
+                <button onclick="toggleStarredDropdown()" class="bg-slate-900 hover:bg-slate-800 text-white p-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-slate-700/80 active:scale-95">
+                    <span>⭐</span>
+                    <span class="text-xs font-black">Saved</span>
+                    <span id="starred-count-badge" class="bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.5 rounded-md leading-none">0</span>
+                </button>
+            </div>
+
+            <div id="starred-dropdown-panel" class="w-80 bg-slate-900/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl hidden flex flex-col pointer-events-auto max-h-[400px] overflow-hidden">
+                <div class="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-400">Your Starred Stations Directory</span>
+                    <button onclick="toggleStarredDropdown()" class="text-slate-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-md hover:bg-slate-800">Close</button>
+                </div>
+                <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2.5 no-scrollbar flex-1"></div>
+            </div>
+
+            <div id="financial-card" class="w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-2xl hidden flex flex-col pointer-events-auto transition duration-300">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-sm">📊</span>
+                        <h3 class="text-xs font-black text-slate-900 tracking-tight truncate">Financial Pipeline Analytics</h3>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button id="financial-star-btn" onclick="toggleCurrentStationStar()" class="p-2 bg-slate-50 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8">
+                            </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Scope Context</span>
+                        <span id="summary-distance" class="text-xs font-black text-slate-800 mt-0.5 block truncate">Radius Scope</span>
+                    </div>
+                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-xl p-2.5">
+                        <span class="text-[9px] font-black text-emerald-700 uppercase tracking-wider block">Target Metric</span>
+                        <span id="summary-cost" class="text-xs font-black text-emerald-600 mt-0.5 block truncate">0.0p</span>
+                    </div>
                 </div>
             </div>
-            
-            <div class="grid grid-cols-3 gap-2.5 pt-1">
+        </div>
+
+        <div id="global-detail-sheet" class="absolute bottom-0 left-0 right-0 md:top-3 md:bottom-auto md:left-auto md:right-3 bg-white border-t md:border-t-0 md:border border-slate-200 shadow-2xl z-[600] rounded-t-2xl md:rounded-2xl p-5 flex flex-col gap-4 md:w-96 sheet-hidden">
+            <div id="mobile-drag-handle" class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto shrink-0 md:hidden cursor-pointer"></div>
+
+            <div class="flex items-start justify-between gap-3 relative">
+                <div class="min-w-0 flex-1">
+                    <h2 id="sheet-brand-title" class="text-sm font-black text-slate-900 tracking-tight leading-snug truncate">Independent Vendor</h2>
+                    <p id="sheet-address-details" class="text-[11px] font-medium text-slate-400 mt-0.5 leading-relaxed overflow-hidden text-ellipsis whitespace-nowrap">UK Road Network Station Hub</p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9">
+                        </button>
+                    <button onclick="closeForecourtDetailSheet()" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition cursor-pointer flex items-center justify-center">
+                        <span class="text-xs font-black font-mono leading-none">✕</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 pt-1">
                 <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Unleaded E10</div>
-                    <div id="sheet-price-e10" class="text-base font-black mt-0.5">-</div>
+                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
+                    <span id="sheet-price-e10" class="text-xs font-black block mt-1">N/A</span>
                 </div>
                 <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Super E5</div>
-                    <div id="sheet-price-e5" class="text-base font-black mt-0.5">-</div>
+                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super E5</span>
+                    <span id="sheet-price-e5" class="text-xs font-black block mt-1">N/A</span>
                 </div>
                 <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <div class="text-[9px] font-bold uppercase tracking-wider opacity-75">Diesel B7</div>
-                    <div id="sheet-price-b7" class="text-base font-black mt-0.5">-</div>
+                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Diesel B7</span>
+                    <span id="sheet-price-b7" class="text-xs font-black block mt-1">N/A</span>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/60 flex items-center justify-between text-xs font-medium text-slate-600">
+                <span class="flex items-center gap-1">📍 Local Hub Data Mapping Vector</span>
+                <button onclick="triggerExternalMappingVectorRoute()" class="text-blue-600 font-black tracking-tight hover:underline flex items-center gap-0.5 cursor-pointer">
+                    Directions External ↗
+                </button>
+            </div>
+        </div>
+    </main>
 
     <script>
-        // Core Registries
-        let rawGlobalStationsPool = [];
-        let currentlyVisibleStations = []; 
-        let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_stations')) || [];
-        let activeSheetStation = null;
-        let markerLayerGroup = L.layerGroup();
+        // Global Application Context State Vectors
+        let map = null;
+        let markerLayerGroup = null;
         let routePolylineLayer = null;
-        let activeTabContext = 'local';
-        let plottedRouteCoordinates = [];
-        let mapSearchAnchorCoordinates = [56.07, -3.45]; 
-        let autocompleteDebounceTimer = null;
-        let currentMobileSidebarState = 'mid'; 
-        let currentMobileSheetState = 'mid'; // Engine Track Variable: minimal, mid, full
+
+        let rawGlobalStationsPool = [];
+        let currentlyVisibleStations = [];
+        let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_stations')) || [];
         
-        // Setup Map View Canvas
-        const map = L.map('map', { zoomControl: false }).setView(mapSearchAnchorCoordinates, 12);
-        L.control.zoom({ position: 'topleft' }).addTo(map);
-        markerLayerGroup.addTo(map);
+        let activeTabContext = 'local'; // 'local' | 'route'
+        let activeSheetStation = null;
+        let mapSearchAnchorCoordinates = [54.0, -2.5]; // Central United Kingdom geographical fallback centroid
+        let plottedRouteCoordinates = [];
+        let autocompleteDebounceTimer = null;
+        let currentMobileSheetUIState = 'hidden'; // 'hidden' | 'mid' | 'full'
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        // Structural Leaflet Engine Initializer Framework
+        function initializeSpatialMapEngine() {
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView(mapSearchAnchorCoordinates, 6);
 
-        // Core Event Rule: Clicking map architecture area dismisses all active modals
-        map.on('click', () => {
-            closeForecourtDetailSheet();
-            document.getElementById('starred-dropdown-panel').classList.add('hidden');
-        });
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
 
-        // Block UI events from passing to Leaflet layer underneath
-        function initializeClickIsolationBubbling() {
-            const panels = [
-                document.getElementById('control-sidebar'),
-                document.getElementById('global-detail-sheet'),
-                document.getElementById('starred-dropdown-panel'),
-                document.getElementById('nav-starred-trigger').parentNode
-            ];
-            panels.forEach(node => {
-                if (node) {
-                    L.DomEvent.disableClickPropagation(node);
-                    L.DomEvent.disableScrollPropagation(node);
-                }
-            });
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+            markerLayerGroup = L.layerGroup().addTo(map);
         }
 
-        // Get Unique Identifiers for Forecourts
-        function getStationUniqueSignature(s) {
-            if (!s) return '';
-            return s.site_id || `${s.brand_name}-${s.postcode || ''}-${parseFloat(s.latitude || s.lat).toFixed(4)}-${parseFloat(s.longitude || s.lng).toFixed(4)}`;
-        }
+        // Toggle UI views between Tab workflows
+        function switchWorkflowTabContext(contextType) {
+            activeTabContext = contextType;
+            const btnLocal = document.getElementById('tab-btn-local');
+            const btnRoute = document.getElementById('tab-btn-route');
+            const panelLocal = document.getElementById('panel-tab-local');
+            const panelRoute = document.getElementById('panel-tab-route');
 
-        function forceMobileSidebarMinimalState() {
-            const sidebar = document.getElementById('control-sidebar');
-            if (window.innerWidth < 768 && sidebar) {
-                sidebar.classList.remove('state-minimal', 'state-mid', 'state-full');
-                sidebar.classList.add('state-minimal');
-                currentMobileSidebarState = 'minimal';
-            }
-        }
-
-        function cycleMobileSidebarDetents() {
-            const sidebar = document.getElementById('control-sidebar');
-            if (!sidebar) return;
-            sidebar.classList.remove('state-minimal', 'state-mid', 'state-full');
-            if (currentMobileSidebarState === 'minimal') currentMobileSidebarState = 'mid';
-            else if (currentMobileSidebarState === 'mid') currentMobileSidebarState = 'full';
-            else currentMobileSidebarState = 'minimal';
-            sidebar.classList.add(`state-${currentMobileSidebarState}`);
-        }
-
-        // 3-Stage Touch Gesture Processing System
-        function setForecourtSheetState(targetState) {
-            if (window.innerWidth >= 768) return; 
-            const sheet = document.getElementById('global-detail-sheet');
-            if (!sheet) return;
-
-            sheet.classList.remove('state-hidden', 'state-minimal', 'state-mid', 'state-full');
-            currentMobileSheetState = targetState;
-            sheet.classList.add(`state-${targetState}`);
-        }
-
-        function initializeGestureTrackEngine() {
-            const handleZone = document.getElementById('sheet-drag-handle');
-            let initialTouchPointY = 0;
-
-            handleZone.addEventListener('touchstart', (e) => {
-                initialTouchPointY = e.touches[0].clientY;
-            }, { passive: true });
-
-            handleZone.addEventListener('touchend', (e) => {
-                const finishingTouchPointY = e.changedTouches[0].clientY;
-                const movementDisplacementDeltaY = initialTouchPointY - finishingTouchPointY; // positive = up, negative = down
-                const swipeSensitivityThreshold = 45;
-
-                if (Math.abs(movementDisplacementDeltaY) > swipeSensitivityThreshold) {
-                    if (movementDisplacementDeltaY > 0) {
-                        // Swiped Upwards
-                        if (currentMobileSheetState === 'minimal') setForecourtSheetState('mid');
-                        else if (currentMobileSheetState === 'mid') setForecourtSheetState('full');
-                    } else {
-                        // Swiped Downwards
-                        if (currentMobileSheetState === 'full') setForecourtSheetState('mid');
-                        else if (currentMobileSheetState === 'mid') setForecourtSheetState('minimal');
-                    }
-                }
-            }, { passive: true });
-        }
-
-        function toggleSearchTab(targetTab) {
-            activeTabContext = targetTab;
-            const localBtn = document.getElementById('tab-local-btn');
-            const routeBtn = document.getElementById('tab-route-btn');
-            const localPanel = document.getElementById('panel-local');
-            const routePanel = document.getElementById('panel-route');
-
-            if (targetTab === 'local') {
-                localBtn.className = "bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition";
-                routeBtn.className = "text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition";
-                localPanel.classList.remove('hidden');
-                routePanel.classList.add('hidden');
+            if (contextType === 'local') {
+                btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs";
+                btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+                panelLocal.classList.remove('hidden');
+                panelRoute.classList.add('hidden');
                 clearCalculatedRouteLayers();
             } else {
-                routeBtn.className = "bg-white text-slate-900 py-2 px-3 rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition";
-                localBtn.className = "text-slate-400 hover:text-slate-700 py-2 px-3 flex items-center justify-center gap-1.5 cursor-pointer transition";
-                routePanel.classList.remove('hidden');
-                localPanel.classList.add('hidden');
+                btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs";
+                btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+                panelRoute.classList.remove('hidden');
+                panelLocal.classList.add('hidden');
             }
             refreshViewportViewFilter();
         }
 
-        function checkNativeHardwarePositionMatrix() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        mapSearchAnchorCoordinates = [position.coords.latitude, position.coords.longitude];
-                        document.getElementById('location-input').placeholder = "📍 Using Device Location";
-                        map.setView(mapSearchAnchorCoordinates, 12);
-                        refreshViewportViewFilter();
-                    },
-                    () => { refreshViewportViewFilter(); },
-                    { enableHighAccuracy: true, timeout: 5000 }
-                );
-            } else {
-                refreshViewportViewFilter();
-            }
-        }
+        // Autocomplete Orchestration Listener Setup Module
+        function setupAutocompleteListeners() {
+            const nodesCollection = [
+                { id: 'location-input', boxId: 'location-suggestions' },
+                { id: 'route-start', boxId: 'start-suggestions' },
+                { id: 'route-end', boxId: 'end-suggestions' }
+            ];
 
-        function handleAutocompleteDebounce(inputField, suggestionContainerId) {
-            clearTimeout(autocompleteDebounceTimer);
-            const textQuery = inputField.value.trim();
-            const matchingBox = document.getElementById(suggestionContainerId);
-            
-            if (textQuery.length < 3) {
-                matchingBox.classList.add('hidden');
-                return;
-            }
+            nodesCollection.forEach(node => {
+                const inputField = document.getElementById(node.id);
+                const matchingBox = document.getElementById(node.boxId);
+                if (!inputField || !matchingBox) return;
 
-            autocompleteDebounceTimer = setTimeout(async () => {
-                try {
-                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=5`;
-                    const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
-                    const optionsList = await res.json();
+                inputField.addEventListener('input', (e) => {
+                    const textQuery = e.target.value.trim();
+                    clearTimeout(autocompleteDebounceTimer);
 
-                    if (!optionsList || optionsList.length === 0) {
+                    if (!textQuery || textQuery.length < 2) {
                         matchingBox.classList.add('hidden');
                         return;
                     }
 
-                    matchingBox.innerHTML = '';
-                    optionsList.forEach(item => {
-                        const row = document.createElement('div');
-                        row.className = "p-2.5 hover:bg-slate-50 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap";
-                        row.textContent = item.display_name;
-                        row.onclick = () => {
-                            inputField.value = item.display_name;
-                            matchingBox.classList.add('hidden');
-                            
-                            if (inputField.id === 'location-input') {
-                                mapSearchAnchorCoordinates = [parseFloat(item.lat), parseFloat(item.lon)];
-                                map.setView(mapSearchAnchorCoordinates, 12);
-                                forceMobileSidebarMinimalState();
-                                refreshViewportViewFilter();
+                    autocompleteDebounceTimer = setTimeout(async () => {
+                        try {
+                            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=5`;
+                            const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceFinderApp/1.0' } });
+                            const optionsList = await res.json();
+
+                            if (!optionsList || optionsList.length === 0) {
+                                matchingBox.classList.add('hidden');
+                                return;
                             }
-                        };
-                        matchingBox.appendChild(row);
-                    });
-                    matchingBox.classList.remove('hidden');
-                } catch (e) {
-                    console.error(e);
-                }
-            }, 350);
+
+                            matchingBox.innerHTML = '';
+                            optionsList.forEach(item => {
+                                const row = document.createElement('div');
+                                row.className = "p-2.5 hover:bg-slate-50 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap";
+                                row.textContent = item.display_name;
+                                row.onclick = () => {
+                                    inputField.value = item.display_name;
+                                    matchingBox.classList.add('hidden');
+                                    
+                                    if (inputField.id === 'location-input') {
+                                        mapSearchAnchorCoordinates = [parseFloat(item.lat), parseFloat(item.lon)];
+                                        map.setView(mapSearchAnchorCoordinates, 12);
+                                        refreshViewportViewFilter();
+                                    }
+                                };
+                                matchingBox.appendChild(row);
+                            });
+                            matchingBox.classList.remove('hidden');
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }, 350);
+                });
+            });
         }
 
         async function executeAddressGeocodeLookup() {
@@ -544,7 +414,6 @@
                 if (matchingNodes && matchingNodes.length > 0) {
                     mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
                     map.setView(mapSearchAnchorCoordinates, 12);
-                    forceMobileSidebarMinimalState();
                     refreshViewportViewFilter();
                 }
             } catch (err) {
@@ -583,7 +452,6 @@
                 routePolylineLayer = L.polyline(plottedRouteCoordinates, { color: '#2563eb', weight: 5, opacity: 0.85 }).addTo(map);
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
-                forceMobileSidebarMinimalState();
                 refreshViewportViewFilter(distanceMiles);
             } catch (err) {
                 console.error(err);
@@ -598,9 +466,10 @@
             refreshViewportViewFilter();
         }
 
+        // GEOGRAPHIC ERROR FIX: Accurate Longitudinal Scalar Approximation for Great Britain Region Matrix
         function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
             const dLat = (lat2 - lat1) * 69.1;
-            const dLon = (lon2 - lon1) * 53.0; 
+            const dLon = (lon2 - lon1) * 41.0; 
             return Math.sqrt(dLat * dLat + dLon * dLon);
         }
 
@@ -628,7 +497,7 @@
             return '⛽';
         }
 
-        // Setup Event Handlers
+        // Setup Event Handlers Wiring
         document.getElementById('radius-slider')?.addEventListener('input', (e) => {
             document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
             refreshViewportViewFilter();
@@ -674,7 +543,7 @@
             map.setView([lat, lon], 14, { animate: true, duration: 0.6 });
             
             const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) ||
-                                     rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
+                                   rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
             
             if (selectedStation) {
                 setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 400);
@@ -723,17 +592,17 @@
                 const emoji = resolveBrandVisualSymbol(station.brand_name);
                 
                 const card = document.createElement('div');
-                card.className = "flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl hover:border-amber-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
+                card.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-amber-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
                 card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
                 card.innerHTML = `
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-7 h-7 rounded-full bg-amber-50 text-xs flex items-center justify-center shrink-0 font-black text-amber-600 border border-amber-100">#${idx + 1}</div>
+                        <div class="w-7 h-7 rounded-full bg-amber-500/10 text-xs flex items-center justify-center shrink-0 font-black text-amber-400 border border-amber-500/20">#${idx + 1}</div>
                         <div class="min-w-0">
-                            <div class="text-xs font-black text-slate-800 truncate flex items-center gap-1"><span>${emoji}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                            <div class="text-xs font-black text-white truncate flex items-center gap-1"><span>${emoji}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
                             <div class="text-[10px] font-medium text-slate-400 truncate">${station.address || ''}</div>
                         </div>
                     </div>
-                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 border border-emerald-100 rounded-md">${val}p</div></div>
+                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
                 `;
                 container.appendChild(card);
             });
@@ -773,7 +642,7 @@
                     document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
                     document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
                 } else {
-                    document.getElementById('summary-distance').textContent = `Radius Scope`;
+                    document.getElementById('summary-distance').textContent = `Local Low Base`;
                     document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
                 }
             }
@@ -818,34 +687,48 @@
             updateAllStarUIStates();
         }
 
-        // Global Architectural Synchronization Module (Toggles Grey vs Amber-Yellow States)
+        // HIGH-FIDELITY ACTIVE / INACTIVE STAR RENDERING MATRIX ENGINES
         function updateAllStarUIStates() {
             if (!activeSheetStation) return;
             const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
             
-            // 1. Details Sheet Star Button Styling Synchronizer Rules
-            const sheetIcon = document.getElementById('sheet-star-icon');
+            // Reusable Vector Assets for Core Target Handlers
+            const inactiveStarIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 transition-colors duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
+            const activeStarIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-amber-500 transform scale-110 transition-transform duration-200 animate-pop"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+
+            // 1. Interactive Master Drawer Modal Sheet Button Rendering Setup
             const sheetBtn = document.getElementById('sheet-star-btn');
-            if (sheetIcon && sheetBtn) {
+            if (sheetBtn) {
+                sheetBtn.innerHTML = inactiveStarIconSVG;
                 if (isStarred) {
-                    sheetIcon.className.value = "w-5 h-5 fill-amber-400 text-amber-500 transition-colors duration-200";
-                    sheetBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center";
+                    sheetBtn.innerHTML = activeStarIconSVG;
+                    sheetBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9";
                 } else {
-                    sheetIcon.className.value = "w-5 h-5 fill-none text-slate-400 transition-colors duration-200";
-                    sheetBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer flex items-center justify-center";
+                    sheetBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9";
                 }
             }
 
-            // 2. Sidebar Active Selection Card Star Layout Sync Engine 
-            const sidebarIcon = document.getElementById('sidebar-star-icon');
+            // 2. Sidebar Active Workspace Box Synchronization Interface Layout
             const sidebarBtn = document.getElementById('sidebar-star-btn');
-            if (sidebarIcon && sidebarBtn) {
+            if (sidebarBtn) {
+                sidebarBtn.innerHTML = inactiveStarIconSVG;
                 if (isStarred) {
-                    sidebarIcon.className.value = "w-4 h-4 fill-amber-400 text-amber-500 transition-colors duration-200";
-                    sidebarBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0";
+                    sidebarBtn.innerHTML = activeStarIconSVG;
+                    sidebarBtn.className = "p-2.5 bg-amber-500/10 border border-amber-500/25 text-amber-400 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9";
                 } else {
-                    sidebarIcon.className.value = "w-4 h-4 fill-none text-slate-400 transition-colors duration-200";
-                    sidebarBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-full shadow-xs transition duration-200 cursor-pointer shrink-0";
+                    sidebarBtn.className = "p-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 hover:border-slate-600 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9";
+                }
+            }
+
+            // 3. Floating High-Fidelity Financial Extrapolation Card Star Framework
+            const financialBtn = document.getElementById('financial-star-btn');
+            if (financialBtn) {
+                financialBtn.innerHTML = inactiveStarIconSVG;
+                if (isStarred) {
+                    financialBtn.innerHTML = activeStarIconSVG;
+                    financialBtn.className = "p-2 bg-amber-50 border border-amber-200 text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8";
+                } else {
+                    financialBtn.className = "p-2 bg-slate-50 border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8";
                 }
             }
 
@@ -874,7 +757,7 @@
             container.innerHTML = '';
             starredStations.forEach(station => {
                 const cardRow = document.createElement('div');
-                cardRow.className = "p-3 bg-white border border-slate-200/80 rounded-2xl hover:border-blue-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
+                cardRow.className = "p-3 bg-slate-950 border border-slate-800 rounded-2xl hover:border-blue-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
                 cardRow.onclick = () => {
                     focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
                     if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
@@ -882,7 +765,7 @@
 
                 cardRow.innerHTML = `
                     <div class="min-w-0">
-                        <div class="text-xs font-black text-slate-900 truncate flex items-center gap-1.5"><span>${resolveBrandVisualSymbol(station.brand_name)}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                        <div class="text-xs font-black text-white truncate flex items-center gap-1.5"><span>${resolveBrandVisualSymbol(station.brand_name)}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
                         <div class="text-[10px] font-semibold text-slate-400 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 pt-0.5">
@@ -938,7 +821,58 @@
             activeSheetStation = null;
         }
 
+        function getStationUniqueSignature(s) {
+            if (!s) return '';
+            return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
+        }
+
+        viewBounds = null;
+        function triggerExternalMappingVectorRoute() {
+            if (!activeSheetStation) return;
+            const lat = activeSheetStation.latitude || activeSheetStation.lat;
+            const lon = activeSheetStation.longitude || activeSheetStation.lng;
+            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+        }
+
+        function setForecourtSheetState(stateStr) {
+            currentMobileSheetUIState = stateStr;
+            const sheet = document.getElementById('global-detail-sheet');
+            if (!sheet) return;
+            sheet.classList.remove('sheet-hidden', 'sheet-mid', 'sheet-full');
+            sheet.classList.add(`sheet-${stateStr}`);
+        }
+
+        function initializeClickIsolationBubbling() {
+            const sheet = document.getElementById('global-detail-sheet');
+            if (sheet) { sheet.addEventListener('click', (e) => e.stopPropagation()); }
+        }
+
+        function initializeGestureTrackEngine() {
+            const handle = document.getElementById('mobile-drag-handle');
+            if (!handle) return;
+            handle.addEventListener('click', () => {
+                if (currentMobileSheetUIState === 'mid') setForecourtSheetState('full');
+                else if (currentMobileSheetUIState === 'full') setForecourtSheetState('mid');
+            });
+        }
+
+        function checkNativeHardwarePositionMatrix() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        mapSearchAnchorCoordinates = [position.coords.latitude, position.coords.longitude];
+                        map.setView(mapSearchAnchorCoordinates, 11);
+                        refreshViewportViewFilter();
+                    },
+                    (err) => console.log("Hardware trace position declined.")
+                );
+            }
+        }
+
+        // Complete Orchestration Bootup Integration
         window.addEventListener('DOMContentLoaded', () => {
+            initializeSpatialMapEngine();
+            setupAutocompleteListeners();
             initializeClickIsolationBubbling();
             initializeGestureTrackEngine();
             checkNativeHardwarePositionMatrix();
