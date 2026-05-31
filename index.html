@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en" class="h-full scroll-smooth select-none">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UK Fuel Price Finder App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UK Fuel Price Pipeline Optimizer</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -13,285 +13,277 @@
     
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Reset defaults for Leaflet custom canvas divIcons */
-        .leaflet-div-icon-reset-layout-layer {
-            background: transparent !important;
-            border: none !important;
-        }
-        /* Custom Map Canvas Price Bubble Elements */
+        .leaflet-control-container .leaflet-routing-container { display: none !important; }
+        .leaflet-div-icon-reset-layout-layer { background: transparent !important; border: none !important; }
+        
+        /* Premium Vector Price Bubble Anchors */
         .fuel-marker-bubble {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            padding: 4px 8px;
-            border-radius: 10px;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 12px;
             color: #ffffff;
             font-size: 11px;
             font-weight: 800;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            border: 1.5px solid rgba(255, 255, 255, 0.85);
-            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             white-space: nowrap;
         }
         .fuel-marker-bubble:hover {
-            transform: scale(1.08);
+            transform: scale(1.12) translateY(-2px);
             z-index: 99999 !important;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
         }
-        .bg-fuel-green { background-color: #059669; }
-        .bg-fuel-blue { background-color: #2563eb; }
-        .bg-fuel-red { background-color: #dc2626; }
-        
-        /* Mobile Slide Out Detail Sheet Animations */
+        .dark .fuel-marker-bubble { border-color: rgba(30, 41, 59, 0.9); }
+
+        .bg-fuel-green { background: linear-gradient(135deg, #059669, #10b981); }
+        .bg-fuel-blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+        .bg-fuel-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+        /* Multi-State Mobile Bottom Sheet Responsive Layout Engine */
         @media (max-width: 767px) {
             #global-detail-sheet {
-                transform: translateY(100%);
-                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                position: absolute !important;
+                left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
+                width: 100% !important; max-width: 100% !important;
+                z-index: 800 !important;
+                border-radius: 24px 24px 0 0 !important;
+                transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                box-shadow: 0 -10px 30px rgba(0,0,0,0.08) !important;
             }
-            #global-detail-sheet.sheet-mid { transform: translateY(40%); }
-            #global-detail-sheet.sheet-full { transform: translateY(0%); }
-            #global-detail-sheet.sheet-hidden { transform: translateY(100%); }
+            .sheet-state-peek { transform: translateY(calc(100% - 110px)); }
+            .sheet-state-mid { transform: translateY(50%); }
+            .sheet-state-full { transform: translateY(8%); }
+            .sheet-state-hidden { transform: translateY(100%); }
         }
-        @media (min-width: 768px) {
-            #global-detail-sheet {
-                opacity: 0;
-                transform: translateX(20px) scale(0.98);
-                pointer-events: none;
-                transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            #global-detail-sheet.active-desktop {
-                opacity: 1;
-                transform: translateX(0) scale(1);
-                pointer-events: auto;
-            }
-        }
-        /* Micro-Interaction Animation Keyframe Pop */
-        @keyframes pop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.22); }
-            100% { transform: scale(1.1); }
-        }
-        .animate-pop {
-            animation: pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-        /* Hide scrollbars elegantly */
+
+        /* Smooth Hide Micro Scrollbar System */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes micro-pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1.1); }
+        }
+        .animate-pop { animation: micro-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
-<body class="h-full overflow-hidden flex flex-col md:flex-row relative">
+<body class="h-full overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
 
-    <aside class="w-full md:w-[380px] bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 flex flex-col shrink-0 z-[400] text-slate-100 shadow-2xl h-[45%] md:h-full">
-        <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center font-black text-slate-950 text-base shadow-md">⛽</div>
+    <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <div class="absolute top-4 right-4 z-[500] flex items-center gap-2 pointer-events-auto">
+        <div id="live-timestamp-label" class="hidden sm:flex bg-white/90 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xl px-3.5 py-2 rounded-2xl text-[11px] font-bold text-slate-700 dark:text-slate-300 items-center gap-2 transition duration-200">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Connecting Stream Data...
+        </div>
+        
+        <button onclick="toggleSystemColorModeTheme()" class="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-2xl shadow-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95 flex items-center justify-center">
+            <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14.5 12a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg>
+            <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+
+        <button onclick="toggleStarredDropdownDashboardPanel()" class="bg-slate-900 dark:bg-white text-white dark:text-slate-950 px-4 py-2.5 rounded-2xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-slate-800 dark:border-slate-100 active:scale-95">
+            <span class="text-xs font-black tracking-tight">Saved Directory</span>
+            <span id="starred-count-badge" class="bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-lg leading-none">0</span>
+        </button>
+    </div>
+
+    <aside class="absolute top-4 left-4 z-[400] w-[calc(100%-32px)] sm:w-[380px] max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-32px)] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <div class="p-4 bg-slate-50/50 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-black text-white text-lg shadow-md">⛽</div>
                 <div>
-                    <h1 class="text-sm font-black tracking-tight text-white leading-none">UK Fuel Finder</h1>
-                    <span class="text-[10px] font-medium text-slate-400 tracking-wide">Live Price Pipeline Optimizer</span>
+                    <h1 class="text-sm font-black tracking-tight text-slate-900 dark:text-white leading-none">Fuel Pipeline</h1>
+                    <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wide uppercase mt-1 block">UK Real-Time Grid Engine</span>
                 </div>
             </div>
-            <div id="station-counter" class="text-[11px] font-black bg-slate-800 px-2.5 py-1 rounded-md text-amber-400 border border-slate-700/60 shadow-xs">
-                Forecourts: Initializing...
+            <div id="station-counter" class="text-[10px] font-black bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg text-slate-700 dark:text-emerald-400 border border-slate-200/40 dark:border-slate-700/60 shadow-xs">
+                Scanning Hubs...
             </div>
         </div>
 
-        <div class="grid grid-cols-2 bg-slate-950/60 p-1.5 gap-1 shrink-0 border-b border-slate-800">
-            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs">
-                📍 Radius Search
+        <div class="grid grid-cols-2 bg-slate-50 dark:bg-slate-950/80 p-1.5 gap-1.5 shrink-0 border-b border-slate-100 dark:border-slate-800/60">
+            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-white dark:bg-slate-850 text-slate-900 dark:text-white shadow-md">
+                📍 Radius Scope
             </button>
-            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
-                🛣️ Route Planner
+            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                🛣️ Corridor Route
             </button>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
             <div class="space-y-1.5">
-                <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Select Target Fuel Grade</label>
+                <label class="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase">Target Fuel Matrix Grade</label>
                 <div class="relative">
-                    <select id="fuel-type" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:outline-hidden focus:border-amber-400 appearance-none shadow-xs cursor-pointer">
-                        <option value="E10" selected>Unleaded Petrol (E10)</option>
+                    <select id="fuel-type" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-800 dark:text-white focus:outline-hidden focus:border-emerald-500 dark:focus:border-emerald-400 appearance-none shadow-inner cursor-pointer">
+                        <option value="E10" selected>Standard Unleaded Petrol (E10)</option>
                         <option value="E5">Premium Super Unleaded (E5)</option>
-                        <option value="B7">Standard Diesel (B7)</option>
+                        <option value="B7">Standard Road Diesel (B7)</option>
                     </select>
-                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400 text-[10px]">▼</div>
+                    <div class="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-slate-400 text-[9px]">▼</div>
                 </div>
             </div>
 
             <div id="panel-tab-local" class="space-y-4">
                 <div class="space-y-1.5 relative">
-                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Search Landmark or Postcode</label>
+                    <label class="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase">Search Landmark / Postal Area</label>
                     <div class="flex gap-2">
-                        <input id="location-input" type="text" placeholder="e.g., Manchester, London, EH1 1BB..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
-                        <button onclick="executeAddressGeocodeLookup()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-3.5 rounded-xl transition cursor-pointer active:scale-95 shadow-md shrink-0">Scan</button>
+                        <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh, London..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-hidden focus:border-emerald-500 dark:focus:border-emerald-400 placeholder-slate-400 dark:placeholder-slate-600 font-medium shadow-inner" />
+                        <button onclick="executeAddressGeocodeLookup()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-4 rounded-xl transition cursor-pointer active:scale-95 shadow-lg shrink-0">Scan</button>
                     </div>
-                    <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-56 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
+                    <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-xl shadow-2xl hidden max-h-52 overflow-y-auto z-[999] p-1.5 divide-y divide-slate-100 dark:divide-slate-800 font-medium text-xs"></div>
                 </div>
 
                 <div class="space-y-1.5">
-                    <div class="flex justify-between items-center text-[11px] font-black tracking-wider text-slate-400 uppercase">
-                        <span>Search Range Boundary</span>
-                        <span id="radius-val" class="text-amber-400 normal-case font-black">5 Miles</span>
+                    <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase">
+                        <span>Scan Range Area Boundary</span>
+                        <span id="radius-val" class="text-emerald-600 dark:text-emerald-400 normal-case font-black">5 Miles</span>
                     </div>
-                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 dark:accent-emerald-400" />
                 </div>
                 
-                <button onclick="refreshViewportViewFilter(null, true)" class="w-full border border-slate-700 hover:border-slate-500 bg-slate-800/40 hover:bg-slate-800 text-slate-200 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99] shadow-xs">
-                    🔄 Filter within current Map Boundaries
+                <button onclick="refreshViewportViewFilter(null, true)" class="w-full border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-2 active:scale-[0.99] shadow-xs">
+                    🔄 Filter Map Boundary Grid Nodes
                 </button>
             </div>
 
             <div id="panel-tab-route" class="space-y-4 hidden">
-                <div class="space-y-1.5 relative">
-                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Route Starting Point</label>
-                    <input id="route-start" type="text" placeholder="Start Town / Postcode..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
-                    <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
-                </div>
-
-                <div class="space-y-1.5 relative">
-                    <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Route Ending Destination</label>
-                    <input id="route-end" type="text" placeholder="Destination Town / Postcode..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-hidden focus:border-blue-500 placeholder-slate-500 font-medium shadow-xs" />
-                    <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 text-slate-800 rounded-xl shadow-xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 font-medium text-xs"></div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="space-y-1.5">
-                        <label class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Vehicle Fuel MPG</label>
-                        <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white font-bold text-center focus:outline-hidden focus:border-amber-400 shadow-xs" />
+                <div class="relative flex flex-col gap-3 pl-6 border-l-2 border-dashed border-slate-200 dark:border-slate-800 ml-3.5 space-y-0.5">
+                    
+                    <div class="absolute -left-[7px] top-3.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-xs"></div>
+                    <div class="space-y-1 relative">
+                        <label class="text-[9px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase block">Journey Starting Origin Point</label>
+                        <input id="route-start" type="text" placeholder="Enter starting town / postcode..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-hidden focus:border-emerald-500 dark:focus:border-emerald-400 placeholder-slate-400 dark:placeholder-slate-600 font-medium shadow-inner" />
+                        <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-xl shadow-2xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 dark:divide-slate-800 font-medium text-xs"></div>
                     </div>
-                    <div class="space-y-1.5">
-                        <div class="flex justify-between items-center text-[11px] font-black tracking-wider text-slate-400 uppercase">
-                            <span>Corridor Max</span>
-                        </div>
-                        <div class="relative flex items-center">
-                            <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500 mt-3" />
-                            <span id="route-radius-val" class="absolute -top-4 right-0 text-[10px] font-black text-amber-400">2 Miles</span>
-                        </div>
+
+                    <div class="absolute -left-[8px] bottom-3 w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-white dark:border-slate-900 shadow-xs flex items-center justify-center text-[7px] text-white font-bold">▼</div>
+                    <div class="space-y-1 relative">
+                        <label class="text-[9px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase block">Terminal Destination Location</label>
+                        <input id="route-end" type="text" placeholder="Enter final destination point..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-hidden focus:border-emerald-500 dark:focus:border-emerald-400 placeholder-slate-400 dark:placeholder-slate-600 font-medium shadow-inner" />
+                        <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-xl shadow-2xl hidden max-h-40 overflow-y-auto z-[999] p-1 divide-y divide-slate-100 dark:divide-slate-800 font-medium text-xs"></div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 pt-1">
-                    <button onclick="executeRouteGenerationPipeline()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md">
-                        🚗 Trace Route
+                <div class="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/60">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase block">Vehicle Efficiency MPG</label>
+                        <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2 text-xs text-slate-900 dark:text-white font-black text-center focus:outline-hidden focus:border-emerald-500 dark:focus:border-emerald-400" />
+                    </div>
+                    <div class="space-y-1 relative">
+                        <label class="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase block flex justify-between">Corridor <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
+                        <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 dark:accent-emerald-400 mt-3" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="executeRouteGenerationPipeline()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md">
+                         Trace Vector Path
                     </button>
-                    <button onclick="clearCalculatedRouteLayers()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-slate-700/60">
-                        🗑️ Clear
+                    <button onclick="clearCalculatedRouteLayers()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-slate-200/40 dark:border-slate-700">
+                        🗑️ Reset Grid
                     </button>
                 </div>
             </div>
 
-            <div id="sidebar-active-station-box" class="hidden p-3.5 bg-slate-950/80 border border-blue-500/40 rounded-2xl relative shadow-md space-y-2.5">
+            <div id="sidebar-active-station-box" class="hidden p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl relative shadow-inner space-y-2.5">
                 <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
-                        <span class="text-[9px] font-black bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md uppercase tracking-wider">Active Workspace View</span>
-                        <h4 id="sidebar-active-brand" class="text-xs font-black text-white mt-1 truncate">Forecourt Name</h4>
-                        <p id="sidebar-active-address" class="text-[10px] text-slate-400 truncate font-medium">Station Street Address Coordinates</p>
+                        <span class="text-[9px] font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md uppercase tracking-wider">Active Workspace Selection</span>
+                        <h4 id="sidebar-active-brand" class="text-xs font-black text-slate-900 dark:text-white mt-1.5 truncate">Forecourt Brand Name</h4>
+                        <p id="sidebar-active-address" class="text-[10px] text-slate-400 dark:text-slate-500 truncate font-medium mt-0.5">Station Geo-Coordinate Hub Details</p>
                     </div>
-                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9">
+                    <button id="sidebar-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 rounded-xl border transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9">
                         </button>
                 </div>
             </div>
 
             <div id="cheapest-ranking-block" class="hidden space-y-2 pt-1">
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1.5 mb-1">
                     <span class="text-xs">🏆</span>
-                    <h3 class="text-[11px] font-black tracking-wider text-slate-400 uppercase">Top 3 Cheapest Forecourts Here</h3>
+                    <h3 class="text-[10px] font-black tracking-wider text-slate-400 dark:text-slate-500 uppercase">Top 3 Cheapest Regional Forecourts</h3>
                 </div>
                 <div id="cheapest-cards-stack" class="space-y-2"></div>
             </div>
         </div>
     </aside>
 
-    <main class="flex-1 h-[55%] md:h-full relative z-10 flex flex-col">
-        <div id="map" class="w-full h-full bg-slate-100"></div>
+    <div id="starred-dropdown-panel" class="absolute top-18 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl hidden flex flex-col pointer-events-auto max-h-[420px] overflow-hidden z-[510]">
+        <div class="p-3 bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <span class="text-[10px] font-black tracking-wider uppercase text-slate-400 dark:text-slate-500">Starred Forecourts Matrix</span>
+            <button onclick="toggleStarredDropdownDashboardPanel()" class="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white text-xs font-bold px-2 py-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800">Close</button>
+        </div>
+        <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2.5 no-scrollbar flex-1"></div>
+    </div>
 
-        <div class="absolute top-3 right-3 z-[500] flex flex-col items-end gap-2.5 max-w-sm pointer-events-none">
-            <div class="flex items-center gap-2 pointer-events-auto">
-                <div id="live-timestamp-label" class="bg-slate-900/90 backdrop-blur-md border border-slate-700/60 shadow-lg px-3 py-2 rounded-xl text-[11px] font-semibold text-slate-200 flex items-center gap-2 transition duration-200">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Connecting to Price Stream...
-                </div>
-                <button onclick="toggleStarredDropdown()" class="bg-slate-900 hover:bg-slate-800 text-white p-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-slate-700/80 active:scale-95">
-                    <span>⭐</span>
-                    <span class="text-xs font-black">Saved</span>
-                    <span id="starred-count-badge" class="bg-amber-500 text-slate-950 font-black text-[10px] px-1.5 py-0.5 rounded-md leading-none">0</span>
+    <div id="financial-card" class="absolute bottom-[130px] md:bottom-4 right-4 w-[calc(100%-32px)] sm:w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-2xl hidden flex flex-col pointer-events-auto transition duration-300 z-[500]">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 mb-2.5">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="text-sm">📊</span>
+                <h3 class="text-xs font-black text-slate-900 dark:text-white tracking-tight truncate">Financial Pipeline Metrics</h3>
+            </div>
+            <button id="financial-star-btn" onclick="toggleCurrentStationStar()" class="p-2 border rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8">
                 </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2.5">
+            <div class="bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 rounded-xl p-2.5">
+                <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Scope Context</span>
+                <span id="summary-distance" class="text-xs font-black text-slate-800 dark:text-slate-200 mt-0.5 block truncate">Radius Target</span>
             </div>
-
-            <div id="starred-dropdown-panel" class="w-80 bg-slate-900/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl hidden flex flex-col pointer-events-auto max-h-[400px] overflow-hidden">
-                <div class="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
-                    <span class="text-[10px] font-black tracking-wider uppercase text-slate-400">Your Starred Stations Directory</span>
-                    <button onclick="toggleStarredDropdown()" class="text-slate-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-md hover:bg-slate-800">Close</button>
-                </div>
-                <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2.5 no-scrollbar flex-1"></div>
-            </div>
-
-            <div id="financial-card" class="w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-2xl hidden flex flex-col pointer-events-auto transition duration-300">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="text-sm">📊</span>
-                        <h3 class="text-xs font-black text-slate-900 tracking-tight truncate">Financial Pipeline Analytics</h3>
-                    </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <button id="financial-star-btn" onclick="toggleCurrentStationStar()" class="p-2 bg-slate-50 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8">
-                            </button>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Scope Context</span>
-                        <span id="summary-distance" class="text-xs font-black text-slate-800 mt-0.5 block truncate">Radius Scope</span>
-                    </div>
-                    <div class="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-xl p-2.5">
-                        <span class="text-[9px] font-black text-emerald-700 uppercase tracking-wider block">Target Metric</span>
-                        <span id="summary-cost" class="text-xs font-black text-emerald-600 mt-0.5 block truncate">0.0p</span>
-                    </div>
-                </div>
+            <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5">
+                <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Lowest Cost Metric</span>
+                <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
             </div>
         </div>
+    </div>
 
-        <div id="global-detail-sheet" class="absolute bottom-0 left-0 right-0 md:top-3 md:bottom-auto md:left-auto md:right-3 bg-white border-t md:border-t-0 md:border border-slate-200 shadow-2xl z-[600] rounded-t-2xl md:rounded-2xl p-5 flex flex-col gap-4 md:w-96 sheet-hidden">
-            <div id="mobile-drag-handle" class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto shrink-0 md:hidden cursor-pointer"></div>
+    <div id="global-detail-sheet" class="absolute bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5 flex flex-col gap-4 md:w-96 sheet-hidden md:top-4 md:bottom-auto md:left-auto md:right-4 md:z-[600] md:rounded-2xl transition-all duration-300">
+        <div id="mobile-drag-handle" class="w-14 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto shrink-0 md:hidden cursor-pointer active:bg-slate-300 transition-colors"></div>
 
-            <div class="flex items-start justify-between gap-3 relative">
-                <div class="min-w-0 flex-1">
-                    <h2 id="sheet-brand-title" class="text-sm font-black text-slate-900 tracking-tight leading-snug truncate">Independent Vendor</h2>
-                    <p id="sheet-address-details" class="text-[11px] font-medium text-slate-400 mt-0.5 leading-relaxed overflow-hidden text-ellipsis whitespace-nowrap">UK Road Network Station Hub</p>
-                </div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9">
-                        </button>
-                    <button onclick="closeForecourtDetailSheet()" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition cursor-pointer flex items-center justify-center">
-                        <span class="text-xs font-black font-mono leading-none">✕</span>
+        <div class="flex items-start justify-between gap-3 relative">
+            <div class="min-w-0 flex-1">
+                <h2 id="sheet-brand-title" class="text-sm font-black text-slate-900 dark:text-white tracking-tight leading-snug truncate">Independent Supplier Hub</h2>
+                <p id="sheet-address-details" class="text-[11px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 leading-relaxed truncate">National Grid Forecourt Terminal</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button id="sheet-star-btn" onclick="toggleCurrentStationStar()" class="p-2.5 border rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9">
                     </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2 pt-1">
-                <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
-                    <span id="sheet-price-e10" class="text-xs font-black block mt-1">N/A</span>
-                </div>
-                <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super E5</span>
-                    <span id="sheet-price-e5" class="text-xs font-black block mt-1">N/A</span>
-                </div>
-                <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-all duration-200">
-                    <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Diesel B7</span>
-                    <span id="sheet-price-b7" class="text-xs font-black block mt-1">N/A</span>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/60 flex items-center justify-between text-xs font-medium text-slate-600">
-                <span class="flex items-center gap-1">📍 Local Hub Data Mapping Vector</span>
-                <button onclick="triggerExternalMappingVectorRoute()" class="text-blue-600 font-black tracking-tight hover:underline flex items-center gap-0.5 cursor-pointer">
-                    Directions External ↗
+                <button onclick="closeForecourtDetailSheet()" class="p-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-full text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-white transition cursor-pointer flex items-center justify-center w-9 h-9">
+                    <span class="text-xs font-black font-mono leading-none">✕</span>
                 </button>
             </div>
         </div>
-    </main>
+
+        <div class="grid grid-cols-3 gap-2.5 pt-1">
+            <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-all duration-300">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
+                <span id="sheet-price-e10" class="text-xs font-black block mt-1">N/A</span>
+            </div>
+            <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-all duration-300">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super E5</span>
+                <span id="sheet-price-e5" class="text-xs font-black block mt-1">N/A</span>
+            </div>
+            <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-all duration-300">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Diesel B7</span>
+                <span id="sheet-price-b7" class="text-xs font-black block mt-1">N/A</span>
+            </div>
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-950 rounded-xl p-3 border border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400">
+            <span class="flex items-center gap-1.5">🗺️ External Mapping Route Vector</span>
+            <button onclick="triggerExternalMappingVectorRoute()" class="text-emerald-600 dark:text-emerald-400 font-black tracking-tight hover:underline flex items-center gap-0.5 cursor-pointer">
+                Directions External ↗
+            </button>
+        </div>
+    </div>
 
     <script>
-        // Global Application Context State Vectors
         let map = null;
+        let tileLayerInstance = null;
         let markerLayerGroup = null;
         let routePolylineLayer = null;
 
@@ -299,29 +291,57 @@
         let currentlyVisibleStations = [];
         let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_stations')) || [];
         
-        let activeTabContext = 'local'; // 'local' | 'route'
+        let activeTabContext = 'local'; 
         let activeSheetStation = null;
-        let mapSearchAnchorCoordinates = [54.0, -2.5]; // Central United Kingdom geographical fallback centroid
+        let mapSearchAnchorCoordinates = [54.0, -2.5]; 
         let plottedRouteCoordinates = [];
         let autocompleteDebounceTimer = null;
-        let currentMobileSheetUIState = 'hidden'; // 'hidden' | 'mid' | 'full'
+        let currentMobileSheetUIState = 'hidden'; 
+        let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 
-        // Structural Leaflet Engine Initializer Framework
+        // High-Fidelity Master Star Design Assets Setup Configurations Variables
+        const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-4 h-4 transition-colors"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
+        const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-amber-500 transform scale-110 animate-pop"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+
+        // Synchronized Theme Management Switching Core Processing Method Engine Loop
+        function toggleSystemColorModeTheme() {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('theme-dark-setting-mode', isDarkMode);
+            applyThemeChangesToDOM();
+        }
+
+        function applyThemeChangesToDOM() {
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            
+            // Re-render Leaflet Map Tiles Provider dynamically without wiping spatial parameters
+            if (map && tileLayerInstance) {
+                map.removeLayer(tileLayerInstance);
+                const targetedTilesetURI = isDarkMode 
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+                
+                tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
+            }
+            refreshViewportViewFilter();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
+        }
+
         function initializeSpatialMapEngine() {
-            map = L.map('map', {
-                zoomControl: false,
-                attributionControl: false
-            }).setView(mapSearchAnchorCoordinates, 6);
-
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                maxZoom: 19
-            }).addTo(map);
-
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 6);
+            
+            const targetedTilesetURI = isDarkMode 
+                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+                
+            tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
             markerLayerGroup = L.layerGroup().addTo(map);
         }
 
-        // Toggle UI views between Tab workflows
         function switchWorkflowTabContext(contextType) {
             activeTabContext = contextType;
             const btnLocal = document.getElementById('tab-btn-local');
@@ -330,21 +350,20 @@
             const panelRoute = document.getElementById('panel-tab-route');
 
             if (contextType === 'local') {
-                btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs";
-                btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+                btnLocal.className = "py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs";
+                btnRoute.className = "py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white";
                 panelLocal.classList.remove('hidden');
                 panelRoute.classList.add('hidden');
                 clearCalculatedRouteLayers();
             } else {
-                btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-800 text-amber-400 shadow-xs";
-                btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 hover:text-white";
+                btnRoute.className = "py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-950 dark:text-white shadow-xs";
+                btnLocal.className = "py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white";
                 panelRoute.classList.remove('hidden');
                 panelLocal.classList.add('hidden');
             }
             refreshViewportViewFilter();
         }
 
-        // Autocomplete Orchestration Listener Setup Module
         function setupAutocompleteListeners() {
             const nodesCollection = [
                 { id: 'location-input', boxId: 'location-suggestions' },
@@ -380,7 +399,7 @@
                             matchingBox.innerHTML = '';
                             optionsList.forEach(item => {
                                 const row = document.createElement('div');
-                                row.className = "p-2.5 hover:bg-slate-50 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap";
+                                row.className = "p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-slate-700 dark:text-slate-300";
                                 row.textContent = item.display_name;
                                 row.onclick = () => {
                                     inputField.value = item.display_name;
@@ -395,9 +414,7 @@
                                 matchingBox.appendChild(row);
                             });
                             matchingBox.classList.remove('hidden');
-                        } catch (e) {
-                            console.error(e);
-                        }
+                        } catch (e) { console.error(e); }
                     }, 350);
                 });
             });
@@ -416,9 +433,7 @@
                     map.setView(mapSearchAnchorCoordinates, 12);
                     refreshViewportViewFilter();
                 }
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         }
 
         async function executeRouteGenerationPipeline() {
@@ -449,13 +464,11 @@
                 plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 
-                routePolylineLayer = L.polyline(plottedRouteCoordinates, { color: '#2563eb', weight: 5, opacity: 0.85 }).addTo(map);
+                routePolylineLayer = L.polyline(plottedRouteCoordinates, { color: '#06b6d4', weight: 5, opacity: 0.85 }).addTo(map);
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
                 refreshViewportViewFilter(distanceMiles);
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         }
 
         function clearCalculatedRouteLayers() {
@@ -466,7 +479,6 @@
             refreshViewportViewFilter();
         }
 
-        // GEOGRAPHIC ERROR FIX: Accurate Longitudinal Scalar Approximation for Great Britain Region Matrix
         function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
             const dLat = (lat2 - lat1) * 69.1;
             const dLon = (lon2 - lon1) * 41.0; 
@@ -497,7 +509,6 @@
             return '⛽';
         }
 
-        // Setup Event Handlers Wiring
         document.getElementById('radius-slider')?.addEventListener('input', (e) => {
             document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
             refreshViewportViewFilter();
@@ -519,7 +530,7 @@
 
         async function forceReloadRemotePipelineData() {
             const counterElement = document.getElementById('station-counter');
-            if (counterElement) counterElement.textContent = "Loading Data...";
+            if (counterElement) counterElement.textContent = "Connecting Grid...";
             try {
                 const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
                 rawGlobalStationsPool = await response.json();
@@ -529,12 +540,12 @@
                 const minutes = liveClock.getMinutes().toString().padStart(2, '0');
                 const ampm = hours >= 12 ? 'PM' : 'AM';
                 hours = hours % 12 || 12; 
-                document.getElementById('live-timestamp-label').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Prices synced: Today, ${hours}:${minutes} ${ampm}`;
+                document.getElementById('live-timestamp-label').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Stream Online: ${hours}:${minutes} ${ampm}`;
                 
                 refreshViewportViewFilter();
             } catch (error) {
                 console.error(error);
-                if (counterElement) counterElement.textContent = "Data Link Error";
+                if (counterElement) counterElement.textContent = "Link Fault";
             }
         }
 
@@ -570,6 +581,7 @@
             }
 
             currentlyVisibleStations = dynamicBoundedStations;
+            // Protective Node Layout Bottleneck Slicing System Core Layer Rule
             paintMarkerCanvasLayersToMap(dynamicBoundedStations.slice(0, 250), chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
             generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
         }
@@ -592,17 +604,17 @@
                 const emoji = resolveBrandVisualSymbol(station.brand_name);
                 
                 const card = document.createElement('div');
-                card.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-amber-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
+                card.className = "flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 active:scale-[0.98] transition shadow-xs cursor-pointer";
                 card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
                 card.innerHTML = `
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-7 h-7 rounded-full bg-amber-500/10 text-xs flex items-center justify-center shrink-0 font-black text-amber-400 border border-amber-500/20">#${idx + 1}</div>
+                        <div class="w-6 h-6 rounded-lg bg-emerald-500/10 dark:bg-emerald-400/10 text-[10px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
                         <div class="min-w-0">
-                            <div class="text-xs font-black text-white truncate flex items-center gap-1"><span>${emoji}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                            <div class="text-[10px] font-medium text-slate-400 truncate">${station.address || ''}</div>
+                            <div class="text-xs font-black text-slate-900 dark:text-white truncate flex items-center gap-1"><span>${emoji}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                            <div class="text-[10px] font-medium text-slate-400 dark:text-slate-500 truncate mt-0.5">${station.address || ''}</div>
                         </div>
                     </div>
-                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
+                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
                 `;
                 container.appendChild(card);
             });
@@ -610,22 +622,22 @@
         }
 
         function assignPricingTierColorStyles(valueRaw, variantKey) {
-            const fallbackClasses = "bg-slate-50 border-slate-200 text-slate-400";
+            const fallbackClasses = "bg-slate-50 border-slate-200 text-slate-400 dark:bg-slate-900 dark:border-slate-800";
             if (!valueRaw) return fallbackClasses;
             const numericVal = parseFloat(valueRaw);
             if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
             const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
-            if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900";
+            if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-200";
 
             const min = Math.min(...referencePool);
             const delta = Math.max(...referencePool) - min;
-            if (delta <= 0) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold";
+            if (delta <= 0) return "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200";
 
             const step = delta / 3;
-            if (numericVal <= min + step) return "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-xs";
-            if (numericVal <= min + (step * 2)) return "bg-blue-50 border-blue-400 text-blue-950 font-black shadow-xs";
-            return "bg-rose-50 border-rose-400 text-rose-950 font-black shadow-xs";
+            if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-black shadow-xs";
+            if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/80 border-blue-300 dark:border-blue-500/30 text-blue-700 dark:text-blue-400 font-black shadow-xs";
+            return "bg-rose-50 dark:bg-rose-950/80 border-rose-300 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 font-black shadow-xs";
         }
 
         function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
@@ -642,7 +654,7 @@
                     document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
                     document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
                 } else {
-                    document.getElementById('summary-distance').textContent = `Local Low Base`;
+                    document.getElementById('summary-distance').textContent = `Regional Low`;
                     document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
                 }
             }
@@ -687,59 +699,44 @@
             updateAllStarUIStates();
         }
 
-        // HIGH-FIDELITY ACTIVE / INACTIVE STAR RENDERING MATRIX ENGINES
         function updateAllStarUIStates() {
             if (!activeSheetStation) return;
             const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
             
-            // Reusable Vector Assets for Core Target Handlers
-            const inactiveStarIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 transition-colors duration-200"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
-            const activeStarIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-amber-500 transform scale-110 transition-transform duration-200 animate-pop"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
-
-            // 1. Interactive Master Drawer Modal Sheet Button Rendering Setup
+            // 1. Interactive Master Bottom-Sheet Drawer Target Star Elements Renderer
             const sheetBtn = document.getElementById('sheet-star-btn');
             if (sheetBtn) {
-                sheetBtn.innerHTML = inactiveStarIconSVG;
-                if (isStarred) {
-                    sheetBtn.innerHTML = activeStarIconSVG;
-                    sheetBtn.className = "p-2.5 bg-amber-50 border border-amber-200 text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9";
-                } else {
-                    sheetBtn.className = "p-2.5 bg-slate-100 border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9";
-                }
+                sheetBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
+                sheetBtn.className = isStarred 
+                    ? "p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9"
+                    : "p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center min-w-9 min-h-9";
             }
 
-            // 2. Sidebar Active Workspace Box Synchronization Interface Layout
+            // 2. Desktop Left-Hand Active Selection Workspace Synchronization Node Sync
             const sidebarBtn = document.getElementById('sidebar-star-btn');
             if (sidebarBtn) {
-                sidebarBtn.innerHTML = inactiveStarIconSVG;
-                if (isStarred) {
-                    sidebarBtn.innerHTML = activeStarIconSVG;
-                    sidebarBtn.className = "p-2.5 bg-amber-500/10 border border-amber-500/25 text-amber-400 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9";
-                } else {
-                    sidebarBtn.className = "p-2.5 bg-slate-800 border border-slate-700 text-slate-400 hover:text-amber-400 hover:border-slate-600 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9";
-                }
+                sidebarBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
+                sidebarBtn.className = isStarred
+                    ? "p-2.5 bg-amber-500/10 border border-amber-500/25 text-amber-400 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9"
+                    : "p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-amber-500 rounded-xl shadow-xs transition duration-200 cursor-pointer shrink-0 flex items-center justify-center min-w-9 min-h-9";
             }
 
-            // 3. Floating High-Fidelity Financial Extrapolation Card Star Framework
+            // 3. Floating High-Fidelity Financial Extrapolation Panel Star Layout Sync
             const financialBtn = document.getElementById('financial-star-btn');
             if (financialBtn) {
-                financialBtn.innerHTML = inactiveStarIconSVG;
-                if (isStarred) {
-                    financialBtn.innerHTML = activeStarIconSVG;
-                    financialBtn.className = "p-2 bg-amber-50 border border-amber-200 text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8";
-                } else {
-                    financialBtn.className = "p-2 bg-slate-50 border border-slate-200 text-slate-400 hover:text-amber-500 hover:border-amber-300 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8";
-                }
+                financialBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
+                financialBtn.className = isStarred
+                    ? "p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8"
+                    : "p-2 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 text-slate-400 hover:text-amber-500 rounded-lg shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8";
             }
 
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
         }
 
-        function toggleStarredDropdown() {
+        function toggleStarredDropdownDashboardPanel() {
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
-            const isCurrentlyHidden = panel.classList.contains('hidden');
-            if (isCurrentlyHidden) { panel.classList.remove('hidden'); renderStarredDropdownDashboard(); }
+            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); renderStarredDropdownDashboard(); }
             else { panel.classList.add('hidden'); }
         }
 
@@ -750,14 +747,14 @@
 
             badge.textContent = starredStations.length;
             if (starredStations.length === 0) {
-                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs font-semibold leading-relaxed">No saved stations found.<br><span class="text-[11px] font-medium opacity-80">Tap the star icon inside any forecourt's card to add it here.</span></div>`;
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 dark:text-slate-500 text-xs font-semibold leading-relaxed">Saved Directory Empty.<br><span class="text-[10px] font-medium opacity-80">Tap star inside any station panel view layer to map here.</span></div>`;
                 return;
             }
 
             container.innerHTML = '';
             starredStations.forEach(station => {
                 const cardRow = document.createElement('div');
-                cardRow.className = "p-3 bg-slate-950 border border-slate-800 rounded-2xl hover:border-blue-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
+                cardRow.className = "p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 transition cursor-pointer active:scale-[0.99] shadow-xs space-y-3";
                 cardRow.onclick = () => {
                     focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
                     if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
@@ -765,8 +762,8 @@
 
                 cardRow.innerHTML = `
                     <div class="min-w-0">
-                        <div class="text-xs font-black text-white truncate flex items-center gap-1.5"><span>${resolveBrandVisualSymbol(station.brand_name)}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                        <div class="text-[10px] font-semibold text-slate-400 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
+                        <div class="text-xs font-black text-slate-900 dark:text-white truncate flex items-center gap-1.5"><span>${resolveBrandVisualSymbol(station.brand_name)}</span> ${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                        <div class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5 pt-0.5">
                         <div class="border p-1.5 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7.5px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[11px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
@@ -782,8 +779,8 @@
             if (!sheet) return;
             activeSheetStation = stationData;
 
-            const cleanBrandText = (stationData.brand_name || 'Independent Vendor').replace(/['"]/g, '');
-            const cleanAddressText = (stationData.address || 'UK Road Network Hub').replace(/['"]/g, '');
+            const cleanBrandText = (stationData.brand_name || 'Independent Station Hub').replace(/['"]/g, '');
+            const cleanAddressText = (stationData.address || 'UK Highway Grid Station').replace(/['"]/g, '');
 
             document.getElementById('sheet-brand-title').textContent = cleanBrandText;
             document.getElementById('sheet-address-details').textContent = cleanAddressText;
@@ -795,9 +792,9 @@
                 sidebarBox.classList.remove('hidden');
             }
 
-            document.getElementById('card-wrap-e10').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-            document.getElementById('card-wrap-e5').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-            document.getElementById('card-wrap-b7').className = `border p-3 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+            document.getElementById('card-wrap-e10').className = `border p-3 rounded-xl text-center transition-all duration-300 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+            document.getElementById('card-wrap-e5').className = `border p-3 rounded-xl text-center transition-all duration-300 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+            document.getElementById('card-wrap-b7').className = `border p-3 rounded-xl text-center transition-all duration-300 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
 
             document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
             document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
@@ -806,7 +803,7 @@
             updateAllStarUIStates();
 
             if (window.innerWidth < 768) setForecourtSheetState('mid');
-            else sheet.classList.add('active-desktop');
+            else sheet.classList.add('md:opacity-100', 'md:pointer-events-auto');
         }
 
         function closeForecourtDetailSheet() {
@@ -814,7 +811,7 @@
             if (!sheet) return;
             
             if (window.innerWidth < 768) setForecourtSheetState('hidden');
-            else sheet.classList.remove('active-desktop');
+            else sheet.classList.remove('md:opacity-100', 'md:pointer-events-auto');
 
             const sidebarBox = document.getElementById('sidebar-active-station-box');
             if (sidebarBox) sidebarBox.classList.add('hidden');
@@ -826,7 +823,6 @@
             return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
         }
 
-        viewBounds = null;
         function triggerExternalMappingVectorRoute() {
             if (!activeSheetStation) return;
             const lat = activeSheetStation.latitude || activeSheetStation.lat;
@@ -834,12 +830,13 @@
             window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
         }
 
+        // True 3-State Swipe System Event Loop Configurations Map Engine
         function setForecourtSheetState(stateStr) {
             currentMobileSheetUIState = stateStr;
             const sheet = document.getElementById('global-detail-sheet');
             if (!sheet) return;
-            sheet.classList.remove('sheet-hidden', 'sheet-mid', 'sheet-full');
-            sheet.classList.add(`sheet-${stateStr}`);
+            sheet.classList.remove('sheet-state-hidden', 'sheet-state-peek', 'sheet-state-mid', 'sheet-state-full');
+            sheet.classList.add(`sheet-state-${stateStr}`);
         }
 
         function initializeClickIsolationBubbling() {
@@ -850,9 +847,12 @@
         function initializeGestureTrackEngine() {
             const handle = document.getElementById('mobile-drag-handle');
             if (!handle) return;
+            
+            // Loop cycling between three distinct state touch thresholds
             handle.addEventListener('click', () => {
-                if (currentMobileSheetUIState === 'mid') setForecourtSheetState('full');
-                else if (currentMobileSheetUIState === 'full') setForecourtSheetState('mid');
+                if (currentMobileSheetUIState === 'peek') setForecourtSheetState('mid');
+                else if (currentMobileSheetUIState === 'mid') setForecourtSheetState('full');
+                else if (currentMobileSheetUIState === 'full') setForecourtSheetState('peek');
             });
         }
 
@@ -864,14 +864,14 @@
                         map.setView(mapSearchAnchorCoordinates, 11);
                         refreshViewportViewFilter();
                     },
-                    (err) => console.log("Hardware trace position declined.")
+                    (err) => console.log("Device telemetry signal layer disabled.")
                 );
             }
         }
 
-        // Complete Orchestration Bootup Integration
         window.addEventListener('DOMContentLoaded', () => {
             initializeSpatialMapEngine();
+            applyThemeChangesToDOM();
             setupAutocompleteListeners();
             initializeClickIsolationBubbling();
             initializeGestureTrackEngine();
