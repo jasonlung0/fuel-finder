@@ -94,7 +94,7 @@
                 transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
                 box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.15), 0 -8px 10px -6px rgba(0, 0, 0, 0.15);
             }
-            .drawer-peek { transform: translateY(calc(100% - 68px)) !important; }
+            .drawer-peek { transform: translateY(calc(100% - 84px)) !important; }
             .drawer-mid { transform: translateY(50%) !important; }
             .drawer-full { transform: translateY(4%) !important; }
             
@@ -132,7 +132,7 @@
         </div>
     </header>
 
-    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden flex flex-col max-h-[440px] overflow-hidden z-[4800] transition-colors duration-300">
+    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-colors duration-300">
         <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
             <div class="flex items-center justify-between px-1 pt-1">
                 <span class="text-[10px] font-black tracking-wider uppercase text-zinc-400 dark:text-zinc-500">System Storage Vault</span>
@@ -147,7 +147,9 @@
     </div>
 
     <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
-        <div id="sidebar-drag-handle" class="w-12 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full mx-auto my-3 shrink-0 md:hidden cursor-pointer hover:bg-zinc-400 transition-colors"></div>
+        <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
+            <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full"></div>
+        </div>
         
         <div class="grid grid-cols-2 bg-zinc-50 dark:bg-zinc-900/40 p-1.5 gap-1 shrink-0 border-b border-zinc-100 dark:border-zinc-800/60">
             <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm">
@@ -196,7 +198,7 @@
                 
                 <div class="relative flex flex-col gap-3 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
                     
-                    <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[66px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap Route Fields">
+                    <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap Endpoints">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                     </button>
 
@@ -207,23 +209,22 @@
                         <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                     </div>
 
-                    <div class="absolute left-[-5px] top-[74px] w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm"></div>
-                    <div class="space-y-0.5 relative">
+                    <div class="space-y-1.5">
                         <div class="flex justify-between items-center">
-                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoint (Optional)</label>
+                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoints (Optional)</label>
+                            <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
                         </div>
-                        <div class="relative w-full flex items-center">
-                            <input id="route-via" type="text" placeholder="Add optional midway stop..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
-                            <button id="clear-waypoint-btn" onclick="clearWaypointFieldInput(event)" class="absolute right-2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition hidden z-20 cursor-pointer">Clear</button>
-                        </div>
-                        <div id="via-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+                        <div id="dynamic-waypoints-container" class="space-y-2">
+                            </div>
                     </div>
 
-                    <div class="absolute left-[-5px] top-[134px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
-                    <div class="space-y-0.5 relative">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Terminal Target Destination</label>
-                        <input id="route-end" type="text" placeholder="Final destination point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
-                        <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+                    <div class="relative pt-1">
+                        <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
+                        <div class="space-y-0.5 relative">
+                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Terminal Target Destination</label>
+                            <input id="route-end" type="text" placeholder="Final destination point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                            <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -241,7 +242,7 @@
                 <div class="grid grid-cols-3 gap-2">
                     <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Trace</button>
                     <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Save</button>
-                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear</button>
+                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear All</button>
                 </div>
             </div>
 
@@ -290,8 +291,10 @@
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/98 dark:bg-zinc-950/98 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-2xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
-        <div id="detail-sheet-drag-handle" class="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto shrink-0 md:hidden cursor-pointer hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors mb-1"></div>
+    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-2xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
+        <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 -mt-5 -mx-5 rounded-t-3xl">
+            <div class="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
+        </div>
 
         <div class="flex items-start justify-between gap-3 relative">
             <div class="min-w-0 flex-1">
@@ -351,7 +354,8 @@
         let currentMobileSheetUIState = 'hidden';
         let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 
-        let cachedGeocodedWaypoints = { start: null, via: null, end: null };
+        let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
+        let dynamicWaypointIncrementalIndex = 0;
 
         const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
         const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
@@ -390,7 +394,6 @@
         }
 
         function initializeSpatialMapEngine() {
-            // Repositioning Zoom to top-right to ensure it stays fully clear of mobile drawers
             map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
             
             const targetedTilesetURI = isDarkMode 
@@ -529,77 +532,97 @@
             endInput.value = intermediateBuffer;
         }
 
-        function clearWaypointFieldInput(event) {
+        /* UI/UX ENHANCEMENT: Infinite Modular Waypoint Input Component Lifecycle Generator */
+        function addWaypointFieldInputRow(initialValue = '') {
+            dynamicWaypointIncrementalIndex++;
+            const currentUid = dynamicWaypointIncrementalIndex;
+            const container = document.getElementById('dynamic-waypoints-container');
+            if (!container) return;
+
+            const rowNode = document.createElement('div');
+            rowNode.id = `waypoint-row-context-${currentUid}`;
+            rowNode.className = "relative w-full flex items-center gap-2 mt-1";
+
+            rowNode.innerHTML = `
+                <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
+                <div class="relative flex-1">
+                    <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none waypoint-dynamic-input-field" />
+                    <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer">Clear</button>
+                </div>
+                <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold" title="Delete stop">✕</button>
+                <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+            `;
+
+            container.appendChild(rowNode);
+            bindAutocompleteToSpecificInput(`route-via-${currentUid}`, `via-suggestions-${currentUid}`);
+        }
+
+        function removeWaypointFieldInputRow(uid, event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
-            const viaInput = document.getElementById('route-via');
-            if(viaInput) {
-                viaInput.value = '';
-                document.getElementById('clear-waypoint-btn').classList.add('hidden');
+            const rowTarget = document.getElementById(`waypoint-row-context-${uid}`);
+            if (rowTarget) {
+                rowTarget.remove();
             }
         }
 
-        function setupAutocompleteListeners() {
-            const nodesCollection = [
-                { id: 'location-input', boxId: 'location-suggestions' },
-                { id: 'route-start', boxId: 'start-suggestions' },
-                { id: 'route-via', boxId: 'via-suggestions' },
-                { id: 'route-end', boxId: 'end-suggestions' }
-            ];
+        function clearSingleWaypointRowInputValue(uid, event) {
+            if(event) { event.stopPropagation(); event.preventDefault(); }
+            const inputField = document.getElementById(`route-via-${uid}`);
+            if (inputField) {
+                inputField.value = '';
+            }
+        }
 
-            nodesCollection.forEach(node => {
-                const inputField = document.getElementById(node.id);
-                const matchingBox = document.getElementById(node.boxId);
-                if (!inputField || !matchingBox) return;
+        function bindAutocompleteToSpecificInput(inputId, suggestionsBoxId) {
+            const inputField = document.getElementById(inputId);
+            const matchingBox = document.getElementById(suggestionsBoxId);
+            if (!inputField || !matchingBox) return;
 
-                inputField.addEventListener('input', (e) => {
-                    const textQuery = e.target.value.trim();
-                    clearTimeout(autocompleteDebounceTimer);
+            inputField.addEventListener('input', (e) => {
+                const textQuery = e.target.value.trim();
+                clearTimeout(autocompleteDebounceTimer);
 
-                    if (inputField.id === 'route-via') {
-                        const clearBtn = document.getElementById('clear-waypoint-btn');
-                        if(textQuery.length > 0) clearBtn?.classList.remove('hidden');
-                        else clearBtn?.classList.add('hidden');
-                    }
+                if (!textQuery || textQuery.length < 2) {
+                    matchingBox.classList.add('hidden');
+                    return;
+                }
 
-                    if (!textQuery || textQuery.length < 2) {
-                        matchingBox.classList.add('hidden');
-                        return;
-                    }
+                autocompleteDebounceTimer = setTimeout(async () => {
+                    try {
+                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=4`;
+                        const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
+                        const optionsList = await res.json();
 
-                    autocompleteDebounceTimer = setTimeout(async () => {
-                        try {
-                            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=4`;
-                            const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                            const optionsList = await res.json();
+                        if (!optionsList || optionsList.length === 0) {
+                            matchingBox.classList.add('hidden');
+                            return;
+                        }
 
-                            if (!optionsList || optionsList.length === 0) {
+                        matchingBox.innerHTML = '';
+                        optionsList.forEach(item => {
+                            const row = document.createElement('div');
+                            row.className = "p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-medium border-b border-zinc-100/50 dark:border-zinc-800/50";
+                            row.textContent = item.display_name;
+                            row.onclick = (event) => {
+                                event.stopPropagation();
+                                inputField.value = item.display_name;
                                 matchingBox.classList.add('hidden');
-                                return;
-                            }
-
-                            matchingBox.innerHTML = '';
-                            optionsList.forEach(item => {
-                                const row = document.createElement('div');
-                                row.className = "p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-medium border-b border-zinc-100/50 dark:border-zinc-800/50";
-                                row.textContent = item.display_name;
-                                row.onclick = (event) => {
-                                    event.stopPropagation();
-                                    inputField.value = item.display_name;
-                                    matchingBox.classList.add('hidden');
-                                    
-                                    if (inputField.id === 'location-input') {
-                                        mapSearchAnchorCoordinates = [parseFloat(item.lat), parseFloat(item.lon)];
-                                        map.setView(mapSearchAnchorCoordinates, 12);
-                                        refreshViewportViewFilter();
-                                    }
-                                };
-                                matchingBox.appendChild(row);
-                            });
-                            matchingBox.classList.remove('hidden');
-                        } catch (e) { console.error(e); }
-                    }, 300);
-                });
+                            };
+                            matchingBox.appendChild(row);
+                        });
+                        matchingBox.classList.remove('hidden');
+                    } catch (e) { console.error(e); }
+                }, 300);
             });
+        }
+
+        function setupAutocompleteListeners() {
+            bindAutocompleteToSpecificInput('location-input', 'location-suggestions');
+            bindAutocompleteToSpecificInput('route-start', 'start-suggestions');
+            bindAutocompleteToSpecificInput('route-end', 'end-suggestions');
+
+            // Set up initial optional waypoint item row automatically
+            addWaypointFieldInputRow();
         }
 
         async function executeAddressGeocodeLookup() {
@@ -620,9 +643,13 @@
 
         async function executeRouteGenerationPipeline() {
             const startVal = document.getElementById('route-start').value.trim();
-            const viaVal = document.getElementById('route-via').value.trim();
             const endVal = document.getElementById('route-end').value.trim();
             if (!startVal || !endVal) return;
+
+            // Harvest dynamic list strings
+            const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
+                                        .map(input => input.value.trim())
+                                        .filter(val => val.length > 0);
 
             try {
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
@@ -636,25 +663,21 @@
                 cachedGeocodedWaypoints.start = { name: startVal, lat: startNodes[0].lat, lon: startNodes[0].lon };
                 cachedGeocodedWaypoints.end = { name: endVal, lat: endNodes[0].lat, lon: endNodes[0].lon };
 
-                const sLat = startNodes[0].lat, sLon = startNodes[0].lon;
-                const eLat = endNodes[0].lat, eLon = endNodes[0].lon;
+                let coordinatesStringArray = [`${startNodes[0].lon},${startNodes[0].lat}`];
 
-                let osrmQuery = '';
-                if (viaVal) {
-                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(viaVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
+                // Synchronously parse dynamic chain entries sequentially
+                cachedGeocodedWaypoints.vids = {};
+                for(let w = 0; w < waypointNodes.length; w++) {
+                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                     const viaNodes = await viaRes.json();
-                    if (viaNodes.length) {
-                        cachedGeocodedWaypoints.via = { name: viaVal, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
-                        const vLat = viaNodes[0].lat, vLon = viaNodes[0].lon;
-                        osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${vLon},${vLat};${eLon},${eLat}?overview=full&geometries=geojson`;
-                    } else {
-                        cachedGeocodedWaypoints.via = null;
-                        osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
+                    if(viaNodes.length) {
+                        coordinatesStringArray.push(`${viaNodes[0].lon},${viaNodes[0].lat}`);
+                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: viaNodes[0].lat, lon: viaNodes[0].lon };
                     }
-                } else {
-                    cachedGeocodedWaypoints.via = null;
-                    osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
                 }
+
+                coordinatesStringArray.push(`${endNodes[0].lon},${endNodes[0].lat}`);
+                const osrmQuery = `https://router.project-osrm.org/route/v1/driving/${coordinatesStringArray.join(';')}?overview=full&geometries=geojson`;
 
                 const routeRes = await fetch(osrmQuery);
                 const routeData = await routeRes.json();
@@ -701,7 +724,11 @@
 
             const locationsToFetch = [];
             if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Origin", data: cachedGeocodedWaypoints.start });
-            if (cachedGeocodedWaypoints.via) locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.via });
+            
+            Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
+                locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.vids[key] });
+            });
+
             if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
 
             for (const loc of locationsToFetch) {
@@ -751,18 +778,21 @@
 
         function saveActiveRouteCorridor() {
             const startVal = document.getElementById('route-start').value.trim();
-            const viaVal = document.getElementById('route-via').value.trim();
             const endVal = document.getElementById('route-end').value.trim();
             const currentMpg = document.getElementById('vehicle-mpg').value;
             const currentDev = document.getElementById('route-radius-slider').value;
 
             if (!startVal || !endVal) return;
 
+            const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
+                                        .map(input => input.value.trim())
+                                        .filter(val => val.length > 0);
+
             const routePayload = {
                 id: 'route_' + Date.now(),
                 name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`,
                 start: startVal,
-                via: viaVal,
+                waypoints: waypointNodes,
                 end: endVal,
                 mpg: currentMpg,
                 radius: currentDev
@@ -789,26 +819,46 @@
 
             switchWorkflowTabContext('route');
             document.getElementById('route-start').value = matchedRoute.start;
-            document.getElementById('route-via').value = matchedRoute.via;
             document.getElementById('route-end').value = matchedRoute.end;
             document.getElementById('vehicle-mpg').value = matchedRoute.mpg;
             document.getElementById('route-radius-slider').value = matchedRoute.radius;
             document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
 
-            if (matchedRoute.via) {
-                document.getElementById('clear-waypoint-btn').classList.remove('hidden');
-            } else {
-                document.getElementById('clear-waypoint-btn').classList.add('hidden');
+            // Flush dynamic waypoint nodes space and rebuild using matching parameters
+            const container = document.getElementById('dynamic-waypoints-container');
+            if (container) {
+                container.innerHTML = '';
+                if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) {
+                    matchedRoute.waypoints.forEach(wpStr => {
+                        addWaypointFieldInputRow(wpStr);
+                    });
+                } else {
+                    addWaypointFieldInputRow();
+                }
             }
 
             executeRouteGenerationPipeline();
             document.getElementById('starred-dropdown-panel').classList.add('hidden');
         }
 
+        /* UI/UX ENHANCEMENT: Comprehensive Global Clear Pipeline execution covering all dynamic and anchor fields */
         function clearCalculatedRouteLayers() {
             if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
             plottedRouteCoordinates = [];
-            cachedGeocodedWaypoints = { start: null, via: null, end: null };
+            cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
+            
+            // Clear standard text boxes
+            document.getElementById('route-start').value = '';
+            document.getElementById('route-end').value = '';
+            document.getElementById('location-input').value = '';
+
+            // Purge and reset infinite waypoints layout back to a single pristine entry row
+            const container = document.getElementById('dynamic-waypoints-container');
+            if (container) {
+                container.innerHTML = '';
+                addWaypointFieldInputRow();
+            }
+
             document.getElementById('financial-card').classList.add('hidden');
             document.getElementById('cheapest-ranking-block').classList.add('hidden');
             document.getElementById('route-weather-module').classList.add('hidden');
@@ -845,9 +895,10 @@
         });
 
         document.addEventListener('click', (e) => {
-            ['location-suggestions', 'start-suggestions', 'via-suggestions', 'end-suggestions'].forEach(id => {
-                const box = document.getElementById(id);
-                if (box && !box.contains(e.target) && e.target.id !== id.replace('-suggestions', '-input')) box.classList.add('hidden');
+            // Dismiss active local input suggestion layouts dynamically on blank bounds clicks
+            const suggestionBoxes = document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]');
+            suggestionBoxes.forEach(box => {
+                if (!box.contains(e.target)) box.classList.add('hidden');
             });
         });
 
@@ -1046,12 +1097,20 @@
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
         }
 
+        /* UI/UX ENHANCEMENT: Mutually Exclusive Activation Pipeline protecting overlapping components */
         function toggleStarredDropdownDashboardPanel(event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
-            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); renderDirectoryDropdown(); }
-            else { panel.classList.add('hidden'); }
+            
+            if (panel.classList.contains('hidden')) { 
+                // Mutually exclusive clear action
+                closeForecourtDetailSheet();
+                panel.classList.remove('hidden'); 
+                renderDirectoryDropdown(); 
+            } else { 
+                panel.classList.add('hidden'); 
+            }
         }
 
         function renderDirectoryDropdown() {
@@ -1102,7 +1161,7 @@
                     cardRow.innerHTML = `
                         <div class="min-w-0 flex-1">
                             <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
-                            <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1">MPG: ${route.mpg} • DEV: ${route.radius} Mi</div>
+                            <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
                         </div>
                         <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition" title="Delete Saved Corridor">
                             ✕
@@ -1116,6 +1175,10 @@
         function openForecourtDetailSheet(stationData) {
             const sheet = document.getElementById('global-detail-sheet');
             if (!sheet) return;
+
+            // Mutually exclusive toggle to guarantee no overlapping panel state collisions
+            document.getElementById('starred-dropdown-panel').classList.add('hidden');
+
             activeSheetStation = stationData;
 
             document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
@@ -1135,7 +1198,7 @@
             sheet.classList.remove('hidden');
 
             if (window.innerWidth < 768) {
-                setMobileSheetUIState('full'); 
+                setMobileSheetUIState('mid'); 
             } else {
                 sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
             }
@@ -1201,7 +1264,45 @@
             });
         }
 
+        /* UI/UX ENHANCEMENT: Advanced Mobile Touch Gesture Swipe Engine Matrix (Velocity & Direction tracking) */
+        function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModificationCallback) {
+            const targetHandle = document.getElementById(handleId);
+            if (!targetHandle) return;
+
+            let touchBaseY = 0;
+            let touchCurrentY = 0;
+
+            targetHandle.addEventListener('touchstart', (e) => {
+                touchBaseY = e.touches[0].clientY;
+            }, { passive: true });
+
+            targetHandle.addEventListener('touchmove', (e) => {
+                touchCurrentY = e.touches[0].clientY;
+            }, { passive: true });
+
+            targetHandle.addEventListener('touchend', () => {
+                const trackDeltaY = touchBaseY - touchCurrentY;
+                if (Math.abs(trackDeltaY) < 45) return; // Filtering micro-gestures
+
+                let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
+
+                if (trackDeltaY > 45) {
+                    // Swiping Upward Direction Motion detected
+                    if (currentActiveState === 'peek') stateModificationCallback('mid');
+                    else if (currentActiveState === 'mid') stateModificationCallback('full');
+                } else if (trackDeltaY < -45) {
+                    // Swiping Downward Direction Motion detected
+                    if (currentActiveState === 'full') stateModificationCallback('mid');
+                    else if (currentActiveState === 'mid') {
+                        if (elementId === 'sidebar') stateModificationCallback('peek');
+                        else stateModificationCallback('hidden');
+                    }
+                }
+            });
+        }
+
         function initializeGestureTrackEngine() {
+            // Native standard click transitions kept for seamless physical mouse workflows
             document.getElementById('sidebar-drag-handle')?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
@@ -1215,6 +1316,10 @@
                 else if (currentMobileSheetUIState === 'mid') setMobileSheetUIState('full');
                 else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('peek');
             });
+
+            // Advanced Continuous Swipe Handler Integrations
+            bindSwipeGestureDetectionToMobileSheets('sidebar-drag-handle', 'sidebar', setMobileSidebarState);
+            bindSwipeGestureDetectionToMobileSheets('detail-sheet-drag-handle', 'sheet', setMobileSheetUIState);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
