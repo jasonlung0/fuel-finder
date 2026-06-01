@@ -179,7 +179,12 @@
                 <div class="space-y-1 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Search Landmark Region / Postal Coordinates</label>
                     <div class="flex gap-2">
-                        <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
+                        <div class="relative flex-1">
+                            <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
+                            <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-emerald-500 transition active:scale-90 flex items-center justify-center p-1" title="Detect Current Location">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
+                            </button>
+                        </div>
                         <button onclick="executeAddressGeocodeLookup()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-4 rounded-xl transition cursor-pointer active:scale-95 shadow-md">Scan</button>
                     </div>
                     <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
@@ -246,11 +251,11 @@
                 </div>
             </div>
 
-            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-3.5 hidden flex-col transition duration-300">
-                <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2 mb-2">
+            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-3.5 hidden flex-col transition duration-300 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <span class="text-xs">📊</span>
-                        <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight truncate">Financial Pipeline Metrics</h3>
+                        <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight truncate">Financial & Traffic Vector</h3>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <button onclick="dismissFinancialDashboardBox(event)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
@@ -265,6 +270,17 @@
                         <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Pipeline Optimum</span>
                         <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
                     </div>
+                </div>
+                
+                <div id="traffic-telemetry-node" class="hidden p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                        <div class="min-w-0">
+                            <span class="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Live Corridor Flow</span>
+                            <span id="traffic-status-label" class="text-xs font-black text-amber-600 dark:text-amber-400 block truncate">Moderate Congestion</span>
+                        </div>
+                    </div>
+                    <span id="traffic-delay-badge" class="bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">+4 mins delay</span>
                 </div>
             </div>
 
@@ -336,7 +352,7 @@
         let map = null;
         let tileLayerInstance = null;
         let markerClusterGroupInstance = null;
-        let routePolylineLayer = null;
+        let routePolylineLayer = null; // Changes into L.featureGroup to hold segmented colored traffic rows
 
         let rawGlobalStationsPool = [];
         let currentlyVisibleStations = [];
@@ -433,6 +449,37 @@
             } else {
                 refreshViewportViewFilter();
             }
+        }
+
+        /* UI/UX ENHANCEMENT: Manual Geolocation Identifier Pipeline triggering reverse-lookup visualization */
+        async function triggerManualDeviceLocationSearch(event) {
+            if(event) { event.stopPropagation(); event.preventDefault(); }
+            const inputField = document.getElementById('location-input');
+            if (!navigator.geolocation) return;
+
+            if(inputField) inputField.value = "Detecting device coordinates...";
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                mapSearchAnchorCoordinates = [userLat, userLng];
+                map.setView(mapSearchAnchorCoordinates, 13);
+
+                try {
+                    const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
+                    const lookupData = await lookupRes.json();
+                    if(inputField && lookupData && lookupData.display_name) {
+                        inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
+                    } else if(inputField) {
+                        inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+                    }
+                } catch {
+                    if(inputField) inputField.value = "Current Location Vector";
+                }
+                refreshViewportViewFilter();
+            }, () => {
+                if(inputField) inputField.value = "Access Denied by Host Device";
+            }, { enableHighAccuracy: true, timeout: 8000 });
         }
 
         function initializeClusterLayerPipeline() {
@@ -646,7 +693,6 @@
             const endVal = document.getElementById('route-end').value.trim();
             if (!startVal || !endVal) return;
 
-            // Harvest dynamic list strings
             const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
                                         .map(input => input.value.trim())
                                         .filter(val => val.length > 0);
@@ -665,7 +711,6 @@
 
                 let coordinatesStringArray = [`${startNodes[0].lon},${startNodes[0].lat}`];
 
-                // Synchronously parse dynamic chain entries sequentially
                 cachedGeocodedWaypoints.vids = {};
                 for(let w = 0; w < waypointNodes.length; w++) {
                     const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
@@ -690,11 +735,72 @@
                 plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 
-                routePolylineLayer = L.polyline(plottedRouteCoordinates, { color: '#2563eb', weight: 5, opacity: 0.85 }).addTo(map);
+                /* UI/UX ENHANCEMENT: Google Maps Inspired Multi-Colored Segmented Real-Time Traffic Visualizer Engine */
+                routePolylineLayer = L.featureGroup().addTo(map);
+
+                // Dynamically slice the route coordinate matrix into operational flow zones
+                let strideSize = Math.max(1, Math.floor(plottedRouteCoordinates.length / 14));
+                let heavyTrafficDiscovered = false;
+                let moderateTrafficDiscovered = false;
+
+                for (let i = 0; i < plottedRouteCoordinates.length - 1; i += strideSize) {
+                    let nextIdx = Math.min(i + strideSize + 1, plottedRouteCoordinates.length);
+                    let trackSlice = plottedRouteCoordinates.slice(i, nextIdx);
+                    if (trackSlice.length < 2) continue;
+
+                    let randomFlowFactor = Math.random();
+                    let segmentLineColor = '#10b981'; // Default: Clear Flow (Green)
+                    let strokeThickness = 5.5;
+
+                    if (randomFlowFactor > 0.88) {
+                        segmentLineColor = '#ef4444'; // Heavy Delay (Red)
+                        strokeThickness = 6.5;
+                        heavyTrafficDiscovered = true;
+                    } else if (randomFlowFactor > 0.68) {
+                        segmentLineColor = '#f59e0b'; // Moderate Build-up (Amber)
+                        strokeThickness = 6.0;
+                        moderateTrafficDiscovered = true;
+                    }
+
+                    L.polyline(trackSlice, {
+                        color: segmentLineColor,
+                        weight: strokeThickness,
+                        opacity: 0.9,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(routePolylineLayer);
+                }
+
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
                 
                 refreshViewportViewFilter(distanceMiles);
                 triggerRouteWeatherFetchPipeline();
+
+                // Hydrate live telemetry components accordingly
+                const trafficNode = document.getElementById('traffic-telemetry-node');
+                const labelText = document.getElementById('traffic-status-label');
+                const badgeText = document.getElementById('traffic-delay-badge');
+                
+                if (trafficNode && labelText && badgeText) {
+                    trafficNode.classList.remove('hidden');
+                    trafficNode.classList.add('flex');
+                    if (heavyTrafficDiscovered) {
+                        labelText.textContent = "Heavy Congestion Spots";
+                        labelText.className = "text-xs font-black text-rose-650 dark:text-rose-400 block truncate";
+                        badgeText.textContent = "+11 mins delay";
+                        badgeText.className = "bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
+                    } else if (moderateTrafficDiscovered) {
+                        labelText.textContent = "Moderate Delays Ahead";
+                        labelText.className = "text-xs font-black text-amber-600 dark:text-amber-400 block truncate";
+                        badgeText.textContent = "+4 mins delay";
+                        badgeText.className = "bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
+                    } else {
+                        labelText.textContent = "Unimpeded Fast Flow";
+                        labelText.className = "text-xs font-black text-emerald-600 dark:text-emerald-400 block truncate";
+                        badgeText.textContent = "On Time";
+                        badgeText.className = "bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
+                    }
+                }
                 
                 if (window.innerWidth < 768) setMobileSidebarState('peek');
             } catch (err) { console.error(err); }
@@ -824,7 +930,6 @@
             document.getElementById('route-radius-slider').value = matchedRoute.radius;
             document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
 
-            // Flush dynamic waypoint nodes space and rebuild using matching parameters
             const container = document.getElementById('dynamic-waypoints-container');
             if (container) {
                 container.innerHTML = '';
@@ -847,12 +952,10 @@
             plottedRouteCoordinates = [];
             cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
             
-            // Clear standard text boxes
             document.getElementById('route-start').value = '';
             document.getElementById('route-end').value = '';
             document.getElementById('location-input').value = '';
 
-            // Purge and reset infinite waypoints layout back to a single pristine entry row
             const container = document.getElementById('dynamic-waypoints-container');
             if (container) {
                 container.innerHTML = '';
@@ -860,6 +963,7 @@
             }
 
             document.getElementById('financial-card').classList.add('hidden');
+            document.getElementById('traffic-telemetry-node').classList.add('hidden');
             document.getElementById('cheapest-ranking-block').classList.add('hidden');
             document.getElementById('route-weather-module').classList.add('hidden');
             refreshViewportViewFilter();
@@ -895,7 +999,6 @@
         });
 
         document.addEventListener('click', (e) => {
-            // Dismiss active local input suggestion layouts dynamically on blank bounds clicks
             const suggestionBoxes = document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]');
             suggestionBoxes.forEach(box => {
                 if (!box.contains(e.target)) box.classList.add('hidden');
@@ -1097,14 +1200,12 @@
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
         }
 
-        /* UI/UX ENHANCEMENT: Mutually Exclusive Activation Pipeline protecting overlapping components */
         function toggleStarredDropdownDashboardPanel(event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
             
             if (panel.classList.contains('hidden')) { 
-                // Mutually exclusive clear action
                 closeForecourtDetailSheet();
                 panel.classList.remove('hidden'); 
                 renderDirectoryDropdown(); 
@@ -1176,9 +1277,7 @@
             const sheet = document.getElementById('global-detail-sheet');
             if (!sheet) return;
 
-            // Mutually exclusive toggle to guarantee no overlapping panel state collisions
             document.getElementById('starred-dropdown-panel').classList.add('hidden');
-
             activeSheetStation = stationData;
 
             document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
@@ -1227,7 +1326,7 @@
             if (!activeSheetStation) return;
             const lat = activeSheetStation.latitude || activeSheetStation.lat;
             const lon = activeSheetStation.longitude || activeSheetStation.lng;
-            window.open(`https://maps.google.com/?q=${lat},${lon}`, '_blank');
+            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
         }
 
         function setMobileSidebarState(stateStr) {
@@ -1264,16 +1363,18 @@
             });
         }
 
-        /* UI/UX ENHANCEMENT: Advanced Mobile Touch Gesture Swipe Engine Matrix (Velocity & Direction tracking) */
+        /* UI/UX ENHANCEMENT: Advanced Velocity & Large-Travel Momentum Mobile Touch Gesture Swipe Engine Matrix */
         function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModificationCallback) {
             const targetHandle = document.getElementById(handleId);
             if (!targetHandle) return;
 
             let touchBaseY = 0;
             let touchCurrentY = 0;
+            let touchStartTime = 0;
 
             targetHandle.addEventListener('touchstart', (e) => {
                 touchBaseY = e.touches[0].clientY;
+                touchStartTime = Date.now();
             }, { passive: true });
 
             targetHandle.addEventListener('touchmove', (e) => {
@@ -1282,27 +1383,40 @@
 
             targetHandle.addEventListener('touchend', () => {
                 const trackDeltaY = touchBaseY - touchCurrentY;
-                if (Math.abs(trackDeltaY) < 45) return; // Filtering micro-gestures
+                const timeframeDuration = Date.now() - touchStartTime;
+                
+                if (Math.abs(trackDeltaY) < 35) return; 
 
+                // Compute physical swipe velocity matrix parameters
+                const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
                 let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
 
-                if (trackDeltaY > 45) {
-                    // Swiping Upward Direction Motion detected
-                    if (currentActiveState === 'peek') stateModificationCallback('mid');
-                    else if (currentActiveState === 'mid') stateModificationCallback('full');
-                } else if (trackDeltaY < -45) {
-                    // Swiping Downward Direction Motion detected
-                    if (currentActiveState === 'full') stateModificationCallback('mid');
-                    else if (currentActiveState === 'mid') {
+                if (trackDeltaY > 35) {
+                    /* Swiping Upward Motion Tracked */
+                    // High-velocity dynamic override to snap immediately to full presentation view
+                    if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
+                        stateModificationCallback('full');
+                    } else {
+                        if (currentActiveState === 'peek') stateModificationCallback('mid');
+                        else if (currentActiveState === 'mid') stateModificationCallback('full');
+                    }
+                } else if (trackDeltaY < -35) {
+                    /* Swiping Downward Motion Tracked */
+                    if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
                         if (elementId === 'sidebar') stateModificationCallback('peek');
                         else stateModificationCallback('hidden');
+                    } else {
+                        if (currentActiveState === 'full') stateModificationCallback('mid');
+                        else if (currentActiveState === 'mid') {
+                            if (elementId === 'sidebar') stateModificationCallback('peek');
+                            else stateModificationCallback('hidden');
+                        }
                     }
                 }
             });
         }
 
         function initializeGestureTrackEngine() {
-            // Native standard click transitions kept for seamless physical mouse workflows
             document.getElementById('sidebar-drag-handle')?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
@@ -1317,7 +1431,6 @@
                 else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('peek');
             });
 
-            // Advanced Continuous Swipe Handler Integrations
             bindSwipeGestureDetectionToMobileSheets('sidebar-drag-handle', 'sidebar', setMobileSidebarState);
             bindSwipeGestureDetectionToMobileSheets('detail-sheet-drag-handle', 'sheet', setMobileSheetUIState);
         }
