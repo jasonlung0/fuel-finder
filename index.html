@@ -160,12 +160,12 @@
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
             
-            <div class="space-y-1">
+            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
                 <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Target Fuel Matrix Grade</label>
                 <div class="relative">
-                    <select id="fuel-type" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
+                    <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
                         <option value="E10" selected>Standard Unleaded Petrol (E10)</option>
                         <option value="E5">Premium Super Unleaded (E5)</option>
                         <option value="B7">Standard Road Diesel (B7)</option>
@@ -175,12 +175,12 @@
                 </div>
             </div>
 
-            <div id="panel-tab-local" class="space-y-4">
-                <div class="space-y-1 relative">
+            <div id="panel-tab-local" class="space-y-6">
+                <div class="space-y-2 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Search Landmark Region / Postal Coordinates</label>
                     <div class="flex gap-2">
                         <div class="relative flex-1">
-                            <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
+                            <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
                             <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-emerald-500 transition active:scale-90 flex items-center justify-center p-1" title="Detect Current Location">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
                             </button>
@@ -190,55 +190,55 @@
                     <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
                 </div>
 
-                <div class="space-y-1.5">
+                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
                     <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">
                         <span>Scan Range Footprint Area</span>
                         <span id="radius-val" class="text-emerald-600 dark:text-emerald-400 font-black">5 Miles</span>
                     </div>
-                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 my-2" />
                 </div>
             </div>
 
-            <div id="panel-tab-route" class="space-y-4 hidden">
+            <div id="panel-tab-route" class="space-y-6 hidden">
                 
-                <div class="relative flex flex-col gap-3 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
+                <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
                     
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap Endpoints">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                     </button>
 
                     <div class="absolute left-[-5px] top-[14px] w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
-                    <div class="space-y-0.5 relative">
+                    <div class="space-y-1 relative">
                         <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Journey Starting Origin</label>
-                        <input id="route-start" type="text" placeholder="Starting town or postcode..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                        <input id="route-start" type="text" placeholder="Starting town or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
                         <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                     </div>
 
-                    <div class="space-y-1.5">
+                    <div class="space-y-2">
                         <div class="flex justify-between items-center">
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoints (Optional)</label>
                             <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
                         </div>
-                        <div id="dynamic-waypoints-container" class="space-y-2">
+                        <div id="dynamic-waypoints-container" class="space-y-2.5">
                             </div>
                     </div>
 
                     <div class="relative pt-1">
                         <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
-                        <div class="space-y-0.5 relative">
+                        <div class="space-y-1 relative">
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Terminal Target Destination</label>
-                            <input id="route-end" type="text" placeholder="Final destination point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                            <input id="route-end" type="text" placeholder="Final destination point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
                             <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 bg-zinc-50/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
-                    <div class="space-y-0.5">
+                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
+                    <div class="space-y-1">
                         <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block">Vehicle Efficiency MPG</label>
                         <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none text-zinc-800 dark:text-zinc-100" />
                     </div>
-                    <div class="space-y-0.5">
+                    <div class="space-y-1">
                         <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block flex justify-between">Corridor Dev <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
                         <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-3" />
                     </div>
@@ -251,7 +251,7 @@
                 </div>
             </div>
 
-            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-3.5 hidden flex-col transition duration-300 space-y-2.5">
+            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-4 hidden flex-col transition duration-300 space-y-3">
                 <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <span class="text-xs">📊</span>
@@ -266,7 +266,7 @@
                         <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Scope Profile</span>
                         <span id="summary-distance" class="text-xs font-black text-zinc-800 dark:text-zinc-200 mt-0.5 block truncate">Radial Zone</span>
                     </div>
-                    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5">
+                    <div class="bg-emerald-50/10 border border-emerald-500/20 rounded-xl p-2.5">
                         <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Pipeline Optimum</span>
                         <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
                     </div>
@@ -284,20 +284,20 @@
                 </div>
             </div>
 
-            <div id="cheapest-ranking-block" class="hidden space-y-2 pt-1">
+            <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🏆</span>
-                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Cheapest Forecourts within Boundary Scope</h3>
+                    <h3 id="ranking-block-title" class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Cheapest Forecourts within Boundary Scope</h3>
                 </div>
-                <div id="cheapest-cards-stack" class="space-y-2"></div>
+                <div id="cheapest-cards-stack" class="space-y-3"></div>
             </div>
 
-            <div id="route-weather-module" class="hidden space-y-2 pt-1">
+            <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🌤️</span>
                     <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Corridor 5-Day Weather Matrix</h3>
                 </div>
-                <div id="weather-nodes-stack" class="space-y-2.5"></div>
+                <div id="weather-nodes-stack" class="space-y-3"></div>
             </div>
         </div>
 
@@ -352,7 +352,7 @@
         let map = null;
         let tileLayerInstance = null;
         let markerClusterGroupInstance = null;
-        let routePolylineLayer = null; // Changes into L.featureGroup to hold segmented colored traffic rows
+        let routePolylineLayer = null;
 
         let rawGlobalStationsPool = [];
         let currentlyVisibleStations = [];
@@ -451,7 +451,6 @@
             }
         }
 
-        /* UI/UX ENHANCEMENT: Manual Geolocation Identifier Pipeline triggering reverse-lookup visualization */
         async function triggerManualDeviceLocationSearch(event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
             const inputField = document.getElementById('location-input');
@@ -579,7 +578,6 @@
             endInput.value = intermediateBuffer;
         }
 
-        /* UI/UX ENHANCEMENT: Infinite Modular Waypoint Input Component Lifecycle Generator */
         function addWaypointFieldInputRow(initialValue = '') {
             dynamicWaypointIncrementalIndex++;
             const currentUid = dynamicWaypointIncrementalIndex;
@@ -593,7 +591,7 @@
             rowNode.innerHTML = `
                 <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
                 <div class="relative flex-1">
-                    <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none waypoint-dynamic-input-field" />
+                    <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none waypoint-dynamic-input-field" />
                     <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer">Clear</button>
                 </div>
                 <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold" title="Delete stop">✕</button>
@@ -667,8 +665,6 @@
             bindAutocompleteToSpecificInput('location-input', 'location-suggestions');
             bindAutocompleteToSpecificInput('route-start', 'start-suggestions');
             bindAutocompleteToSpecificInput('route-end', 'end-suggestions');
-
-            // Set up initial optional waypoint item row automatically
             addWaypointFieldInputRow();
         }
 
@@ -684,6 +680,9 @@
                     mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
                     map.setView(mapSearchAnchorCoordinates, 12);
                     refreshViewportViewFilter();
+                    
+                    /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
+                    if (window.innerWidth < 768) setMobileSidebarState('peek');
                 }
             } catch (err) { console.error(err); }
         }
@@ -706,8 +705,8 @@
 
                 if (!startNodes.length || !endNodes.length) return;
 
-                cachedGeocodedWaypoints.start = { name: startVal, lat: startNodes[0].lat, lon: startNodes[0].lon };
-                cachedGeocodedWaypoints.end = { name: endVal, lat: endNodes[0].lat, lon: endNodes[0].lon };
+                cachedGeocodedWaypoints.start = { name: startVal, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
+                cachedGeocodedWaypoints.end = { name: endVal, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
 
                 let coordinatesStringArray = [`${startNodes[0].lon},${startNodes[0].lat}`];
 
@@ -717,7 +716,7 @@
                     const viaNodes = await viaRes.json();
                     if(viaNodes.length) {
                         coordinatesStringArray.push(`${viaNodes[0].lon},${viaNodes[0].lat}`);
-                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: viaNodes[0].lat, lon: viaNodes[0].lon };
+                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: parseFloat(viaNodes[0].lat), lon: parseFloat(viaNodes[0].lon) };
                     }
                 }
 
@@ -735,10 +734,8 @@
                 plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 
-                /* UI/UX ENHANCEMENT: Google Maps Inspired Multi-Colored Segmented Real-Time Traffic Visualizer Engine */
                 routePolylineLayer = L.featureGroup().addTo(map);
 
-                // Dynamically slice the route coordinate matrix into operational flow zones
                 let strideSize = Math.max(1, Math.floor(plottedRouteCoordinates.length / 14));
                 let heavyTrafficDiscovered = false;
                 let moderateTrafficDiscovered = false;
@@ -749,25 +746,21 @@
                     if (trackSlice.length < 2) continue;
 
                     let randomFlowFactor = Math.random();
-                    let segmentLineColor = '#10b981'; // Default: Clear Flow (Green)
+                    let segmentLineColor = '#10b981'; 
                     let strokeThickness = 5.5;
 
                     if (randomFlowFactor > 0.88) {
-                        segmentLineColor = '#ef4444'; // Heavy Delay (Red)
+                        segmentLineColor = '#ef4444'; 
                         strokeThickness = 6.5;
                         heavyTrafficDiscovered = true;
                     } else if (randomFlowFactor > 0.68) {
-                        segmentLineColor = '#f59e0b'; // Moderate Build-up (Amber)
+                        segmentLineColor = '#f59e0b'; 
                         strokeThickness = 6.0;
                         moderateTrafficDiscovered = true;
                     }
 
                     L.polyline(trackSlice, {
-                        color: segmentLineColor,
-                        weight: strokeThickness,
-                        opacity: 0.9,
-                        lineCap: 'round',
-                        lineJoin: 'round'
+                        color: segmentLineColor, weight: strokeThickness, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
                     }).addTo(routePolylineLayer);
                 }
 
@@ -776,7 +769,6 @@
                 refreshViewportViewFilter(distanceMiles);
                 triggerRouteWeatherFetchPipeline();
 
-                // Hydrate live telemetry components accordingly
                 const trafficNode = document.getElementById('traffic-telemetry-node');
                 const labelText = document.getElementById('traffic-status-label');
                 const badgeText = document.getElementById('traffic-delay-badge');
@@ -802,6 +794,7 @@
                     }
                 }
                 
+                /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
                 if (window.innerWidth < 768) setMobileSidebarState('peek');
             } catch (err) { console.error(err); }
         }
@@ -908,6 +901,9 @@
             localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
             updateDirectoryTotalBadge();
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+            
+            /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
+            if (window.innerWidth < 768) setMobileSidebarState('peek');
             alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
         }
 
@@ -946,7 +942,6 @@
             document.getElementById('starred-dropdown-panel').classList.add('hidden');
         }
 
-        /* UI/UX ENHANCEMENT: Comprehensive Global Clear Pipeline execution covering all dynamic and anchor fields */
         function clearCalculatedRouteLayers() {
             if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
             plottedRouteCoordinates = [];
@@ -1059,37 +1054,102 @@
             generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
         }
 
+        /* NEW ENHANCEMENT: Milestone Multi-Group Fuel Matrix Generator matching top 3 cheapest stations per planned destination node location */
         function generateCheapestRankingListDeck(pool, fuelVariant) {
             const block = document.getElementById('cheapest-ranking-block');
             const container = document.getElementById('cheapest-cards-stack');
+            const blockTitle = document.getElementById('ranking-block-title');
             if (!block || !container) return;
 
             const validPool = pool.filter(s => s[fuelVariant] && !isNaN(parseFloat(s[fuelVariant])) && parseFloat(s[fuelVariant]) > 0);
             if (validPool.length === 0) { block.classList.add('hidden'); return; }
 
-            validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
             container.innerHTML = '';
-            
-            validPool.slice(0, 3).forEach((station, idx) => {
-                const lat = parseFloat(station.latitude || station.lat);
-                const lon = parseFloat(station.longitude || station.lng);
-                const val = parseFloat(station[fuelVariant]).toFixed(1);
+
+            if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
+                blockTitle.textContent = "Top 3 Cheapest Forecourts Per Planned Location Node";
                 
-                const card = document.createElement('div');
-                card.className = "flex items-center justify-between p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition shadow-sm cursor-pointer";
-                card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-                card.innerHTML = `
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="w-5 h-5 rounded-md bg-emerald-500/10 text-[9px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
-                        <div class="min-w-0">
-                            <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                            <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
+                // Construct planned locations nodes breakdown matrix array
+                const milestoneLocationsList = [];
+                milestoneLocationsList.push({ label: "Origin", node: cachedGeocodedWaypoints.start });
+                
+                Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
+                    milestoneLocationsList.push({ label: `Stopover Waypoint`, node: cachedGeocodedWaypoints.vids[key] });
+                });
+                
+                milestoneLocationsList.push({ label: "Terminal Destination", node: cachedGeocodedWaypoints.end });
+
+                milestoneLocationsList.forEach(milestone => {
+                    // Filter matching elements close to this milestone node location specifically
+                    let rawMilestonePool = validPool.map(station => {
+                        let distanceToNode = computeDistanceVectorMiles(milestone.node.lat, milestone.node.lon, parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
+                        return { station, distanceToNode };
+                    });
+
+                    // Filter out elements too far from current node milestone path to preserve operational proximity (e.g. within 12 miles)
+                    rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
+                    rawMilestonePool.sort((a, b) => parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]));
+
+                    let slicedTopThree = rawMilestonePool.slice(0, 3);
+                    if (slicedTopThree.length > 0) {
+                        const subGroupWrapper = document.createElement('div');
+                        subGroupWrapper.className = "space-y-1.5 p-2 bg-zinc-50/70 dark:bg-zinc-900/40 rounded-xl border border-zinc-100 dark:border-zinc-800/60";
+                        
+                        const subGroupHeader = document.createElement('div');
+                        subGroupHeader.className = "flex justify-between items-center px-1 text-[9px] font-black tracking-tight text-zinc-400 dark:text-zinc-500 uppercase";
+                        subGroupHeader.innerHTML = `<span>📍 ${milestone.label}: <span class="text-zinc-700 dark:text-zinc-300 font-black">${milestone.node.name.split(',')[0]}</span></span>`;
+                        subGroupWrapper.appendChild(subGroupHeader);
+
+                        slicedTopThree.forEach((item, idx) => {
+                            const station = item.station;
+                            const lat = parseFloat(station.latitude || station.lat);
+                            const lon = parseFloat(station.longitude || station.lng);
+                            const val = parseFloat(station[fuelVariant]).toFixed(1);
+
+                            const card = document.createElement('div');
+                            card.className = "flex items-center justify-between p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg hover:border-emerald-500 transition shadow-xs cursor-pointer";
+                            card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
+                            card.innerHTML = `
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-zinc-900 dark:text-white truncate">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                                        <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-600">${item.distanceToNode.toFixed(1)} mi away</span></div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
+                            `;
+                            subGroupWrapper.appendChild(card);
+                        });
+                        container.appendChild(subGroupWrapper);
+                    }
+                });
+            } else {
+                // Baseline Radial Strategy Output Deck
+                blockTitle.textContent = "Cheapest Forecourts within Boundary Scope";
+                validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
+                
+                validPool.slice(0, 3).forEach((station, idx) => {
+                    const lat = parseFloat(station.latitude || station.lat);
+                    const lon = parseFloat(station.longitude || station.lng);
+                    const val = parseFloat(station[fuelVariant]).toFixed(1);
+                    
+                    const card = document.createElement('div');
+                    card.className = "flex items-center justify-between p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition shadow-sm cursor-pointer";
+                    card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
+                    card.innerHTML = `
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-5 h-5 rounded-md bg-emerald-500/10 text-[9px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
+                            <div class="min-w-0">
+                                <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                                <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
-                `;
-                container.appendChild(card);
-            });
+                        <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
             block.classList.remove('hidden');
         }
 
@@ -1296,8 +1356,9 @@
             updateAllStarUIStates();
             sheet.classList.remove('hidden');
 
+            /* UX FIX: Fuel price modal sheet in mobile view defaults to full view automatically for quick visibility */
             if (window.innerWidth < 768) {
-                setMobileSheetUIState('mid'); 
+                setMobileSheetUIState('full'); 
             } else {
                 sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
             }
@@ -1326,7 +1387,7 @@
             if (!activeSheetStation) return;
             const lat = activeSheetStation.latitude || activeSheetStation.lat;
             const lon = activeSheetStation.longitude || activeSheetStation.lng;
-            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+            window.open(`https://maps.google.com/?q=${lat},${lon}`, '_blank');
         }
 
         function setMobileSidebarState(stateStr) {
@@ -1363,7 +1424,6 @@
             });
         }
 
-        /* UI/UX ENHANCEMENT: Advanced Velocity & Large-Travel Momentum Mobile Touch Gesture Swipe Engine Matrix */
         function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModificationCallback) {
             const targetHandle = document.getElementById(handleId);
             if (!targetHandle) return;
@@ -1387,13 +1447,10 @@
                 
                 if (Math.abs(trackDeltaY) < 35) return; 
 
-                // Compute physical swipe velocity matrix parameters
                 const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
                 let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
 
                 if (trackDeltaY > 35) {
-                    /* Swiping Upward Motion Tracked */
-                    // High-velocity dynamic override to snap immediately to full presentation view
                     if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
                         stateModificationCallback('full');
                     } else {
@@ -1401,7 +1458,6 @@
                         else if (currentActiveState === 'mid') stateModificationCallback('full');
                     }
                 } else if (trackDeltaY < -35) {
-                    /* Swiping Downward Motion Tracked */
                     if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
                         if (elementId === 'sidebar') stateModificationCallback('peek');
                         else stateModificationCallback('hidden');
