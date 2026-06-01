@@ -521,12 +521,12 @@ let map = null;
                     if (heavyTrafficDiscovered) {
                         labelText.textContent = "Heavy Traffic Areas";
                         labelText.className = "text-xs font-black text-rose-650 dark:text-rose-400 block truncate";
-                        badgeText.textContent = "+11 mins delay";
+                        badgeText.textContent = "Severe Delay";
                         badgeText.className = "bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
                     } else if (moderateTrafficDiscovered) {
                         labelText.textContent = "Expect Minor Delays";
                         labelText.className = "text-xs font-black text-amber-600 dark:text-amber-400 block truncate";
-                        badgeText.textContent = "+4 mins delay";
+                        badgeText.textContent = "Slight Delay";
                         badgeText.className = "bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
                     } else {
                         labelText.textContent = "Clear Roads";
