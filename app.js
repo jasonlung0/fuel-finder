@@ -354,6 +354,12 @@ async function fetchLiveGovStationData() {
 async function fetchPoiData(spatialPolygon = null) {
     if (activePoiType === 'none') return [];
     
+    // Safety check: Prevent crash if Turf.js hasn't loaded yet
+    if (typeof turf === 'undefined') {
+        console.error("Turf.js library is missing! Cannot calculate POI route boundary.");
+        return [];
+    }
+    
     let queryFilter = "";
     if (activePoiType === 'cafe') queryFilter = 'node["amenity"="cafe"]';
     else if (activePoiType === 'restaurant') queryFilter = 'node["amenity"="restaurant"]';
@@ -363,11 +369,10 @@ async function fetchPoiData(spatialPolygon = null) {
     let overpassUrl = "https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];";
     
     if (spatialPolygon) {
-        // Compute bounding box from Turf Polygon layer
-        const bbox = turf.bbox(spatialPolygon); // [minX, minY, maxX, maxY]
+        // Turf calculates the bounding box of the route corridor
+        const bbox = turf.bbox(spatialPolygon); 
         overpassUrl += `node(${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]})[${queryFilter.split('[')[1]};out body;`;
     } else {
-        // Viewport bounding box mapping
         const bounds = map.getBounds();
         overpassUrl += `node(${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()})[${queryFilter.split('[')[1]};out body;`;
     }
