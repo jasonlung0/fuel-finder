@@ -15,7 +15,7 @@ if (window.tailwind) {
     };
 }
 
-let map = null;
+// let map = null;
         let tileLayerInstance = null;
         let markerClusterGroupInstance = null;
         let routePolylineLayer = null;
