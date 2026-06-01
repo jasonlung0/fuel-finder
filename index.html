@@ -59,7 +59,7 @@
         .bg-fuel-blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
         .bg-fuel-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
 
-        /* Modern 3-State Sliding Mobile Sheet System Architecture */
+        /* 3-State Sliding Mobile Sheet Architecture */
         @media (max-width: 767px) {
             .mobile-bottom-drawer {
                 position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
@@ -101,15 +101,21 @@
 
             <button onclick="toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold active:scale-95">
                 <span>Directory</span>
-                <span id="starred-count-badge" class="bg-emerald-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">0</span>
+                <span id="directory-total-badge" class="bg-emerald-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">0</span>
             </button>
         </div>
     </header>
 
-    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden flex flex-col max-h-[380px] overflow-hidden z-[4800] transition-colors duration-300">
-        <div class="p-3 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-            <span class="text-[10px] font-black tracking-wider uppercase text-zinc-400 dark:text-zinc-500">Monitored Stations Matrix</span>
-            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold px-2 py-0.5 rounded-md cursor-pointer">✕</button>
+    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden flex flex-col max-h-[440px] overflow-hidden z-[4800] transition-colors duration-300">
+        <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
+            <div class="flex items-center justify-between px-1 pt-1">
+                <span class="text-[10px] font-black tracking-wider uppercase text-zinc-400 dark:text-zinc-500">System Storage Vault</span>
+                <button onclick="toggleStarredDropdownDashboardPanel(event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
+            </div>
+            <div class="grid grid-cols-2 bg-zinc-200/60 dark:bg-zinc-800/60 p-1 rounded-lg gap-1">
+                <button onclick="switchDirectoryTabContext('stations')" id="dir-tab-stations" class="py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs">Stations</button>
+                <button onclick="switchDirectoryTabContext('routes')" id="dir-tab-routes" class="py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Routes</button>
+            </div>
         </div>
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
     </div>
@@ -134,8 +140,7 @@
                         <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight truncate">Financial Pipeline Metrics</h3>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <button id="financial-star-btn" onclick="toggleCurrentStationStar(event)" class="text-zinc-400 hover:text-amber-500 cursor-pointer flex items-center justify-center w-5 h-5"></button>
-                        <button onclick="dismissFinancialDashboardBox(event)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer" title="Dismiss Component">✕</button>
+                        <button onclick="dismissFinancialDashboardBox(event)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
@@ -167,7 +172,7 @@
                 <div class="space-y-1 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Search Landmark Region / Postal Coordinates</label>
                     <div class="flex gap-2">
-                        <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh, Cardiff..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
+                        <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
                         <button onclick="executeAddressGeocodeLookup()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-4 rounded-xl transition cursor-pointer active:scale-95 shadow-md">Scan</button>
                     </div>
                     <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
@@ -184,7 +189,6 @@
 
             <div id="panel-tab-route" class="space-y-4 hidden">
                 <div class="relative flex flex-col gap-2.5 pl-6 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-2">
-                    
                     <button onclick="swapRouteEndpoints(event)" class="absolute -right-1.5 top-14 z-50 p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-105 active:scale-95 transition-all cursor-pointer" title="Swap Route Fields">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                     </button>
@@ -202,7 +206,7 @@
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoint (Optional)</label>
                             <button id="clear-waypoint-btn" onclick="clearWaypointFieldInput(event)" class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 hover:text-rose-500 hidden">Clear Stop</button>
                         </div>
-                        <input id="route-via" type="text" placeholder="Add optional midway town / stop..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                        <input id="route-via" type="text" placeholder="Add optional midway stop..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
                         <div id="via-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                     </div>
 
@@ -225,9 +229,18 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md">Trace Corridor</button>
-                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700">Clear Path</button>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Trace</button>
+                    <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Save</button>
+                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear</button>
+                </div>
+
+                <div id="route-weather-module" class="hidden space-y-2 pt-1 border-t border-zinc-100 dark:border-zinc-800/60">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs">🌤️</span>
+                        <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Corridor 5-Day Weather Matrix</h3>
+                    </div>
+                    <div id="weather-nodes-stack" class="space-y-2.5"></div>
                 </div>
             </div>
 
@@ -294,10 +307,12 @@
         let rawGlobalStationsPool = [];
         let currentlyVisibleStations = [];
         let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
+        let savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
         
         let activeTabContext = 'local'; 
+        let activeDirectoryTab = 'stations'; // 'stations' | 'routes'
         let activeSheetStation = null;
-        let mapSearchAnchorCoordinates = [51.5074, -0.1278]; // Default Fallback Coordinates Location Matrix: London Base Hub
+        let mapSearchAnchorCoordinates = [51.5074, -0.1278]; // Default Location: London
         let plottedRouteCoordinates = [];
         let autocompleteDebounceTimer = null;
         
@@ -305,10 +320,12 @@
         let currentMobileSheetUIState = 'hidden';
         let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 
+        // Coordinates Tracking Cache for Live Weather System Fetching Actions
+        let cachedGeocodedWaypoints = { start: null, via: null, end: null };
+
         const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
         const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
-        // Synchronized Global Color Palette Control Router Engine
         function toggleSystemColorModeTheme(event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
             isDarkMode = !isDarkMode;
@@ -330,14 +347,16 @@
             
             if (map && tileLayerInstance) {
                 map.removeLayer(tileLayerInstance);
+                // Light Theme uses premium crisp Google Maps style configuration layers (CartoDB Voyager)
                 const targetedTilesetURI = isDarkMode 
                     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+                    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
                 
                 tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
             }
             refreshViewportViewFilter();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
+            updateDirectoryTotalBadge();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
             updateAllStarUIStates();
         }
 
@@ -346,7 +365,7 @@
             
             const targetedTilesetURI = isDarkMode 
                 ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
                 
             tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -354,7 +373,6 @@
             initializeClusterLayerPipeline();
             map.on('click', () => { closeForecourtDetailSheet(); });
             
-            // Core Geolocation Tracking Trigger Pipeline Execution Loop
             triggerActiveDeviceLocationLookup();
         }
 
@@ -367,7 +385,6 @@
                         mapSearchAnchorCoordinates = [userLat, userLng];
                         map.setView(mapSearchAnchorCoordinates, 12);
                         
-                        // Drop a visual indicator beacon marker for the user point orientation layer
                         L.circle(mapSearchAnchorCoordinates, {
                             radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
                         }).addTo(map);
@@ -375,7 +392,7 @@
                         refreshViewportViewFilter();
                     },
                     (error) => {
-                        console.warn("Device location lookup matrix query rejected. Defaulting spatial vector pipeline.");
+                        console.warn("Device location rejected. Defaulting mapping coordinates.");
                         refreshViewportViewFilter();
                     },
                     { enableHighAccuracy: true, timeout: 6000 }
@@ -442,6 +459,28 @@
                 panelLocal.classList.add('hidden');
             }
             refreshViewportViewFilter();
+        }
+
+        function switchDirectoryTabContext(dirType) {
+            activeDirectoryTab = dirType;
+            const tabStations = document.getElementById('dir-tab-stations');
+            const tabRoutes = document.getElementById('dir-tab-routes');
+            
+            if (dirType === 'stations') {
+                tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
+                tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+            } else {
+                tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
+                tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+            }
+            renderDirectoryDropdown();
+        }
+
+        function updateDirectoryTotalBadge() {
+            const badge = document.getElementById('directory-total-badge');
+            if (badge) {
+                badge.textContent = starredStations.length + savedRoutes.length;
+            }
         }
 
         function swapRouteEndpoints(event) {
@@ -544,6 +583,7 @@
             } catch (err) { console.error(err); }
         }
 
+        // LIVE ROUTE GENERATION & WEATHER FRAMEWORK
         async function executeRouteGenerationPipeline() {
             const startVal = document.getElementById('route-start').value.trim();
             const viaVal = document.getElementById('route-via').value.trim();
@@ -559,6 +599,9 @@
 
                 if (!startNodes.length || !endNodes.length) return;
 
+                cachedGeocodedWaypoints.start = { name: startVal, lat: startNodes[0].lat, lon: startNodes[0].lon };
+                cachedGeocodedWaypoints.end = { name: endVal, lat: endNodes[0].lat, lon: endNodes[0].lon };
+
                 const sLat = startNodes[0].lat, sLon = startNodes[0].lon;
                 const eLat = endNodes[0].lat, eLon = endNodes[0].lon;
 
@@ -567,12 +610,15 @@
                     const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(viaVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                     const viaNodes = await viaRes.json();
                     if (viaNodes.length) {
+                        cachedGeocodedWaypoints.via = { name: viaVal, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
                         const vLat = viaNodes[0].lat, vLon = viaNodes[0].lon;
                         osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${vLon},${vLat};${eLon},${eLat}?overview=full&geometries=geojson`;
                     } else {
+                        cachedGeocodedWaypoints.via = null;
                         osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
                     }
                 } else {
+                    cachedGeocodedWaypoints.via = null;
                     osrmQuery = `https://router.project-osrm.org/route/v1/driving/${sLon},${sLat};${eLon},${eLat}?overview=full&geometries=geojson`;
                 }
 
@@ -591,16 +637,148 @@
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
                 
                 refreshViewportViewFilter(distanceMiles);
+                triggerRouteWeatherFetchPipeline();
                 
                 if (window.innerWidth < 768) setMobileSidebarState('peek');
             } catch (err) { console.error(err); }
         }
 
+        // WEATHER CONDITION INTERPRETATION LOGIC MATRIX
+        function lookupWeatherIconEmoji(code) {
+            if (code === 0) return "☀️";
+            if ([1, 2, 3].includes(code)) return "⛅";
+            if ([45, 48].includes(code)) return "🌫️";
+            if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
+            if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
+            if ([71, 73, 75, 77, 85, 86].includes(code)) return "🌨️";
+            if ([80, 81, 82].includes(code)) return "🌧️";
+            if ([95, 96, 99].includes(code)) return "⛈️";
+            return "☁️";
+        }
+
+        async function triggerRouteWeatherFetchPipeline() {
+            const container = document.getElementById('weather-nodes-stack');
+            const targetModule = document.getElementById('route-weather-module');
+            if (!container || !targetModule) return;
+
+            container.innerHTML = '';
+            targetModule.classList.remove('hidden');
+
+            const locationsToFetch = [];
+            if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Origin", data: cachedGeocodedWaypoints.start });
+            if (cachedGeocodedWaypoints.via) locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.via });
+            if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
+
+            for (const loc of locationsToFetch) {
+                try {
+                    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
+                    const weatherData = await weatherRes.json();
+
+                    if (weatherData && weatherData.daily) {
+                        const cardElement = document.createElement('div');
+                        cardElement.className = "p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl shadow-xs";
+                        
+                        let headerTitleClean = loc.data.name.split(',')[0];
+                        
+                        let horizontalForecastHTML = '';
+                        // Loop through the 5-day array structure
+                        for (let d = 0; d < 5; d++) {
+                            const rawDate = new Date(weatherData.daily.time[d]);
+                            const weekdayLabel = rawDate.toLocaleDateString('en-GB', { weekday: 'short' });
+                            const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[d]);
+                            const highTemp = Math.round(weatherData.daily.temperature_2m_max[d]);
+                            const lowTemp = Math.round(weatherData.daily.temperature_2m_min[d]);
+
+                            horizontalForecastHTML += `
+                                <div class="flex flex-col items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg text-center min-w-[50px]">
+                                    <span class="text-[8px] font-black uppercase text-zinc-400 tracking-wider">${weekdayLabel}</span>
+                                    <span class="text-sm my-0.5">${conditionEmoji}</span>
+                                    <span class="text-[9px] font-black text-zinc-800 dark:text-zinc-200">${highTemp}° / <span class="text-zinc-400">${lowTemp}°</span></span>
+                                </div>
+                            `;
+                        }
+
+                        cardElement.innerHTML = `
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${loc.label}</span>
+                                <span class="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[200px] text-right">${headerTitleClean}</span>
+                            </div>
+                            <div class="grid grid-cols-5 gap-1.5 overflow-x-auto no-scrollbar">
+                                ${horizontalForecastHTML}
+                            </div>
+                        `;
+                        container.appendChild(cardElement);
+                    }
+                } catch (weatherErr) {
+                    console.error("Weather service fetching interruption matrix failure: ", weatherErr);
+                }
+            }
+        }
+
+        // LOCAL STORAGE ROUTE PERSISTENCE MANAGEMENT
+        function saveActiveRouteCorridor() {
+            const startVal = document.getElementById('route-start').value.trim();
+            const viaVal = document.getElementById('route-via').value.trim();
+            const endVal = document.getElementById('route-end').value.trim();
+            const currentMpg = document.getElementById('vehicle-mpg').value;
+            const currentDev = document.getElementById('route-radius-slider').value;
+
+            if (!startVal || !endVal) return;
+
+            const routePayload = {
+                id: 'route_' + Date.now(),
+                name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`,
+                start: startVal,
+                via: viaVal,
+                end: endVal,
+                mpg: currentMpg,
+                radius: currentDev
+            };
+
+            savedRoutes.push(routePayload);
+            localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
+            updateDirectoryTotalBadge();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+            alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
+        }
+
+        function deleteSavedRouteCorridor(routeId, event) {
+            if(event) { event.stopPropagation(); event.preventDefault(); }
+            savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+            localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
+            updateDirectoryTotalBadge();
+            renderDirectoryDropdown();
+        }
+
+        function loadSavedRouteCorridorDataIntoWorkspace(routeId) {
+            const matchedRoute = savedRoutes.find(r => r.id === routeId);
+            if (!matchedRoute) return;
+
+            switchWorkflowTabContext('route');
+            document.getElementById('route-start').value = matchedRoute.start;
+            document.getElementById('route-via').value = matchedRoute.via;
+            document.getElementById('route-end').value = matchedRoute.end;
+            document.getElementById('vehicle-mpg').value = matchedRoute.mpg;
+            document.getElementById('route-radius-slider').value = matchedRoute.radius;
+            document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
+
+            if (matchedRoute.via) {
+                document.getElementById('clear-waypoint-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('clear-waypoint-btn').classList.add('hidden');
+            }
+
+            executeRouteGenerationPipeline();
+            document.getElementById('starred-dropdown-panel').classList.add('hidden');
+        }
+
         function clearCalculatedRouteLayers() {
             if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
             plottedRouteCoordinates = [];
+            cachedGeocodedWaypoints = { start: null, via: null, end: null };
             document.getElementById('financial-card').classList.add('hidden');
             document.getElementById('cheapest-ranking-block').classList.add('hidden');
+            document.getElementById('route-weather-module').classList.add('hidden');
             refreshViewportViewFilter();
         }
 
@@ -630,7 +808,7 @@
         document.getElementById('fuel-type')?.addEventListener('change', () => {
             initializeClusterLayerPipeline();
             refreshViewportViewFilter();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
         });
 
         document.addEventListener('click', (e) => {
@@ -654,7 +832,7 @@
                 });
                 
                 const liveClock = new Date();
-                document.getElementById('live-timestamp-label').innerHTML = `Live Matrix Synchronized: ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                document.getElementById('live-timestamp-label').innerHTML = `Live Matrix Sync: ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
                 
                 refreshViewportViewFilter();
             } catch (error) {
@@ -816,6 +994,7 @@
             else starredStations.push(activeSheetStation);
 
             localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
+            updateDirectoryTotalBadge();
             updateAllStarUIStates();
         }
 
@@ -831,54 +1010,76 @@
                     : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
             }
 
-            const financialBtn = document.getElementById('financial-star-btn');
-            if (financialBtn) {
-                financialBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
-            }
-
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderStarredDropdownDashboard();
+            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
         }
 
         function toggleStarredDropdownDashboardPanel(event) {
             if(event) { event.stopPropagation(); event.preventDefault(); }
             const panel = document.getElementById('starred-dropdown-panel');
             if (!panel) return;
-            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); renderStarredDropdownDashboard(); }
+            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); renderDirectoryDropdown(); }
             else { panel.classList.add('hidden'); }
         }
 
-        function renderStarredDropdownDashboard() {
+        // UNIFIED SYSTEM VAULT RENDERING DISPATCHER ENGINE
+        function renderDirectoryDropdown() {
             const container = document.getElementById('starred-list-container');
-            const badge = document.getElementById('starred-count-badge');
-            if (!container || !badge) return;
+            if (!container) return;
 
-            badge.textContent = starredStations.length;
-            if (starredStations.length === 0) {
-                container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">Directory Empty.</div>`;
-                return;
+            if (activeDirectoryTab === 'stations') {
+                if (starredStations.length === 0) {
+                    container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
+                    return;
+                }
+                container.innerHTML = '';
+                starredStations.forEach(station => {
+                    const cardRow = document.createElement('div');
+                    cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
+                    cardRow.onclick = (event) => {
+                        event.stopPropagation();
+                        focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
+                        if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+                    };
+
+                    cardRow.innerHTML = `
+                        <div class="min-w-0">
+                            <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                            <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 pt-0.5">
+                            <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
+                            <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
+                        </div>`;
+                    container.appendChild(cardRow);
+                });
+            } else {
+                // Render Saved Routes Corridor Track Components
+                if (savedRoutes.length === 0) {
+                    container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No custom routes found.</div>`;
+                    return;
+                }
+                container.innerHTML = '';
+                savedRoutes.forEach(route => {
+                    const cardRow = document.createElement('div');
+                    cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-blue-500 transition cursor-pointer active:scale-[0.99] shadow-sm flex items-center justify-between gap-2";
+                    cardRow.onclick = (event) => {
+                        event.stopPropagation();
+                        loadSavedRouteCorridorDataIntoWorkspace(route.id);
+                        if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+                    };
+
+                    cardRow.innerHTML = `
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
+                            <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1">MPG: ${route.mpg} • DEV: ${route.radius} Mi</div>
+                        </div>
+                        <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition" title="Delete Saved Corridor">
+                            ✕
+                        </button>
+                    `;
+                    container.appendChild(cardRow);
+                });
             }
-
-            container.innerHTML = '';
-            starredStations.forEach(station => {
-                const cardRow = document.createElement('div');
-                cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
-                cardRow.onclick = (event) => {
-                    event.stopPropagation();
-                    focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
-                    if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
-                };
-
-                cardRow.innerHTML = `
-                    <div class="min-w-0">
-                        <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                        <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-1 pt-0.5">
-                        <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
-                        <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
-                    </div>`;
-                container.appendChild(cardRow);
-            });
         }
 
         function openForecourtDetailSheet(stationData) {
@@ -889,7 +1090,6 @@
             document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
             document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
 
-            // Pricing tier style injections
             document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
             document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
             document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
@@ -903,7 +1103,6 @@
             updateAllStarUIStates();
             sheet.classList.remove('hidden');
 
-            // Force Modal Info to open fully expanded by default on mobile layouts
             if (window.innerWidth < 768) {
                 setMobileSheetUIState('full'); 
             } else {
