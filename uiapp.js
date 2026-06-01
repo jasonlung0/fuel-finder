@@ -152,7 +152,7 @@ let map = null;
                     btn.disabled = false;
                     iconSearch.classList.remove('hidden');
                     iconSpinner.classList.add('hidden');
-                    btnText.textContent = "Scan this area";
+                    btnText.textContent = "Search this map area";
                 }, 300);
             }, 1000);
         };
@@ -519,17 +519,17 @@ let map = null;
                     trafficNode.classList.remove('hidden');
                     trafficNode.classList.add('flex');
                     if (heavyTrafficDiscovered) {
-                        labelText.textContent = "Heavy Congestion Spots";
+                        labelText.textContent = "Heavy Traffic Areas";
                         labelText.className = "text-xs font-black text-rose-650 dark:text-rose-400 block truncate";
                         badgeText.textContent = "+11 mins delay";
                         badgeText.className = "bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
                     } else if (moderateTrafficDiscovered) {
-                        labelText.textContent = "Moderate Delays Ahead";
+                        labelText.textContent = "Expect Minor Delays";
                         labelText.className = "text-xs font-black text-amber-600 dark:text-amber-400 block truncate";
                         badgeText.textContent = "+4 mins delay";
                         badgeText.className = "bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
                     } else {
-                        labelText.textContent = "Unimpeded Fast Flow";
+                        labelText.textContent = "Clear Roads";
                         labelText.className = "text-xs font-black text-emerald-600 dark:text-emerald-400 block truncate";
                         badgeText.textContent = "On Time";
                         badgeText.className = "bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
@@ -563,7 +563,7 @@ let map = null;
             }
 
             const locationsToFetch = [];
-            if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Origin", data: cachedGeocodedWaypoints.start });
+            if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
             
             Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
                 locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.vids[key] });
@@ -754,7 +754,7 @@ let map = null;
                 });
                 
                 const liveClock = new Date();
-                document.getElementById('live-timestamp-label').innerHTML = `Live Matrix Sync: ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                document.getElementById('live-timestamp-label').innerHTML = `Prices Updated At ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
                 
                 refreshViewportViewFilter();
             } catch (error) {
@@ -806,16 +806,16 @@ let map = null;
             container.innerHTML = '';
 
             if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
-                blockTitle.textContent = "Top 3 Cheapest Forecourts Per Planned Location Node";
+                blockTitle.textContent = "3 Cheapest Stations On Your Route";
                 
                 const milestoneLocationsList = [];
-                milestoneLocationsList.push({ label: "Origin", node: cachedGeocodedWaypoints.start });
+                milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
                 
                 Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
                     milestoneLocationsList.push({ label: `Stopover Waypoint`, node: cachedGeocodedWaypoints.vids[key] });
                 });
                 
-                milestoneLocationsList.push({ label: "Terminal Destination", node: cachedGeocodedWaypoints.end });
+                milestoneLocationsList.push({ label: "Destination", node: cachedGeocodedWaypoints.end });
 
                 milestoneLocationsList.forEach(milestone => {
                     let rawMilestonePool = validPool.map(station => {
@@ -861,7 +861,7 @@ let map = null;
                     }
                 });
             } else {
-                blockTitle.textContent = "Cheapest Forecourts within Boundary Scope";
+                blockTitle.textContent = "Cheapest Stations Nearby";
                 validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
                 
                 validPool.slice(0, 3).forEach((station, idx) => {
@@ -922,7 +922,7 @@ let map = null;
                     document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
                     document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
                 } else {
-                    document.getElementById('summary-distance').textContent = `Radial Low`;
+                    document.getElementById('summary-distance').textContent = `Low`;
                     document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
                 }
             }
@@ -958,7 +958,7 @@ let map = null;
                 markerClusterGroupInstance.addLayer(markerInstance);
             });
 
-            if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Forecourts: ${fallbackTotalCount}`;
+            if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Stations: ${fallbackTotalCount}`;
         }
 
         function dismissFinancialDashboardBox(event) {
