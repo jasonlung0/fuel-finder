@@ -109,6 +109,24 @@
                 </div>
             </div>
 
+            <div class="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <label for="poiType" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Amenities Along Waypoints</label>
+                <select id="poiType" onchange="handlePoiTypeChange(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-950">
+                    <option value="none">Disabled (No POIs)</option>
+                    <option value="cafe">Cafes &amp; Coffee Shops</option>
+                    <option value="restaurant">Restaurants &amp; Diner Places</option>
+                    <option value="supermarket">Groceries &amp; Supermarkets</option>
+                    <option value="parking">Public Vehicle Parking</option>
+                </select>
+            </div>
+            
+            <div id="topPoiContainer" class="mt-4 bg-white border border-slate-200 rounded-lg p-3 hidden shadow-sm">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-1.5 mb-2 flex items-center gap-1.5">
+                    <span>📍</span> Nearby Tracked Amenities
+                </h3>
+                <ul id="poiElementsList" class="divide-y divide-slate-100 max-h-[140px] overflow-y-auto"></ul>
+            </div>
+
             <!-- TAB 1 CONTENT CONTAINER: NEIGHBOURHOOD GEOMETRIES -->
             <div id="panel-tab-local" class="space-y-6">
                 <div class="space-y-2 relative">
