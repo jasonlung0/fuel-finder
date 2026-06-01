@@ -106,6 +106,19 @@
 
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
+    <div id="scan-area-container" class="absolute top-6 md:top-[84px] left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
+        <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2 px-4 py-2.5 rounded-full border bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 select-none focus:outline-none">
+            <svg id="scan-icon-search" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-emerald-600 dark:text-emerald-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.642 10.642z" />
+            </svg>
+            <svg id="scan-icon-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 animate-spin hidden text-zinc-400 dark:text-zinc-500">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="scan-btn-string">Scan this area</span>
+        </button>
+    </div>
+
     <header class="absolute top-4 left-4 right-4 z-[4500] flex items-center justify-between pointer-events-none gap-4">
         <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-xl flex items-center gap-2.5 pointer-events-auto transition-colors duration-300">
             <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-sm shadow-sm">⛽</div>
@@ -200,9 +213,7 @@
             </div>
 
             <div id="panel-tab-route" class="space-y-6 hidden">
-                
                 <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
-                    
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap Endpoints">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                     </button>
@@ -219,8 +230,7 @@
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoints (Optional)</label>
                             <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
                         </div>
-                        <div id="dynamic-waypoints-container" class="space-y-2.5">
-                            </div>
+                        <div id="dynamic-waypoints-container" class="space-y-2.5"></div>
                     </div>
 
                     <div class="relative pt-1">
@@ -373,6 +383,10 @@
         let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
         let dynamicWaypointIncrementalIndex = 0;
 
+        // --- SCAN AREA TRACKING VARIABLES ---
+        let originalMapCenter = null;
+        let scanAreaTimeout = null;
+
         const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
         const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
@@ -422,8 +436,70 @@
             initializeClusterLayerPipeline();
             map.on('click', () => { closeForecourtDetailSheet(); });
             
+            // Set initial Map Center Snapshot for the "Scan the Area" feature
+            originalMapCenter = map.getCenter();
+
+            // Setup Context-Aware Visibility for "Scan the Area" 
+            map.on('moveend', () => {
+                if (!originalMapCenter) return;
+                const currentCenter = map.getCenter();
+                const distanceMoved = currentCenter.distanceTo(originalMapCenter); // Distance in meters
+
+                const scanContainer = document.getElementById('scan-area-container');
+                if (!scanContainer) return;
+
+                // Reveal button if viewport moved more than ~500 meters
+                if (distanceMoved > 500) {
+                    scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+                    scanContainer.classList.add('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                } else {
+                    scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                    scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+                }
+            });
+            
             triggerActiveDeviceLocationLookup();
         }
+
+        // --- DYNAMIC "SCAN THE AREA" PIPELINE ---
+        window.executeContextualAreaScanPipeline = function(event) {
+            if (event) event.stopPropagation();
+            
+            const btn = document.getElementById('scan-area-btn');
+            const container = document.getElementById('scan-area-container');
+            const iconSearch = document.getElementById('scan-icon-search');
+            const iconSpinner = document.getElementById('scan-icon-spinner');
+            const btnText = document.getElementById('scan-btn-string');
+
+            // 1. Enter Loading State Feedback
+            btn.disabled = true;
+            iconSearch.classList.add('hidden');
+            iconSpinner.classList.remove('hidden');
+            btnText.textContent = "Updating viewport matrix...";
+
+            // 2. Synchronize new location bounds
+            const newCenter = map.getCenter();
+            mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
+            originalMapCenter = newCenter;
+
+            // 3. Trigger standard system pipeline refresh
+            if (typeof forceReloadRemotePipelineData === 'function') {
+                forceReloadRemotePipelineData();
+            }
+
+            // 4. Fade away cleanly and reset internal state
+            setTimeout(() => {
+                container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+
+                setTimeout(() => {
+                    btn.disabled = false;
+                    iconSearch.classList.remove('hidden');
+                    iconSpinner.classList.add('hidden');
+                    btnText.textContent = "Scan this area";
+                }, 300);
+            }, 1000);
+        };
 
         function triggerActiveDeviceLocationLookup() {
             if (navigator.geolocation) {
@@ -433,6 +509,7 @@
                         const userLng = position.coords.longitude;
                         mapSearchAnchorCoordinates = [userLat, userLng];
                         map.setView(mapSearchAnchorCoordinates, 12);
+                        originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
                         
                         L.circle(mapSearchAnchorCoordinates, {
                             radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
@@ -463,6 +540,7 @@
                 const userLng = position.coords.longitude;
                 mapSearchAnchorCoordinates = [userLat, userLng];
                 map.setView(mapSearchAnchorCoordinates, 13);
+                originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
 
                 try {
                     const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
@@ -538,6 +616,14 @@
                 btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
                 panelRoute.classList.remove('hidden');
                 panelLocal.classList.add('hidden');
+                
+                // Hide "Scan this Area" button if we are in route routing mode
+                const scanContainer = document.getElementById('scan-area-container');
+                if (scanContainer) {
+                    scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                    scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+                }
+
                 if(plottedRouteCoordinates.length > 0) {
                     weatherModule.classList.remove('hidden');
                 }
@@ -646,7 +732,7 @@
                         matchingBox.innerHTML = '';
                         optionsList.forEach(item => {
                             const row = document.createElement('div');
-                            row.className = "p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-medium border-b border-zinc-100/50 dark:border-zinc-800/50";
+                            row.className = "p-2.5 hover:bg-zinc-100 dark:bg-zinc-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-medium border-b border-zinc-100/50 dark:border-zinc-800/50";
                             row.textContent = item.display_name;
                             row.onclick = (event) => {
                                 event.stopPropagation();
@@ -679,9 +765,9 @@
                 if (matchingNodes?.length > 0) {
                     mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
                     map.setView(mapSearchAnchorCoordinates, 12);
+                    originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); // Sync anchor
                     refreshViewportViewFilter();
                     
-                    /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
                     if (window.innerWidth < 768) setMobileSidebarState('peek');
                 }
             } catch (err) { console.error(err); }
@@ -794,7 +880,6 @@
                     }
                 }
                 
-                /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
                 if (window.innerWidth < 768) setMobileSidebarState('peek');
             } catch (err) { console.error(err); }
         }
@@ -902,7 +987,6 @@
             updateDirectoryTotalBadge();
             if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
             
-            /* UX ENHANCEMENT: Auto Collapse sidebar panel tracking framework into minimal view on successful execution */
             if (window.innerWidth < 768) setMobileSidebarState('peek');
             alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
         }
@@ -1054,7 +1138,6 @@
             generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
         }
 
-        /* NEW ENHANCEMENT: Milestone Multi-Group Fuel Matrix Generator matching top 3 cheapest stations per planned destination node location */
         function generateCheapestRankingListDeck(pool, fuelVariant) {
             const block = document.getElementById('cheapest-ranking-block');
             const container = document.getElementById('cheapest-cards-stack');
@@ -1069,7 +1152,6 @@
             if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
                 blockTitle.textContent = "Top 3 Cheapest Forecourts Per Planned Location Node";
                 
-                // Construct planned locations nodes breakdown matrix array
                 const milestoneLocationsList = [];
                 milestoneLocationsList.push({ label: "Origin", node: cachedGeocodedWaypoints.start });
                 
@@ -1080,13 +1162,11 @@
                 milestoneLocationsList.push({ label: "Terminal Destination", node: cachedGeocodedWaypoints.end });
 
                 milestoneLocationsList.forEach(milestone => {
-                    // Filter matching elements close to this milestone node location specifically
                     let rawMilestonePool = validPool.map(station => {
                         let distanceToNode = computeDistanceVectorMiles(milestone.node.lat, milestone.node.lon, parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
                         return { station, distanceToNode };
                     });
 
-                    // Filter out elements too far from current node milestone path to preserve operational proximity (e.g. within 12 miles)
                     rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
                     rawMilestonePool.sort((a, b) => parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]));
 
@@ -1125,7 +1205,6 @@
                     }
                 });
             } else {
-                // Baseline Radial Strategy Output Deck
                 blockTitle.textContent = "Cheapest Forecourts within Boundary Scope";
                 validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
                 
@@ -1356,7 +1435,6 @@
             updateAllStarUIStates();
             sheet.classList.remove('hidden');
 
-            /* UX FIX: Fuel price modal sheet in mobile view defaults to full view automatically for quick visibility */
             if (window.innerWidth < 768) {
                 setMobileSheetUIState('full'); 
             } else {
