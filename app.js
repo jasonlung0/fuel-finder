@@ -916,3 +916,21 @@ function refreshActiveDataView() {
 }
 
 function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
+
+// Add this check at the bottom of app3.js
+function startApplication() {
+    if (typeof L === 'undefined' || typeof turf === 'undefined') {
+        console.warn("Waiting for dependencies...");
+        setTimeout(startApplication, 500);
+        return;
+    }
+    
+    // YOUR EXISTING DOMContentLoaded CODE GOES HERE
+    addNewWaypointField("Start");
+    addNewWaypointField("Destination");
+    setupTab1Autocomplete();
+    // ... rest of your initialization
+}
+
+// Kickoff
+startApplication();
