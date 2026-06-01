@@ -2,9 +2,88 @@
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
-// Initialize Leaflet Map Object Instance 
+// Persona to OSM Tag Mapping (The Discovery Engine)
+const PERSONA_CONFIG = {
+    family: 'node["amenity"~"zoo|theme_park|playground|restaurant"](around:2000),way["leisure"="park"]',
+    adventure: 'node["tourism"="viewpoint|wilderness_hut"](around:2000),way["sport"="climbing|hiking"]',
+    romance: 'node["amenity"="restaurant|spa"](around:2000),node["tourism"="viewpoint"]',
+    business: 'node["amenity"="bank|conference_centre|hotel"](around:2000)',
+    culture: 'node["tourism"="museum|attraction|monument"](around:2000),node["amenity"="marketplace"]'
+};
+
+// Initialize Leaflet Map
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
 L.control.zoom({ position: 'topright' }).addTo(map);
+
+// State Tracking
+let activePersona = 'none'; 
+let poiMarkers = L.layerGroup().addTo(map);
+
+// POI Fetching Logic using Persona Engine
+async function fetchPoiData(spatialPolygon = null) {
+    const persona = document.getElementById('poiPersona')?.value || 'none';
+    if (persona === 'none' || !PERSONA_CONFIG[persona]) return [];
+    
+    // Safety check for Turf.js
+    if (typeof turf === 'undefined') {
+        console.warn("Turf.js not loaded. Skipping spatial buffer.");
+        return [];
+    }
+
+    let overpassUrl = "https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];(";
+    overpassUrl += PERSONA_CONFIG[persona];
+    overpassUrl += ");out body;";
+
+    try {
+        const response = await fetch(overpassUrl);
+        const data = await response.json();
+        return data.elements || [];
+    } catch (e) {
+        console.error("Persona data fetch failed:", e);
+        return [];
+    }
+}
+
+// Icon Factory for Personas
+function getPoiIcon(persona) {
+    const icons = {
+        family: '👨‍👩‍👧', adventure: '🧗', romance: '❤️', business: '💼', culture: '🏛️'
+    };
+    return L.divIcon({
+        className: 'custom-poi-marker',
+        html: `<div style="font-size:20px; background:white; border-radius:50%; padding:2px;">${icons[persona] || '📍'}</div>`,
+        iconSize: [30, 30]
+    });
+}
+
+// Rendering Logic
+function processAndRenderPois(poiElementsArray) {
+    poiMarkers.clearLayers();
+    const listContainer = document.getElementById('poiElementsList');
+    if (listContainer) listContainer.innerHTML = '';
+
+    poiElementsArray.forEach(poi => {
+        const marker = L.marker([poi.lat, poi.lon], { icon: getPoiIcon(activePersona) })
+            .bindPopup(`<strong>${poi.tags.name || 'Point of Interest'}</strong>`)
+            .addTo(poiMarkers);
+        
+        // Add to Sidebar
+        const li = document.createElement('li');
+        li.className = "text-xs p-2 border-b hover:bg-zinc-100 cursor-pointer";
+        li.innerText = poi.tags.name || 'Unnamed Location';
+        li.onclick = () => map.flyTo([poi.lat, poi.lon], 15);
+        listContainer?.appendChild(li);
+    });
+}
+
+// Persona Change Handler
+window.handlePersonaChange = async function(type) {
+    activePersona = type;
+    const data = await fetchPoiData();
+    processAndRenderPois(data);
+};
+
+// ... (Keep existing fuel finding logic, routing, and autocomplete listeners)
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
