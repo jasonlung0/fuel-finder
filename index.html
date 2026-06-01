@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full w-full antialiased">
+<html lang="en\" class="h-full w-full antialiased">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -29,1556 +29,1066 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .leaflet-div-icon-reset { background: transparent !important; border: none !important; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* Premium Dark Theme Map Contrast Optimization Layer */
-        .dark #map {
-            filter: brightness(1.25) contrast(0.92) saturate(0.95);
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
-
-        /* Repositioning Zoom Controls for clean Mobile Visibility */
-        .leaflet-top.leaflet-right {
-            top: 76px !important;
-            right: 12px !important;
-        }
-        .leaflet-bar {
+        .leaflet-control-zoom {
             border: none !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
         }
         .leaflet-bar a {
-            background-color: #ffffff !important;
+            background-color: white !important;
             color: #18181b !important;
             border-bottom: 1px solid #f4f4f5 !important;
             transition: all 0.2s;
         }
         .dark .leaflet-bar a {
-            background-color: #040405 !important;
+            background-color: #09090b !important;
             color: #f4f4f5 !important;
             border-bottom: 1px solid #27272a !important;
         }
-
-        /* Dynamic Visual Forecourt Pins */
-        .fuel-marker-bubble {
-            display: flex; align-items: center; justify-content: center; gap: 4px;
-            padding: 5px 9px; border-radius: 10px; color: #ffffff; font-size: 11px; font-weight: 800;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); border: 2px solid #ffffff; white-space: nowrap;
+        .leaflet-bar a:hover {
+            background-color: #f4f4f5 !important;
         }
-        .dark .fuel-marker-bubble { border-color: #09090b; }
-        
-        .fuel-cluster-capsule {
-            display: flex; align-items: center; justify-content: center;
-            padding: 6px 12px; border-radius: 9999px; color: #ffffff; font-size: 11px; font-weight: 800;
-            background: linear-gradient(135deg, #000000, #1c1c1e); border: 2px solid #10b981;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4); white-space: nowrap;
+        .dark .leaflet-bar a:hover {
+            background-color: #18181b !important;
         }
-        .light .fuel-cluster-capsule {
-            background: linear-gradient(135deg, #ffffff, #f4f4f5); color: #000000; border-color: #059669;
+        .custom-cluster {
+            background: rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.6);
+            border-radius: 50%;
+            color: #1d4ed8;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            transition: transform 0.2s ease;
         }
-
-        .bg-fuel-green { background: linear-gradient(135deg, #059669, #10b981); }
-        .bg-fuel-blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
-        .bg-fuel-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
-
-        /* 3-State Sliding Mobile Sheet Architecture */
-        @media (max-width: 767px) {
-            .mobile-bottom-drawer {
-                position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important;
-                width: 100% !important; max-width: 100% !important; border-radius: 24px 24px 0 0 !important;
-                z-index: 4000 !important; transform: translateY(100%);
-                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
-                box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.15), 0 -8px 10px -6px rgba(0, 0, 0, 0.15);
-            }
-            .drawer-peek { transform: translateY(calc(100% - 84px)) !important; }
-            .drawer-mid { transform: translateY(50%) !important; }
-            .drawer-full { transform: translateY(4%) !important; }
-            
-            #global-detail-sheet { z-index: 5000 !important; }
+        .dark .custom-cluster {
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.6);
+            background: rgba(96, 165, 250, 0.2);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Drag and Drop animations & styling */
+        .waypoint-dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+        .dark .waypoint-dragging {
+            background-color: #172554 !important;
+            border-color: #3b82f6 !important;
+        }
+        .waypoint-drag-over {
+            border-top: 2px solid #3b82f6 !important;
         }
     </style>
 </head>
-<body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-1000 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 light">
+<body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 flex flex-col md:flex-row">
 
-    <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
-
-    <div id="scan-area-container" class="absolute top-6 md:top-[84px] left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
-        <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2 px-4 py-2.5 rounded-full border bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 select-none focus:outline-none">
-            <svg id="scan-icon-search" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-emerald-600 dark:text-emerald-400">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.642 10.642z" />
-            </svg>
-            <svg id="scan-icon-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 animate-spin hidden text-zinc-400 dark:text-zinc-500">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span id="scan-btn-string">Scan this area</span>
-        </button>
-    </div>
-
-    <header class="absolute top-4 left-4 right-4 z-[4500] flex items-center justify-between pointer-events-none gap-4">
-        <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-xl flex items-center gap-2.5 pointer-events-auto transition-colors duration-300">
-            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-sm shadow-sm">⛽</div>
-            <div>
-                <h1 class="text-xs font-black tracking-tight text-zinc-900 dark:text-white leading-none">Pipeline Workspace</h1>
-                <span id="live-timestamp-label" class="text-[9px] font-bold text-zinc-400 dark:text-emerald-400 block mt-0.5">Stream Syncing...</span>
-            </div>
+    <header class="w-full md:hidden h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md flex items-center justify-between px-4 z-[1001] fixed top-0 left-0">
+        <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+            <span class="font-semibold text-sm tracking-tight text-zinc-900 dark:text-white">FuelPipeline</span>
         </div>
-
-        <div class="flex items-center gap-2 pointer-events-auto">
-            <button onclick="toggleSystemColorModeTheme(event)" class="p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 rounded-xl shadow-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer active:scale-95 flex items-center justify-center transition-colors duration-300" title="Switch Theme Palette">
-                <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden text-zinc-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        <div class="flex items-center gap-2">
+            <button id="mobile-theme-toggle" class="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                <svg class="w-4 h-4 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                 </svg>
-                <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14.5 12a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/>
+                <svg class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M6.343 6.343l.707-.707m2.828 9.9a5 5 0 117.072 0l-7.072 7.072z"/>
                 </svg>
-            </button>
-
-            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold active:scale-95">
-                <span>Directory</span>
-                <span id="directory-total-badge" class="bg-emerald-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">0</span>
             </button>
         </div>
     </header>
 
-    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-colors duration-300">
-        <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
-            <div class="flex items-center justify-between px-1 pt-1">
-                <span class="text-[10px] font-black tracking-wider uppercase text-zinc-400 dark:text-zinc-500">System Storage Vault</span>
-                <button onclick="toggleStarredDropdownDashboardPanel(event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
+    <aside id="sidebar-panel-container" class="hidden md:flex flex-col w-96 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-full shadow-xl z-30 transition-all duration-300">
+        <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                <h1 class="font-bold tracking-tight text-lg">FuelPipeline Workspace</h1>
             </div>
-            <div class="grid grid-cols-2 bg-zinc-200/60 dark:bg-zinc-800/60 p-1 rounded-lg gap-1">
-                <button onclick="switchDirectoryTabContext('stations')" id="dir-tab-stations" class="py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs">Stations</button>
-                <button onclick="switchDirectoryTabContext('routes')" id="dir-tab-routes" class="py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Routes</button>
-            </div>
-        </div>
-        <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
-    </div>
-
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
-        <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
-            <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full"></div>
-        </div>
-        
-        <div class="grid grid-cols-2 bg-zinc-50 dark:bg-zinc-900/40 p-1.5 gap-1 shrink-0 border-b border-zinc-100 dark:border-zinc-800/60">
-            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm">
-                📍 Radial Range
-            </button>
-            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
-                🛣️ Corridor Routing
+            <button id="desktop-theme-toggle" class="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                <svg class="w-4 h-4 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+                <svg class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M16.243 17.657l.707.707M6.343 6.343l.707-.707m2.828 9.9a5 5 0 117.072 0l-7.072 7.072z"/>
+                </svg>
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
+        <div class="p-2 bg-zinc-100 dark:bg-zinc-950 flex gap-1 m-4 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60">
+            <button id="tab-explore-mode" class="flex-1 py-1.5 px-3 text-xs font-semibold rounded-md bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm transition-all">
+                Explore Area
+            </button>
+            <button id="tab-routing-mode" class="flex-1 py-1.5 px-3 text-xs font-medium text-zinc-500 dark:text-zinc-400 rounded-md hover:text-zinc-800 dark:hover:text-zinc-200 transition-all">
+                Route Planner
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pb-6 hide-scrollbar space-y-5">
             
-            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
-                <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Target Fuel Matrix Grade</label>
-                <div class="relative">
-                    <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
-                        <option value="E10" selected>Standard Unleaded Petrol (E10)</option>
-                        <option value="E5">Premium Super Unleaded (E5)</option>
-                        <option value="B7">Standard Road Diesel (B7)</option>
-                        <option value="PremiumDiesel">Premium High Performance Diesel</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
+            <div id="view-block-explore" class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Location Search</label>
+                    <div class="relative">
+                        <input id="explore-search-input" type="text" placeholder="Search town, city or postal code..." class="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:text-white transition-all">
+                        <svg class="absolute left-3 top-3 w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Fuel Grade Configuration</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="fuel-pill-btn active py-2 px-3 text-xs font-semibold rounded-lg border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 transition-all" data-fuel-type="E10">Petrol (E10)</button>
+                        <button class="fuel-pill-btn py-2 px-3 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all" data-fuel-type="B7">Diesel (B7)</button>
+                        <button class="fuel-pill-btn py-2 px-3 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all" data-fuel-type="E5">Premium Petrol (E5)</button>
+                        <button class="fuel-pill-btn py-2 px-3 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all" data-fuel-type="SDV">Premium Diesel</button>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Search Radius Buffer</label>
+                        <span id="label-radius-val" class="text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">5 miles</span>
+                    </div>
+                    <input id="slider-search-radius" type="range" min="2" max="25" value="5" class="w-full accent-blue-600 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Brand Networks</label>
+                    <div class="border border-zinc-200 dark:border-zinc-800 rounded-lg p-2 max-h-36 overflow-y-auto hide-scrollbar space-y-1.5 bg-zinc-50 dark:bg-zinc-950">
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="ALL"> <span class="font-semibold text-zinc-700 dark:text-zinc-300">All Networks</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="BP"> <span class="text-zinc-600 dark:text-zinc-400">BP</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="SHELL"> <span class="text-zinc-600 dark:text-zinc-400">Shell</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="TESCO"> <span class="text-zinc-600 dark:text-zinc-400">Tesco</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="ASDA"> <span class="text-zinc-600 dark:text-zinc-400">Asda</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="SAINSBURYS"> <span class="text-zinc-600 dark:text-zinc-400">Sainsbury's</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="ESSO"> <span class="text-zinc-600 dark:text-zinc-400">Esso</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="TEXACO"> <span class="text-zinc-600 dark:text-zinc-400">Texaco</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="MORRISONS"> <span class="text-zinc-600 dark:text-zinc-400">Morrisons</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="JET"> <span class="text-zinc-600 dark:text-zinc-400">Jet</span></label>
+                        <label class="flex items-center gap-2.5 px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded cursor-pointer text-xs transition-colors"><input type="checkbox" checked class="rounded accent-blue-600 tracking-brand" value="INDEPENDENT"> <span class="text-zinc-600 dark:text-zinc-400">Independents</span></label>
+                    </div>
                 </div>
             </div>
 
-            <div id="panel-tab-local" class="space-y-6">
-                <div class="space-y-2 relative">
-                    <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Search Landmark Region / Postal Coordinates</label>
-                    <div class="flex gap-2">
-                        <div class="relative flex-1">
-                            <input id="location-input" type="text" placeholder="e.g., Manchester, Edinburgh..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
-                            <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-emerald-500 transition active:scale-90 flex items-center justify-center p-1" title="Detect Current Location">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                            </button>
-                        </div>
-                        <button onclick="executeAddressGeocodeLookup()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-4 rounded-xl transition cursor-pointer active:scale-95 shadow-md">Scan</button>
-                    </div>
-                    <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
-                </div>
-
-                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
-                    <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">
-                        <span>Scan Range Footprint Area</span>
-                        <span id="radius-val" class="text-emerald-600 dark:text-emerald-400 font-black">5 Miles</span>
-                    </div>
-                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 my-2" />
-                </div>
-            </div>
-
-            <div id="panel-tab-route" class="space-y-6 hidden">
-                <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
-                    <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap Endpoints">
-                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
-                    </button>
-
-                    <div class="absolute left-[-5px] top-[14px] w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
-                    <div class="space-y-1 relative">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Journey Starting Origin</label>
-                        <input id="route-start" type="text" placeholder="Starting town or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
-                        <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
-                    </div>
-
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-center">
-                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Interim Stop Waypoints (Optional)</label>
-                            <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
-                        </div>
-                        <div id="dynamic-waypoints-container" class="space-y-2.5"></div>
-                    </div>
-
-                    <div class="relative pt-1">
-                        <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
-                        <div class="space-y-1 relative">
-                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Terminal Target Destination</label>
-                            <input id="route-end" type="text" placeholder="Final destination point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
-                            <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
+            <div id="view-block-routing" class="hidden space-y-4">
+                <div class="space-y-3">
                     <div class="space-y-1">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block">Vehicle Efficiency MPG</label>
-                        <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none text-zinc-800 dark:text-zinc-100" />
+                        <label class="text-xs font-bold uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Route Origin Start
+                        </label>
+                        <input id="route-start-input" type="text" placeholder="Enter starting address/city..." class="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:text-white transition-all">
                     </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Interim Stop Waypoints
+                        </label>
+                        <div id="interim-stops-container" class="space-y-2 min-h-[5px]">
+                            </div>
+                        <button id="btn-append-interim-node" type="button" class="w-full py-1.5 px-3 border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center justify-center gap-1.5 transition-all bg-zinc-50/50 dark:bg-zinc-900/30">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Intermediate Waypoint
+                        </button>
+                    </div>
+
                     <div class="space-y-1">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block flex justify-between">Corridor Dev <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
-                        <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-3" />
+                        <label class="text-xs font-bold uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Route Destination Terminal
+                        </label>
+                        <input id="route-end-input" type="text" placeholder="Enter final destination..." class="w-full px-3 py-2 text-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:text-white transition-all">
                     </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2">
-                    <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Trace</button>
-                    <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Save</button>
-                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear All</button>
+                <div class="space-y-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
+                    <div class="flex justify-between items-center">
+                        <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Corridor Deviation Buffer</label>
+                        <span id="label-corridor-radius-val" class="text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">3 miles</span>
+                    </div>
+                    <input id="slider-corridor-radius" type="range" min="1" max="10" value="3" class="w-full accent-blue-600 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer">
                 </div>
+
+                <button id="btn-trigger-pipeline-routing" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-lg shadow-md shadow-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-500/40 flex items-center justify-center gap-2 transition-all">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 12l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    Optimize Pipeline Path
+                </button>
             </div>
 
-            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-4 hidden flex-col transition duration-300 space-y-3">
-                <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="text-xs">📊</span>
-                        <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight truncate">Financial & Traffic Vector</h3>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button onclick="dismissFinancialDashboardBox(event)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
-                    </div>
-                </div>
+            <div class="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+                <label class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Workspace Metrics Summary</label>
                 <div class="grid grid-cols-2 gap-2">
-                    <div class="bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl p-2.5">
-                        <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Scope Profile</span>
-                        <span id="summary-distance" class="text-xs font-black text-zinc-800 dark:text-zinc-200 mt-0.5 block truncate">Radial Zone</span>
+                    <div class="bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60">
+                        <div class="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500">Stations Found</div>
+                        <div id="metric-stations-count" class="text-xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200">0</div>
                     </div>
-                    <div class="bg-emerald-50/10 border border-emerald-500/20 rounded-xl p-2.5">
-                        <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Pipeline Optimum</span>
-                        <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
+                    <div class="bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60">
+                        <div class="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500">Average Price</div>
+                        <div id="metric-avg-price" class="text-xl font-bold tracking-tight text-zinc-800 dark:text-zinc-200">0.0p</div>
                     </div>
-                </div>
-                
-                <div id="traffic-telemetry-node" class="hidden p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                        <div class="min-w-0">
-                            <span class="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Live Corridor Flow</span>
-                            <span id="traffic-status-label" class="text-xs font-black text-amber-600 dark:text-amber-400 block truncate">Moderate Congestion</span>
-                        </div>
+                    <div class="bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60">
+                        <div class="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500">Lowest Price</div>
+                        <div id="metric-min-price" class="text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">0.0p</div>
                     </div>
-                    <span id="traffic-delay-badge" class="bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">+4 mins delay</span>
+                    <div class="bg-zinc-50 dark:bg-zinc-950 p-2.5 rounded-lg border border-zinc-200/60 dark:border-zinc-800/60">
+                        <div class="text-[10px] uppercase font-bold text-zinc-400 dark:text-zinc-500">Highest Price</div>
+                        <div id="metric-max-price" class="text-xl font-bold tracking-tight text-rose-600 dark:text-rose-400">0.0p</div>
+                    </div>
                 </div>
             </div>
 
-            <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
-                <div class="flex items-center gap-1">
-                    <span class="text-xs">🏆</span>
-                    <h3 id="ranking-block-title" class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Cheapest Forecourts within Boundary Scope</h3>
-                </div>
-                <div id="cheapest-cards-stack" class="space-y-3"></div>
-            </div>
-
-            <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
-                <div class="flex items-center gap-1">
-                    <span class="text-xs">🌤️</span>
-                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Corridor 5-Day Weather Matrix</h3>
-                </div>
-                <div id="weather-nodes-stack" class="space-y-3"></div>
-            </div>
-        </div>
-
-        <div class="p-4 md:p-3 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase shrink-0 transition-colors duration-300 pb-[calc(14px+env(safe-area-inset-bottom,16px))] md:pb-3">
-            <span>Terminal Index Count</span>
-            <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black">Scanning Matrix...</span>
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-2xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
-        <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 -mt-5 -mx-5 rounded-t-3xl">
-            <div class="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
-        </div>
+    <main class="flex-1 relative h-full w-full">
+        <div id="primary-leaflet-map-canvas" class="w-full h-full z-10 bg-zinc-100 dark:bg-zinc-950"></div>
 
-        <div class="flex items-start justify-between gap-3 relative">
-            <div class="min-w-0 flex-1">
-                <h2 id="sheet-brand-title" class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase leading-none">Independent Supplier Hub</h2>
-                <p id="sheet-address-details" class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-1.5 leading-normal truncate">National Terminal Infrastructure</p>
-            </div>
-            <div class="flex items-center gap-1 shrink-0">
-                <button id="sheet-star-btn" onclick="toggleCurrentStationStar(event)" class="p-2 border rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8"></button>
-                <button onclick="closeForecourtDetailSheet(event)" class="p-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer flex items-center justify-center w-8 h-8">✕</button>
-            </div>
-        </div>
+        <button id="scan-area-btn" class="hidden fixed top-20 md:top-auto md:bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white px-4 py-2 rounded-full shadow-lg border border-zinc-200 dark:border-zinc-800 text-xs font-semibold flex items-center gap-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:scale-95 transition-all pointer-events-auto">
+            <svg class="w-3.5 h-3.5 text-blue-500 animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Scan this area for updates
+        </button>
 
-        <div class="grid grid-cols-2 gap-2">
-            <div id="card-wrap-e10" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
-                <span id="sheet-price-e10" class="text-xs font-black block mt-0.5">N/A</span>
-            </div>
-            <div id="card-wrap-e5" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super Unleaded E5</span>
-                <span id="sheet-price-e5" class="text-xs font-black block mt-0.5">N/A</span>
-            </div>
-            <div id="card-wrap-b7" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Standard Diesel B7</span>
-                <span id="sheet-price-b7" class="text-xs font-black block mt-0.5">N/A</span>
-            </div>
-            <div id="card-wrap-premiumdiesel" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Premium Diesel</span>
-                <span id="sheet-price-premiumdiesel" class="text-xs font-black block mt-0.5">N/A</span>
+        <div id="async-pipeline-loading-shield" class="hidden absolute inset-0 bg-zinc-950/20 dark:bg-zinc-1000/40 backdrop-blur-[2px] z-[1050] items-center justify-center pointer-events-auto transition-all">
+            <div class="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl flex items-center gap-3 max-w-xs">
+                <div class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <div class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Synchronizing fuel intelligence pipeline...</div>
             </div>
         </div>
+    </main>
 
-        <div class="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-2.5 border border-zinc-200/60 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-500 transition-colors duration-300">
-            <span class="flex items-center gap-1">🧭 Operational Tracking Vector</span>
-            <button onclick="triggerExternalMappingVectorRoute(event)" class="text-emerald-600 dark:text-emerald-400 font-black tracking-tight hover:underline cursor-pointer">Launch External Maps ↗</button>
+    <div id="mobile-sidebar-sheet" class="md:hidden fixed inset-x-0 bottom-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.1)] rounded-t-2xl z-[1010] transform translate-y-[calc(100%-54px)] transition-transform duration-300 ease-out flex flex-col pointer-events-auto h-[75vh]">
+        <div id="sidebar-drag-handle" class="w-full py-3 flex flex-col items-center justify-center cursor-pointer border-b border-zinc-100 dark:border-zinc-800/50 group select-none">
+            <div class="w-10 h-1 bg-zinc-300 dark:bg-zinc-700 rounded-full group-hover:bg-zinc-400 dark:group-hover:bg-zinc-500 transition-colors"></div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-1.5 flex items-center gap-1">
+                <span>Configure Area Constraints</span>
+                <svg class="w-3 h-3 transition-transform duration-300 transform" id="sidebar-chevron-indicator" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg>
+            </div>
         </div>
+        <div id="mobile-sidebar-portal-destination" class="flex-1 overflow-y-auto p-4 hide-scrollbar">
+            </div>
+    </div>
+
+    <div id="mobile-detail-inspector-sheet" class="hidden md:hidden fixed inset-x-0 bottom-0 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.1)] rounded-t-2xl z-[1020] transform translate-y-[calc(100%-54px)] transition-transform duration-300 ease-out flex flex-col pointer-events-auto h-[60vh]">
+        <div id="detail-sheet-drag-handle" class="w-full py-3 flex flex-col items-center justify-center cursor-pointer border-b border-zinc-100 dark:border-zinc-800/50 group select-none">
+            <div class="w-10 h-1 bg-zinc-300 dark:bg-zinc-700 rounded-full group-hover:bg-zinc-400 dark:group-hover:bg-zinc-500 transition-colors"></div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mt-1.5">Station Fuel Analytics Profile</div>
+        </div>
+        <div id="mobile-detail-portal-destination" class="flex-1 overflow-y-auto p-5 hide-scrollbar">
+            </div>
+    </div>
+
+    <div id="desktop-station-inspector-hud" class="hidden id-isolated-hud-card fixed right-4 top-4 bottom-4 w-96 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 shadow-2xl rounded-xl z-[999] flex-col overflow-hidden transition-all duration-300 translate-x-[calc(100%+24px)] pointer-events-auto">
+        <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/50">
+            <span class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Selected Hub Analytics</span>
+            <button id="btn-close-desktop-hud" class="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-all">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="desktop-hud-content-scroll-box" class="flex-1 overflow-y-auto p-5 space-y-5 hide-scrollbar">
+            </div>
     </div>
 
     <script>
-        let map = null;
-        let tileLayerInstance = null;
-        let markerClusterGroupInstance = null;
-        let routePolylineLayer = null;
-
-        let rawGlobalStationsPool = [];
-        let currentlyVisibleStations = [];
-        let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
-        let savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
+        // Universal Application Runtime Variables Configuration
+        let geospatialMapEngineInstance = null;
+        let mappingMarkerClusterGroup = null;
+        let persistentGeocodedMarkerArray = [];
+        let globalSpatialFuelDataset = [];
+        let activelySelectedFuelGradeFilter = 'E10';
+        let routingOverlayPolylineInstance = null;
         
-        let activeTabContext = 'local'; 
-        let activeDirectoryTab = 'stations'; 
-        let activeSheetStation = null;
-        let mapSearchAnchorCoordinates = [51.5074, -0.1278]; 
-        let plottedRouteCoordinates = [];
-        let autocompleteDebounceTimer = null;
-        
-        let currentMobileSidebarUIState = 'peek';
-        let currentMobileSheetUIState = 'hidden';
-        let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
+        let applicationWorkspaceMode = 'explore'; // options enum constraint: 'explore' | 'route'
+        let currentMobileSidebarUIState = 'hidden'; // status tracks: 'hidden' | 'peek' | 'mid' | 'full'
+        let currentMobileSheetUIState = 'hidden'; // status tracks: 'hidden' | 'peek' | 'mid' | 'full'
 
-        let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
-        let dynamicWaypointIncrementalIndex = 0;
+        // Data Storage Mapping Configuration for Intermediary Sequence Nodes
+        let interimStopWaypointsList = [];
 
-        // --- SCAN AREA TRACKING VARIABLES ---
-        let originalMapCenter = null;
-        let scanAreaTimeout = null;
-
-        const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
-        const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
-
-        function toggleSystemColorModeTheme(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            isDarkMode = !isDarkMode;
-            localStorage.setItem('theme-dark-setting-mode', isDarkMode);
-            applyThemeChangesToDOM();
-        }
-
-        function applyThemeChangesToDOM() {
-            const bodyNode = document.body;
-            if (isDarkMode) {
-                bodyNode.classList.remove('light');
-                bodyNode.classList.add('dark');
-                document.documentElement.classList.add('dark');
-            } else {
-                bodyNode.classList.remove('dark');
-                bodyNode.classList.add('light');
-                document.documentElement.classList.remove('dark');
-            }
-            
-            if (map && tileLayerInstance) {
-                map.removeLayer(tileLayerInstance);
-                const targetedTilesetURI = isDarkMode 
-                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-                
-                tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
-            }
-            refreshViewportViewFilter();
-            updateDirectoryTotalBadge();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
-            updateAllStarUIStates();
-        }
-
-        function initializeSpatialMapEngine() {
-            map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
-            
-            const targetedTilesetURI = isDarkMode 
-                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-                
-            tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
-            L.control.zoom({ position: 'topright' }).addTo(map);
-            
-            initializeClusterLayerPipeline();
-            map.on('click', () => { closeForecourtDetailSheet(); });
-            
-            // Set initial Map Center Snapshot for the "Scan the Area" feature
-            originalMapCenter = map.getCenter();
-
-            // Setup Context-Aware Visibility for "Scan the Area" 
-            map.on('moveend', () => {
-                if (!originalMapCenter) return;
-                const currentCenter = map.getCenter();
-                const distanceMoved = currentCenter.distanceTo(originalMapCenter); // Distance in meters
-
-                const scanContainer = document.getElementById('scan-area-container');
-                if (!scanContainer) return;
-
-                // Reveal button if viewport moved more than ~500 meters
-                if (distanceMoved > 500) {
-                    scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-                    scanContainer.classList.add('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-                } else {
-                    scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-                    scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-                }
-            });
-            
-            triggerActiveDeviceLocationLookup();
-        }
-
-        // --- DYNAMIC "SCAN THE AREA" PIPELINE ---
-        window.executeContextualAreaScanPipeline = function(event) {
-            if (event) event.stopPropagation();
-            
-            const btn = document.getElementById('scan-area-btn');
-            const container = document.getElementById('scan-area-container');
-            const iconSearch = document.getElementById('scan-icon-search');
-            const iconSpinner = document.getElementById('scan-icon-spinner');
-            const btnText = document.getElementById('scan-btn-string');
-
-            // 1. Enter Loading State Feedback
-            btn.disabled = true;
-            iconSearch.classList.add('hidden');
-            iconSpinner.classList.remove('hidden');
-            btnText.textContent = "Updating viewport matrix...";
-
-            // 2. Synchronize new location bounds
-            const newCenter = map.getCenter();
-            mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
-            originalMapCenter = newCenter;
-
-            // 3. Trigger standard system pipeline refresh
-            if (typeof forceReloadRemotePipelineData === 'function') {
-                forceReloadRemotePipelineData();
-            }
-
-            // 4. Fade away cleanly and reset internal state
-            setTimeout(() => {
-                container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-                container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-
-                setTimeout(() => {
-                    btn.disabled = false;
-                    iconSearch.classList.remove('hidden');
-                    iconSpinner.classList.add('hidden');
-                    btnText.textContent = "Scan this area";
-                }, 300);
-            }, 1000);
+        // Geocoding Coordinates Cache to mitigate redundant queries
+        const postalCoordinateCacheMap = {
+            'london': [51.5074, -0.1278],
+            'manchester': [53.4808, -2.2426],
+            'birmingham': [52.4862, -1.8904],
+            'leeds': [53.8008, -1.5491],
+            'glasgow': [55.8642, -4.2518],
+            'edinburgh': [55.9533, -3.1883],
+            'liverpool': [53.4084, -2.9916],
+            'bristol': [51.4545, -2.5879],
+            'cardiff': [51.4816, -3.1791],
+            'belfast': [54.5973, -5.9301],
+            'newcastle': [54.9783, -1.6178],
+            'sheffield': [53.3811, -1.4701],
+            'aberdeen': [57.1497, -2.0943],
+            'dundee': [56.4620, -2.9707],
+            'dunfermline': [56.0718, -3.4522]
         };
 
-        function triggerActiveDeviceLocationLookup() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const userLat = position.coords.latitude;
-                        const userLng = position.coords.longitude;
-                        mapSearchAnchorCoordinates = [userLat, userLng];
-                        map.setView(mapSearchAnchorCoordinates, 12);
-                        originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
-                        
-                        L.circle(mapSearchAnchorCoordinates, {
-                            radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
-                        }).addTo(map);
-                        
-                        refreshViewportViewFilter();
-                    },
-                    (error) => {
-                        console.warn("Device location rejected. Defaulting coordinates.");
-                        refreshViewportViewFilter();
-                    },
-                    { enableHighAccuracy: true, timeout: 6000 }
-                );
-            } else {
-                refreshViewportViewFilter();
-            }
-        }
+        // Network Brand Configuration Metadata
+        const brandMatrixMappingRef = {
+            'BP': { title: 'BP', type: 'Premium' },
+            'SHELL': { title: 'Shell', type: 'Premium' },
+            'TESCO': { title: 'Tesco', type: 'Supermarket' },
+            'ASDA': { title: 'Asda', type: 'Supermarket' },
+            'SAINSBURYS': { title: "Sainsbury's", type: 'Supermarket' },
+            'ESSO': { title: 'Esso', type: 'Premium' },
+            'TEXACO': { title: 'Texaco', type: 'Premium' },
+            'MORRISONS': { title: 'Morrisons', type: 'Supermarket' },
+            'JET': { title: 'Jet', type: 'Independent' },
+            'APPLEGREEN': { title: 'AppleGreen', type: 'Independent' },
+            'RONTEC': { title: 'Rontec', type: 'Independent' },
+            'MFG': { title: 'MFG', type: 'Independent' }
+        };
 
-        async function triggerManualDeviceLocationSearch(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const inputField = document.getElementById('location-input');
-            if (!navigator.geolocation) return;
+        // Initialize Spatial Map Canvas Environment Layer
+        function initializeSpatialMapEngine() {
+            geospatialMapEngineInstance = L.map('primary-leaflet-map-canvas', {
+                zoomControl: false,
+                maxZoom: 18,
+                minZoom: 6
+            }).setView([56.0718, -3.4522], 12); // Default anchored setup view over Dunfermline workspace reference
 
-            if(inputField) inputField.value = "Detecting device coordinates...";
+            L.control.zoom({ position: 'bottomright' }).addTo(geospatialMapEngineInstance);
 
-            navigator.geolocation.getCurrentPosition(async (position) => {
-                const userLat = position.coords.latitude;
-                const userLng = position.coords.longitude;
-                mapSearchAnchorCoordinates = [userLat, userLng];
-                map.setView(mapSearchAnchorCoordinates, 13);
-                originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
-
-                try {
-                    const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
-                    const lookupData = await lookupRes.json();
-                    if(inputField && lookupData && lookupData.display_name) {
-                        inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
-                    } else if(inputField) {
-                        inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
-                    }
-                } catch {
-                    if(inputField) inputField.value = "Current Location Vector";
-                }
-                refreshViewportViewFilter();
-            }, () => {
-                if(inputField) inputField.value = "Access Denied by Host Device";
-            }, { enableHighAccuracy: true, timeout: 8000 });
-        }
-
-        function initializeClusterLayerPipeline() {
-            if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
-            
-            markerClusterGroupInstance = L.markerClusterGroup({
-                showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
-                iconCreateFunction: function (cluster) {
-                    const dynamicChildMarkers = cluster.getAllChildMarkers();
-                    const activeFuelKey = document.getElementById('fuel-type')?.value || 'E10';
-                    
-                    let pricesExtracted = [];
-                    dynamicChildMarkers.forEach(marker => {
-                        if(marker.options?.stationRawData?.[activeFuelKey]) {
-                            const val = parseFloat(marker.options.stationRawData[activeFuelKey]);
-                            if(!isNaN(val) && val > 0) pricesExtracted.push(val);
-                        }
-                    });
-
-                    if(pricesExtracted.length === 0) {
-                        return L.divIcon({
-                            html: `<div class="fuel-cluster-capsule"><span>Cluster</span></div>`,
-                            className: 'leaflet-div-icon-reset', iconSize: [95, 32]
-                        });
-                    }
-
-                    const min = Math.min(...pricesExtracted);
-                    const max = Math.max(...pricesExtracted);
-                    const labelString = (min === max) ? `${min.toFixed(1)}p` : `${min.toFixed(1)}p - ${max.toFixed(1)}p`;
-
-                    return L.divIcon({
-                        html: `<div class="fuel-cluster-capsule"><span>${labelString}</span></div>`,
-                        className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16]
-                    });
-                }
-            });
-            map.addLayer(markerClusterGroupInstance);
-        }
-
-        function switchWorkflowTabContext(contextType) {
-            activeTabContext = contextType;
-            const btnLocal = document.getElementById('tab-btn-local');
-            const btnRoute = document.getElementById('tab-btn-route');
-            const panelLocal = document.getElementById('panel-tab-local');
-            const panelRoute = document.getElementById('panel-tab-route');
-            const weatherModule = document.getElementById('route-weather-module');
-
-            if (contextType === 'local') {
-                btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-                btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
-                panelLocal.classList.remove('hidden');
-                panelRoute.classList.add('hidden');
-                weatherModule.classList.add('hidden');
-                clearCalculatedRouteLayers();
-            } else {
-                btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-                btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
-                panelRoute.classList.remove('hidden');
-                panelLocal.classList.add('hidden');
-                
-                // Hide "Scan this Area" button if we are in route routing mode
-                const scanContainer = document.getElementById('scan-area-container');
-                if (scanContainer) {
-                    scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-                    scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-                }
-
-                if(plottedRouteCoordinates.length > 0) {
-                    weatherModule.classList.remove('hidden');
-                }
-            }
-            refreshViewportViewFilter();
-        }
-
-        function switchDirectoryTabContext(dirType) {
-            activeDirectoryTab = dirType;
-            const tabStations = document.getElementById('dir-tab-stations');
-            const tabRoutes = document.getElementById('dir-tab-routes');
-            
-            if (dirType === 'stations') {
-                tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-                tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
-            } else {
-                tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-                tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
-            }
-            renderDirectoryDropdown();
-        }
-
-        function updateDirectoryTotalBadge() {
-            const badge = document.getElementById('directory-total-badge');
-            if (badge) {
-                badge.textContent = starredStations.length + savedRoutes.length;
-            }
-        }
-
-        function swapRouteEndpoints(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const startInput = document.getElementById('route-start');
-            const endInput = document.getElementById('route-end');
-            if(!startInput || !endInput) return;
-
-            const intermediateBuffer = startInput.value;
-            startInput.value = endInput.value;
-            endInput.value = intermediateBuffer;
-        }
-
-        function addWaypointFieldInputRow(initialValue = '') {
-            dynamicWaypointIncrementalIndex++;
-            const currentUid = dynamicWaypointIncrementalIndex;
-            const container = document.getElementById('dynamic-waypoints-container');
-            if (!container) return;
-
-            const rowNode = document.createElement('div');
-            rowNode.id = `waypoint-row-context-${currentUid}`;
-            rowNode.className = "relative w-full flex items-center gap-2 mt-1";
-
-            rowNode.innerHTML = `
-                <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
-                <div class="relative flex-1">
-                    <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none waypoint-dynamic-input-field" />
-                    <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer">Clear</button>
-                </div>
-                <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold" title="Delete stop">✕</button>
-                <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
-            `;
-
-            container.appendChild(rowNode);
-            bindAutocompleteToSpecificInput(`route-via-${currentUid}`, `via-suggestions-${currentUid}`);
-        }
-
-        function removeWaypointFieldInputRow(uid, event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const rowTarget = document.getElementById(`waypoint-row-context-${uid}`);
-            if (rowTarget) {
-                rowTarget.remove();
-            }
-        }
-
-        function clearSingleWaypointRowInputValue(uid, event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const inputField = document.getElementById(`route-via-${uid}`);
-            if (inputField) {
-                inputField.value = '';
-            }
-        }
-
-        function bindAutocompleteToSpecificInput(inputId, suggestionsBoxId) {
-            const inputField = document.getElementById(inputId);
-            const matchingBox = document.getElementById(suggestionsBoxId);
-            if (!inputField || !matchingBox) return;
-
-            inputField.addEventListener('input', (e) => {
-                const textQuery = e.target.value.trim();
-                clearTimeout(autocompleteDebounceTimer);
-
-                if (!textQuery || textQuery.length < 2) {
-                    matchingBox.classList.add('hidden');
-                    return;
-                }
-
-                autocompleteDebounceTimer = setTimeout(async () => {
-                    try {
-                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=4`;
-                        const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                        const optionsList = await res.json();
-
-                        if (!optionsList || optionsList.length === 0) {
-                            matchingBox.classList.add('hidden');
-                            return;
-                        }
-
-                        matchingBox.innerHTML = '';
-                        optionsList.forEach(item => {
-                            const row = document.createElement('div');
-                            row.className = "p-2.5 hover:bg-zinc-100 dark:bg-zinc-800 cursor-pointer transition text-ellipsis overflow-hidden whitespace-nowrap text-zinc-700 dark:text-zinc-300 font-medium border-b border-zinc-100/50 dark:border-zinc-800/50";
-                            row.textContent = item.display_name;
-                            row.onclick = (event) => {
-                                event.stopPropagation();
-                                inputField.value = item.display_name;
-                                matchingBox.classList.add('hidden');
-                            };
-                            matchingBox.appendChild(row);
-                        });
-                        matchingBox.classList.remove('hidden');
-                    } catch (e) { console.error(e); }
-                }, 300);
-            });
-        }
-
-        function setupAutocompleteListeners() {
-            bindAutocompleteToSpecificInput('location-input', 'location-suggestions');
-            bindAutocompleteToSpecificInput('route-start', 'start-suggestions');
-            bindAutocompleteToSpecificInput('route-end', 'end-suggestions');
-            addWaypointFieldInputRow();
-        }
-
-        async function executeAddressGeocodeLookup() {
-            const searchString = document.getElementById('location-input').value.trim();
-            if (!searchString) return;
-            try {
-                const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
-                const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                const matchingNodes = await res.json();
-
-                if (matchingNodes?.length > 0) {
-                    mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
-                    map.setView(mapSearchAnchorCoordinates, 12);
-                    originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); // Sync anchor
-                    refreshViewportViewFilter();
-                    
-                    if (window.innerWidth < 768) setMobileSidebarState('peek');
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        async function executeRouteGenerationPipeline() {
-            const startVal = document.getElementById('route-start').value.trim();
-            const endVal = document.getElementById('route-end').value.trim();
-            if (!startVal || !endVal) return;
-
-            const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
-                                        .map(input => input.value.trim())
-                                        .filter(val => val.length > 0);
-
-            try {
-                const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                const startNodes = await startRes.json();
-                
-                const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                const endNodes = await endRes.json();
-
-                if (!startNodes.length || !endNodes.length) return;
-
-                cachedGeocodedWaypoints.start = { name: startVal, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
-                cachedGeocodedWaypoints.end = { name: endVal, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
-
-                let coordinatesStringArray = [`${startNodes[0].lon},${startNodes[0].lat}`];
-
-                cachedGeocodedWaypoints.vids = {};
-                for(let w = 0; w < waypointNodes.length; w++) {
-                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
-                    const viaNodes = await viaRes.json();
-                    if(viaNodes.length) {
-                        coordinatesStringArray.push(`${viaNodes[0].lon},${viaNodes[0].lat}`);
-                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: parseFloat(viaNodes[0].lat), lon: parseFloat(viaNodes[0].lon) };
-                    }
-                }
-
-                coordinatesStringArray.push(`${endNodes[0].lon},${endNodes[0].lat}`);
-                const osrmQuery = `https://router.project-osrm.org/route/v1/driving/${coordinatesStringArray.join(';')}?overview=full&geometries=geojson`;
-
-                const routeRes = await fetch(osrmQuery);
-                const routeData = await routeRes.json();
-
-                if (!routeData.routes?.length) return;
-
-                const routeLineGeometry = routeData.routes[0].geometry;
-                const distanceMiles = routeData.routes[0].distance * 0.000621371;
-
-                plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-                if (routePolylineLayer) map.removeLayer(routePolylineLayer);
-                
-                routePolylineLayer = L.featureGroup().addTo(map);
-
-                let strideSize = Math.max(1, Math.floor(plottedRouteCoordinates.length / 14));
-                let heavyTrafficDiscovered = false;
-                let moderateTrafficDiscovered = false;
-
-                for (let i = 0; i < plottedRouteCoordinates.length - 1; i += strideSize) {
-                    let nextIdx = Math.min(i + strideSize + 1, plottedRouteCoordinates.length);
-                    let trackSlice = plottedRouteCoordinates.slice(i, nextIdx);
-                    if (trackSlice.length < 2) continue;
-
-                    let randomFlowFactor = Math.random();
-                    let segmentLineColor = '#10b981'; 
-                    let strokeThickness = 5.5;
-
-                    if (randomFlowFactor > 0.88) {
-                        segmentLineColor = '#ef4444'; 
-                        strokeThickness = 6.5;
-                        heavyTrafficDiscovered = true;
-                    } else if (randomFlowFactor > 0.68) {
-                        segmentLineColor = '#f59e0b'; 
-                        strokeThickness = 6.0;
-                        moderateTrafficDiscovered = true;
-                    }
-
-                    L.polyline(trackSlice, {
-                        color: segmentLineColor, weight: strokeThickness, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
-                    }).addTo(routePolylineLayer);
-                }
-
-                map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
-                
-                refreshViewportViewFilter(distanceMiles);
-                triggerRouteWeatherFetchPipeline();
-
-                const trafficNode = document.getElementById('traffic-telemetry-node');
-                const labelText = document.getElementById('traffic-status-label');
-                const badgeText = document.getElementById('traffic-delay-badge');
-                
-                if (trafficNode && labelText && badgeText) {
-                    trafficNode.classList.remove('hidden');
-                    trafficNode.classList.add('flex');
-                    if (heavyTrafficDiscovered) {
-                        labelText.textContent = "Heavy Congestion Spots";
-                        labelText.className = "text-xs font-black text-rose-650 dark:text-rose-400 block truncate";
-                        badgeText.textContent = "+11 mins delay";
-                        badgeText.className = "bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
-                    } else if (moderateTrafficDiscovered) {
-                        labelText.textContent = "Moderate Delays Ahead";
-                        labelText.className = "text-xs font-black text-amber-600 dark:text-amber-400 block truncate";
-                        badgeText.textContent = "+4 mins delay";
-                        badgeText.className = "bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
-                    } else {
-                        labelText.textContent = "Unimpeded Fast Flow";
-                        labelText.className = "text-xs font-black text-emerald-600 dark:text-emerald-400 block truncate";
-                        badgeText.textContent = "On Time";
-                        badgeText.className = "bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
-                    }
-                }
-                
-                if (window.innerWidth < 768) setMobileSidebarState('peek');
-            } catch (err) { console.error(err); }
-        }
-
-        function lookupWeatherIconEmoji(code) {
-            if (code === 0) return "☀️";
-            if ([1, 2, 3].includes(code)) return "⛅";
-            if ([45, 48].includes(code)) return "🌫️";
-            if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
-            if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
-            if ([71, 73, 75, 77, 85, 86].includes(code)) return "🌨️";
-            if ([80, 81, 82].includes(code)) return "🌧️";
-            if ([95, 96, 99].includes(code)) return "⛈️";
-            return "☁️";
-        }
-
-        async function triggerRouteWeatherFetchPipeline() {
-            const container = document.getElementById('weather-nodes-stack');
-            const targetModule = document.getElementById('route-weather-module');
-            if (!container || !targetModule) return;
-
-            container.innerHTML = '';
-            if (activeTabContext === 'route') {
-                targetModule.classList.remove('hidden');
-            }
-
-            const locationsToFetch = [];
-            if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Origin", data: cachedGeocodedWaypoints.start });
-            
-            Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-                locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.vids[key] });
+            const standardLightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
             });
 
-            if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
+            const premiumDarkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            });
 
-            for (const loc of locationsToFetch) {
-                try {
-                    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
-                    const weatherData = await weatherRes.json();
+            standardLightTiles.addTo(geospatialMapEngineInstance);
 
-                    if (weatherData && weatherData.daily) {
-                        const cardElement = document.createElement('div');
-                        cardElement.className = "p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl shadow-xs";
-                        
-                        let headerTitleClean = loc.data.name.split(',')[0];
-                        let horizontalForecastHTML = '';
-                        
-                        for (let d = 0; d < 5; d++) {
-                            const rawDate = new Date(weatherData.daily.time[d]);
-                            const weekdayLabel = rawDate.toLocaleDateString('en-GB', { weekday: 'short' });
-                            const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[d]);
-                            const highTemp = Math.round(weatherData.daily.temperature_2m_max[d]);
-                            const lowTemp = Math.round(weatherData.daily.temperature_2m_min[d]);
-
-                            horizontalForecastHTML += `
-                                <div class="flex flex-col items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg text-center min-w-[50px]">
-                                    <span class="text-[8px] font-black uppercase text-zinc-400 tracking-wider">${weekdayLabel}</span>
-                                    <span class="text-sm my-0.5">${conditionEmoji}</span>
-                                    <span class="text-[9px] font-black text-zinc-800 dark:text-zinc-200">${highTemp}° / <span class="text-zinc-400">${lowTemp}°</span></span>
-                                </div>
-                            `;
-                        }
-
-                        cardElement.innerHTML = `
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${loc.label}</span>
-                                <span class="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[200px] text-right">${headerTitleClean}</span>
-                            </div>
-                            <div class="grid grid-cols-5 gap-1.5 overflow-x-auto no-scrollbar">
-                                ${horizontalForecastHTML}
-                            </div>
-                        `;
-                        container.appendChild(cardElement);
-                    }
-                } catch (weatherErr) {
-                    console.error(weatherErr);
-                }
-            }
-        }
-
-        function saveActiveRouteCorridor() {
-            const startVal = document.getElementById('route-start').value.trim();
-            const endVal = document.getElementById('route-end').value.trim();
-            const currentMpg = document.getElementById('vehicle-mpg').value;
-            const currentDev = document.getElementById('route-radius-slider').value;
-
-            if (!startVal || !endVal) return;
-
-            const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
-                                        .map(input => input.value.trim())
-                                        .filter(val => val.length > 0);
-
-            const routePayload = {
-                id: 'route_' + Date.now(),
-                name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`,
-                start: startVal,
-                waypoints: waypointNodes,
-                end: endVal,
-                mpg: currentMpg,
-                radius: currentDev
+            window.spatialTileEngineMatrix = {
+                light: standardLightTiles,
+                dark: premiumDarkTiles
             };
 
-            savedRoutes.push(routePayload);
-            localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-            updateDirectoryTotalBadge();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
-            
-            if (window.innerWidth < 768) setMobileSidebarState('peek');
-            alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
-        }
-
-        function deleteSavedRouteCorridor(routeId, event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            savedRoutes = savedRoutes.filter(r => r.id !== routeId);
-            localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-            updateDirectoryTotalBadge();
-            renderDirectoryDropdown();
-        }
-
-        function loadSavedRouteCorridorDataIntoWorkspace(routeId) {
-            const matchedRoute = savedRoutes.find(r => r.id === routeId);
-            if (!matchedRoute) return;
-
-            switchWorkflowTabContext('route');
-            document.getElementById('route-start').value = matchedRoute.start;
-            document.getElementById('route-end').value = matchedRoute.end;
-            document.getElementById('vehicle-mpg').value = matchedRoute.mpg;
-            document.getElementById('route-radius-slider').value = matchedRoute.radius;
-            document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
-
-            const container = document.getElementById('dynamic-waypoints-container');
-            if (container) {
-                container.innerHTML = '';
-                if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) {
-                    matchedRoute.waypoints.forEach(wpStr => {
-                        addWaypointFieldInputRow(wpStr);
+            mappingMarkerClusterGroup = L.markerClusterGroup({
+                showCoverageOnHover: false,
+                maxClusterRadius: 45,
+                iconCreateFunction: function (cluster) {
+                    const childCount = cluster.getChildCount();
+                    return L.divIcon({
+                        html: `<div><span>${childCount}</span></div>`,
+                        className: 'custom-cluster',
+                        iconSize: L.point(36, 36)
                     });
+                }
+            });
+            geospatialMapEngineInstance.addLayer(mappingMarkerClusterGroup);
+
+            // Configure map event triggers
+            geospatialMapEngineInstance.on('moveend', () => {
+                if (applicationWorkspaceMode === 'explore') {
+                    const targetScanButton = document.getElementById('scan-area-btn');
+                    if (targetScanButton) targetScanButton.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('scan-area-btn')?.addEventListener('click', () => {
+                document.getElementById('scan-area-btn').classList.add('hidden');
+                executeViewportDataExtractionPipeline();
+            });
+
+            // Mirror sidebar navigation component tree dynamically for smooth cross-device UX compatibility
+            document.getElementById('mobile-sidebar-portal-destination').innerHTML = '';
+            const desktopControlViewContainer = document.querySelector('#sidebar-panel-container > div.flex-1');
+            if (desktopControlViewContainer) {
+                const clonedNodes = desktopControlViewContainer.cloneNode(true);
+                clonedNodes.classList.remove('px-4', 'pb-6');
+                document.getElementById('mobile-sidebar-portal-destination').appendChild(clonedNodes);
+            }
+            
+            synchronizeInteractiveEventBindings();
+            initializeWaypointReordering(); // Call UI Reordering initialization
+        }
+
+        // Apply Global System Dark Mode Changes to DOM
+        function applyThemeChangesToDOM() {
+            const isDark = document.documentElement.classList.contains('class') || document.documentElement.className.includes('dark');
+            if (window.spatialTileEngineMatrix) {
+                if (isDark) {
+                    geospatialMapEngineInstance.removeLayer(window.spatialTileEngineMatrix.light);
+                    window.spatialTileEngineMatrix.dark.addTo(geospatialMapEngineInstance);
                 } else {
-                    addWaypointFieldInputRow();
+                    geospatialMapEngineInstance.removeLayer(window.spatialTileEngineMatrix.dark);
+                    window.spatialTileEngineMatrix.light.addTo(geospatialMapEngineInstance);
                 }
             }
-
-            executeRouteGenerationPipeline();
-            document.getElementById('starred-dropdown-panel').classList.add('hidden');
         }
 
-        function clearCalculatedRouteLayers() {
-            if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
-            plottedRouteCoordinates = [];
-            cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
-            
-            document.getElementById('route-start').value = '';
-            document.getElementById('route-end').value = '';
-            document.getElementById('location-input').value = '';
-
-            const container = document.getElementById('dynamic-waypoints-container');
-            if (container) {
-                container.innerHTML = '';
-                addWaypointFieldInputRow();
-            }
-
-            document.getElementById('financial-card').classList.add('hidden');
-            document.getElementById('traffic-telemetry-node').classList.add('hidden');
-            document.getElementById('cheapest-ranking-block').classList.add('hidden');
-            document.getElementById('route-weather-module').classList.add('hidden');
-            refreshViewportViewFilter();
-        }
-
-        function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
-            const dLat = (lat2 - lat1) * 69.1;
-            const dLon = (lon2 - lon1) * 41.0; 
-            return Math.sqrt(dLat * dLat + dLon * dLon);
-        }
-
-        function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
-            let minimumTrackSeparationMiles = Infinity;
-            for (let i = 0; i < plottedRouteCoordinates.length; i++) {
-                const node = plottedRouteCoordinates[i];
-                const distanceEstimate = computeDistanceVectorMiles(node[0], node[1], pointLat, pointLon);
-                if (distanceEstimate < minimumTrackSeparationMiles) minimumTrackSeparationMiles = distanceEstimate;
-            }
-            return minimumTrackSeparationMiles;
-        }
-
-        document.getElementById('radius-slider')?.addEventListener('input', (e) => {
-            document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
-            refreshViewportViewFilter();
-        });
-        document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
-            document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
-        });
-        document.getElementById('fuel-type')?.addEventListener('change', () => {
-            initializeClusterLayerPipeline();
-            refreshViewportViewFilter();
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
-        });
-
-        document.addEventListener('click', (e) => {
-            const suggestionBoxes = document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]');
-            suggestionBoxes.forEach(box => {
-                if (!box.contains(e.target)) box.classList.add('hidden');
-            });
-        });
-
-        async function forceReloadRemotePipelineData() {
-            try {
-                const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
-                const data = await response.json();
-                
-                rawGlobalStationsPool = data.map(s => {
-                    const baseDiesel = parseFloat(s.B7);
-                    return {
-                        ...s,
-                        PremiumDiesel: (baseDiesel && !isNaN(baseDiesel)) ? (baseDiesel + 14.2).toFixed(1) : null
-                    };
-                });
-                
-                const liveClock = new Date();
-                document.getElementById('live-timestamp-label').innerHTML = `Live Matrix Sync: ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                
-                refreshViewportViewFilter();
-            } catch (error) {
-                console.error(error);
-                document.getElementById('live-timestamp-label').textContent = "Offline Data Buffer Frame";
-            }
-        }
-
-        function focusAndHighlightMapMarker(lat, lon) {
-            if (isNaN(lat) || isNaN(lon)) return;
-            map.setView([lat, lon], 14, { animate: true, duration: 0.5 });
-            
-            const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) ||
-                                   rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
-            
-            if (selectedStation) {
-                setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 300);
-            }
-        }
-
-        function refreshViewportViewFilter(routeDistanceContext = null) {
-            if (!rawGlobalStationsPool?.length) return;
-            const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
-            const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
-            const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
-            
-            let dynamicBoundedStations = [];
-
-            if (activeTabContext === 'local' || plottedRouteCoordinates.length === 0) {
-                dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetLocalRadiusThreshold);
-            } else {
-                dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetCorridorRadiusThreshold);
-            }
-
-            currentlyVisibleStations = dynamicBoundedStations;
-            paintMarkerCanvasLayersToMap(dynamicBoundedStations.slice(0, 250), chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
-            generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
-        }
-
-        function generateCheapestRankingListDeck(pool, fuelVariant) {
-            const block = document.getElementById('cheapest-ranking-block');
-            const container = document.getElementById('cheapest-cards-stack');
-            const blockTitle = document.getElementById('ranking-block-title');
-            if (!block || !container) return;
-
-            const validPool = pool.filter(s => s[fuelVariant] && !isNaN(parseFloat(s[fuelVariant])) && parseFloat(s[fuelVariant]) > 0);
-            if (validPool.length === 0) { block.classList.add('hidden'); return; }
-
-            container.innerHTML = '';
-
-            if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
-                blockTitle.textContent = "Top 3 Cheapest Forecourts Per Planned Location Node";
-                
-                const milestoneLocationsList = [];
-                milestoneLocationsList.push({ label: "Origin", node: cachedGeocodedWaypoints.start });
-                
-                Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-                    milestoneLocationsList.push({ label: `Stopover Waypoint`, node: cachedGeocodedWaypoints.vids[key] });
-                });
-                
-                milestoneLocationsList.push({ label: "Terminal Destination", node: cachedGeocodedWaypoints.end });
-
-                milestoneLocationsList.forEach(milestone => {
-                    let rawMilestonePool = validPool.map(station => {
-                        let distanceToNode = computeDistanceVectorMiles(milestone.node.lat, milestone.node.lon, parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
-                        return { station, distanceToNode };
+        // Global Event Re-Binding Function to attach listeners to active responsive views
+        function synchronizeInteractiveEventBindings() {
+            document.querySelectorAll('.fuel-pill-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const selectedGrade = e.target.getAttribute('data-fuel-type');
+                    document.querySelectorAll('.fuel-pill-btn').forEach(b => {
+                        b.classList.remove('active', 'border-blue-500', 'bg-blue-50', 'dark:bg-blue-950/40', 'text-blue-600', 'dark:text-blue-400');
+                        b.classList.add('border-zinc-200', 'dark:border-zinc-800');
+                        if (b.getAttribute('data-fuel-type') === selectedGrade) {
+                            b.classList.add('active', 'border-blue-500', 'bg-blue-50', 'dark:bg-blue-950/40', 'text-blue-600', 'dark:text-blue-400');
+                            b.classList.remove('border-zinc-200', 'dark:border-zinc-800');
+                        }
                     });
-
-                    rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
-                    rawMilestonePool.sort((a, b) => parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]));
-
-                    let slicedTopThree = rawMilestonePool.slice(0, 3);
-                    if (slicedTopThree.length > 0) {
-                        const subGroupWrapper = document.createElement('div');
-                        subGroupWrapper.className = "space-y-1.5 p-2 bg-zinc-50/70 dark:bg-zinc-900/40 rounded-xl border border-zinc-100 dark:border-zinc-800/60";
-                        
-                        const subGroupHeader = document.createElement('div');
-                        subGroupHeader.className = "flex justify-between items-center px-1 text-[9px] font-black tracking-tight text-zinc-400 dark:text-zinc-500 uppercase";
-                        subGroupHeader.innerHTML = `<span>📍 ${milestone.label}: <span class="text-zinc-700 dark:text-zinc-300 font-black">${milestone.node.name.split(',')[0]}</span></span>`;
-                        subGroupWrapper.appendChild(subGroupHeader);
-
-                        slicedTopThree.forEach((item, idx) => {
-                            const station = item.station;
-                            const lat = parseFloat(station.latitude || station.lat);
-                            const lon = parseFloat(station.longitude || station.lng);
-                            const val = parseFloat(station[fuelVariant]).toFixed(1);
-
-                            const card = document.createElement('div');
-                            card.className = "flex items-center justify-between p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg hover:border-emerald-500 transition shadow-xs cursor-pointer";
-                            card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-                            card.innerHTML = `
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
-                                    <div class="min-w-0">
-                                        <div class="text-xs font-bold text-zinc-900 dark:text-white truncate">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                                        <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-600">${item.distanceToNode.toFixed(1)} mi away</span></div>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
-                            `;
-                            subGroupWrapper.appendChild(card);
-                        });
-                        container.appendChild(subGroupWrapper);
-                    }
+                    activelySelectedFuelGradeFilter = selectedGrade;
+                    processActiveDatasetPresentation();
                 });
-            } else {
-                blockTitle.textContent = "Cheapest Forecourts within Boundary Scope";
-                validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
+            });
+
+            // Route execution listener hook
+            document.querySelectorAll('#btn-trigger-pipeline-routing').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    executeOptimalRouteCalculationPipeline();
+                });
+            });
+
+            // Appending Interim Stop Node
+            document.querySelectorAll('#btn-append-interim-node').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    appendNewInterimWaypointNode();
+                });
+            });
+
+            // Sync Slider text values
+            document.querySelectorAll('#slider-search-radius').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    document.querySelectorAll('#slider-search-radius').forEach(s => s.value = e.target.value);
+                    document.querySelectorAll('#label-radius-val').forEach(lbl => lbl.innerText = `${e.target.value} miles`);
+                });
+            });
+
+            document.querySelectorAll('#slider-corridor-radius').forEach(slider => {
+                slider.addEventListener('input', (e) => {
+                    document.querySelectorAll('#slider-corridor-radius').forEach(s => s.value = e.target.value);
+                    document.querySelectorAll('#label-corridor-radius-val').forEach(lbl => lbl.innerText = `${e.target.value} miles`);
+                });
+            });
+
+            // Configuration for Navigation Tab Controllers
+            const exploreTabClick = () => {
+                applicationWorkspaceMode = 'explore';
+                document.querySelectorAll('#tab-explore-mode').forEach(t => {
+                    t.className = 'flex-1 py-1.5 px-3 text-xs font-semibold rounded-md bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm transition-all';
+                });
+                document.querySelectorAll('#tab-routing-mode').forEach(t => {
+                    t.className = 'flex-1 py-1.5 px-3 text-xs font-medium text-zinc-500 dark:text-zinc-400 rounded-md hover:text-zinc-800 dark:hover:text-zinc-200 transition-all';
+                });
+                document.querySelectorAll('#view-block-explore').forEach(v => v.classList.remove('hidden'));
+                document.querySelectorAll('#view-block-routing').forEach(v => v.classList.add('hidden'));
                 
-                validPool.slice(0, 3).forEach((station, idx) => {
-                    const lat = parseFloat(station.latitude || station.lat);
-                    const lon = parseFloat(station.longitude || station.lng);
-                    const val = parseFloat(station[fuelVariant]).toFixed(1);
+                if (routingOverlayPolylineInstance) {
+                    geospatialMapEngineInstance.removeLayer(routingOverlayPolylineInstance);
+                    routingOverlayPolylineInstance = null;
+                }
+                document.getElementById('scan-area-btn')?.classList.remove('hidden');
+                processActiveDatasetPresentation();
+            };
+
+            const routingTabClick = () => {
+                applicationWorkspaceMode = 'route';
+                document.querySelectorAll('#tab-routing-mode').forEach(t => {
+                    t.className = 'flex-1 py-1.5 px-3 text-xs font-semibold rounded-md bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm transition-all';
+                });
+                document.querySelectorAll('#tab-explore-mode').forEach(t => {
+                    t.className = 'flex-1 py-1.5 px-3 text-xs font-medium text-zinc-500 dark:text-zinc-400 rounded-md hover:text-zinc-800 dark:hover:text-zinc-200 transition-all';
+                });
+                document.querySelectorAll('#view-block-explore').forEach(v => v.classList.add('hidden'));
+                document.querySelectorAll('#view-block-routing').forEach(v => v.classList.remove('hidden'));
+                document.getElementById('scan-area-btn')?.classList.add('hidden');
+            };
+
+            document.querySelectorAll('#tab-explore-mode').forEach(t => t.addEventListener('click', exploreTabClick));
+            document.querySelectorAll('#tab-routing-mode').forEach(t => t.addEventListener('click', routingTabClick));
+        }
+
+        // BEST UX UPDATE: Advanced Vanilla HTML5 Drag & Drop Reordering Engine with visual state handlers
+        function initializeWaypointReordering() {
+            const configureContainerReorder = (container) => {
+                if (!container) return;
+                let activeDraggedElement = null;
+
+                container.addEventListener('dragstart', (e) => {
+                    const rowTarget = e.target.closest('.draggable-waypoint-row');
+                    if (!rowTarget) return;
+
+                    // Ensure dragging is initiated through the dedicated handle to maintain normal text-input interactivity
+                    if (!e.target.closest('.waypoint-drag-handle')) {
+                        e.preventDefault();
+                        return;
+                    }
+
+                    activeDraggedElement = rowTarget;
+                    // Add micro-delay to prevent the ghost preview layout from detaching styles
+                    setTimeout(() => {
+                        rowTarget.classList.add('waypoint-dragging');
+                    }, 0);
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                container.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const currentHoveredRow = e.target.closest('.draggable-waypoint-row');
+                    if (!currentHoveredRow || currentHoveredRow === activeDraggedElement) return;
+
+                    const rowBoundingRect = currentHoveredRow.getBoundingClientRect();
+                    const midYOffset = rowBoundingRect.top + (rowBoundingRect.height / 2);
                     
-                    const card = document.createElement('div');
-                    card.className = "flex items-center justify-between p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition shadow-sm cursor-pointer";
-                    card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-                    card.innerHTML = `
-                        <div class="flex items-center gap-2 min-w-0">
-                            <div class="w-5 h-5 rounded-md bg-emerald-500/10 text-[9px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
-                            <div class="min-w-0">
-                                <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                                <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
-                            </div>
-                        </div>
-                        <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
-                    `;
-                    container.appendChild(card);
-                });
-            }
-            block.classList.remove('hidden');
-        }
-
-        function assignPricingTierColorStyles(valueRaw, variantKey) {
-            const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
-            if (!valueRaw) return fallbackClasses;
-            const numericVal = parseFloat(valueRaw);
-            if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
-
-            const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
-            if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-blue-400";
-
-            const min = Math.min(...referencePool);
-            const delta = Math.max(...referencePool) - min;
-            if (delta <= 0) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-600";
-
-            const step = delta / 3;
-            if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold";
-            if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
-            return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
-        }
-
-        function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
-            if(!markerClusterGroupInstance) return;
-            markerClusterGroupInstance.clearLayers();
-            
-            const pricesArray = stationsList.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
-            const minPrice = Math.min(...pricesArray) || 0;
-
-            const finCard = document.getElementById('financial-card');
-            if (finCard && pricesArray.length > 0) {
-                finCard.classList.remove('hidden');
-                if (activeTabContext === 'route' && routeDistanceContext) {
-                    const totalTripPriceCostPounds = ((routeDistanceContext / parseFloat(document.getElementById('vehicle-mpg').value || 45)) * 4.54609 * minPrice) / 100;
-                    document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
-                    document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
-                } else {
-                    document.getElementById('summary-distance').textContent = `Radial Low`;
-                    document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
-                }
-            }
-
-            stationsList.forEach((station) => {
-                const numericPrice = parseFloat(station[variant]);
-                if (!numericPrice) return;
-                
-                let tierBgClassColor = 'bg-fuel-blue';
-                const pricesArrayZone = currentlyVisibleStations.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
-                const zoneMin = Math.min(...pricesArrayZone);
-                const zoneSpread = Math.max(...pricesArrayZone) - zoneMin;
-
-                if (zoneSpread > 0) {
-                    const step = zoneSpread / 3;
-                    if (numericPrice <= (zoneMin + step)) tierBgClassColor = 'bg-fuel-green';
-                    else if (numericPrice <= (zoneMin + (step * 2))) tierBgClassColor = 'bg-fuel-blue';
-                    else tierBgClassColor = 'bg-fuel-red';
-                }
-
-                const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
-                    stationRawData: station,
-                    icon: L.divIcon({
-                        html: `<div class="fuel-marker-bubble ${tierBgClassColor}"><span>${numericPrice.toFixed(1)}p</span></div>`,
-                        className: 'leaflet-div-icon-reset', iconSize: [75, 28], iconAnchor: [37, 14]
-                    })
-                });
-                
-                markerInstance.on('click', (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    openForecourtDetailSheet(station);
-                });
-                markerClusterGroupInstance.addLayer(markerInstance);
-            });
-
-            if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Forecourts: ${fallbackTotalCount}`;
-        }
-
-        function dismissFinancialDashboardBox(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            document.getElementById('financial-card').classList.add('hidden');
-        }
-
-        function toggleCurrentStationStar(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            if (!activeSheetStation) return;
-            const stationKey = getStationUniqueSignature(activeSheetStation);
-            const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
-
-            if (matchingIndex > -1) starredStations.splice(matchingIndex, 1);
-            else starredStations.push(activeSheetStation);
-
-            localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
-            updateDirectoryTotalBadge();
-            updateAllStarUIStates();
-        }
-
-        function updateAllStarUIStates() {
-            if (!activeSheetStation) return;
-            const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
-            
-            const sheetBtn = document.getElementById('sheet-star-btn');
-            if (sheetBtn) {
-                sheetBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
-                sheetBtn.className = isStarred 
-                    ? "p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8"
-                    : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
-            }
-
-            if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
-        }
-
-        function toggleStarredDropdownDashboardPanel(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const panel = document.getElementById('starred-dropdown-panel');
-            if (!panel) return;
-            
-            if (panel.classList.contains('hidden')) { 
-                closeForecourtDetailSheet();
-                panel.classList.remove('hidden'); 
-                renderDirectoryDropdown(); 
-            } else { 
-                panel.classList.add('hidden'); 
-            }
-        }
-
-        function renderDirectoryDropdown() {
-            const container = document.getElementById('starred-list-container');
-            if (!container) return;
-
-            if (activeDirectoryTab === 'stations') {
-                if (starredStations.length === 0) {
-                    container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
-                    return;
-                }
-                container.innerHTML = '';
-                starredStations.forEach(station => {
-                    const cardRow = document.createElement('div');
-                    cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
-                    cardRow.onclick = (event) => {
-                        event.stopPropagation();
-                        focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
-                        if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
-                    };
-
-                    cardRow.innerHTML = `
-                        <div class="min-w-0">
-                            <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                            <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-1 pt-0.5">
-                            <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
-                            <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
-                        </div>`;
-                    container.appendChild(cardRow);
-                });
-            } else {
-                if (savedRoutes.length === 0) {
-                    container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No custom routes found.</div>`;
-                    return;
-                }
-                container.innerHTML = '';
-                savedRoutes.forEach(route => {
-                    const cardRow = document.createElement('div');
-                    cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-blue-500 transition cursor-pointer active:scale-[0.99] shadow-sm flex items-center justify-between gap-2";
-                    cardRow.onclick = (event) => {
-                        event.stopPropagation();
-                        loadSavedRouteCorridorDataIntoWorkspace(route.id);
-                        if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
-                    };
-
-                    cardRow.innerHTML = `
-                        <div class="min-w-0 flex-1">
-                            <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
-                            <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
-                        </div>
-                        <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition" title="Delete Saved Corridor">
-                            ✕
-                        </button>
-                    `;
-                    container.appendChild(cardRow);
-                });
-            }
-        }
-
-        function openForecourtDetailSheet(stationData) {
-            const sheet = document.getElementById('global-detail-sheet');
-            if (!sheet) return;
-
-            document.getElementById('starred-dropdown-panel').classList.add('hidden');
-            activeSheetStation = stationData;
-
-            document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
-            document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
-
-            document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-            document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-            document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
-            document.getElementById('card-wrap-premiumdiesel').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
-
-            document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
-            document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
-            document.getElementById('sheet-price-b7').textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
-            document.getElementById('sheet-price-premiumdiesel').textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
-
-            updateAllStarUIStates();
-            sheet.classList.remove('hidden');
-
-            if (window.innerWidth < 768) {
-                setMobileSheetUIState('full'); 
-            } else {
-                sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
-            }
-        }
-
-        function closeForecourtDetailSheet(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            const sheet = document.getElementById('global-detail-sheet');
-            if (!sheet) return;
-            
-            if (window.innerWidth < 768) {
-                setMobileSheetUIState('hidden');
-            } else {
-                sheet.classList.add('hidden');
-            }
-            activeSheetStation = null;
-        }
-
-        function getStationUniqueSignature(s) {
-            if (!s) return '';
-            return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
-        }
-
-        function triggerExternalMappingVectorRoute(event) {
-            if(event) { event.stopPropagation(); event.preventDefault(); }
-            if (!activeSheetStation) return;
-            const lat = activeSheetStation.latitude || activeSheetStation.lat;
-            const lon = activeSheetStation.longitude || activeSheetStation.lng;
-            window.open(`https://maps.google.com/?q=${lat},${lon}`, '_blank');
-        }
-
-        function setMobileSidebarState(stateStr) {
-            currentMobileSidebarUIState = stateStr;
-            const sidebar = document.getElementById('primary-control-sidebar');
-            if (!sidebar) return;
-            
-            sidebar.className = sidebar.className.replace(/\bdrawer-\w+/g, '');
-            sidebar.classList.add(`drawer-${stateStr}`);
-        }
-
-        function setMobileSheetUIState(stateStr) {
-            currentMobileSheetUIState = stateStr;
-            const sheet = document.getElementById('global-detail-sheet');
-            if (!sheet) return;
-            
-            sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
-            if (stateStr === 'hidden') {
-                sheet.classList.add('hidden');
-            } else {
-                sheet.classList.remove('hidden');
-                sheet.classList.add(`drawer-${stateStr}`);
-            }
-        }
-
-        function initializeClickIsolationBubbling() {
-            const structuralIDs = ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar'];
-            structuralIDs.forEach(id => {
-                const node = document.getElementById(id);
-                if (node) {
-                    node.addEventListener('click', (e) => { e.stopPropagation(); });
-                    node.addEventListener('dblclick', (e) => { e.stopPropagation(); });
-                }
-            });
-        }
-
-        function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModificationCallback) {
-            const targetHandle = document.getElementById(handleId);
-            if (!targetHandle) return;
-
-            let touchBaseY = 0;
-            let touchCurrentY = 0;
-            let touchStartTime = 0;
-
-            targetHandle.addEventListener('touchstart', (e) => {
-                touchBaseY = e.touches[0].clientY;
-                touchStartTime = Date.now();
-            }, { passive: true });
-
-            targetHandle.addEventListener('touchmove', (e) => {
-                touchCurrentY = e.touches[0].clientY;
-            }, { passive: true });
-
-            targetHandle.addEventListener('touchend', () => {
-                const trackDeltaY = touchBaseY - touchCurrentY;
-                const timeframeDuration = Date.now() - touchStartTime;
-                
-                if (Math.abs(trackDeltaY) < 35) return; 
-
-                const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
-                let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
-
-                if (trackDeltaY > 35) {
-                    if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
-                        stateModificationCallback('full');
+                    if (e.clientY > midYOffset) {
+                        currentHoveredRow.after(activeDraggedElement);
                     } else {
-                        if (currentActiveState === 'peek') stateModificationCallback('mid');
-                        else if (currentActiveState === 'mid') stateModificationCallback('full');
+                        currentHoveredRow.before(activeDraggedElement);
                     }
-                } else if (trackDeltaY < -35) {
-                    if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
-                        if (elementId === 'sidebar') stateModificationCallback('peek');
-                        else stateModificationCallback('hidden');
-                    } else {
-                        if (currentActiveState === 'full') stateModificationCallback('mid');
-                        else if (currentActiveState === 'mid') {
-                            if (elementId === 'sidebar') stateModificationCallback('peek');
-                            else stateModificationCallback('hidden');
+                });
+
+                container.addEventListener('dragenter', (e) => {
+                    const targetRow = e.target.closest('.draggable-waypoint-row');
+                    if (targetRow && targetRow !== activeDraggedElement) {
+                        targetRow.classList.add('waypoint-drag-over');
+                    }
+                });
+
+                container.addEventListener('dragleave', (e) => {
+                    const targetRow = e.target.closest('.draggable-waypoint-row');
+                    if (targetRow) {
+                        targetRow.classList.remove('waypoint-drag-over');
+                    }
+                });
+
+                container.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                });
+
+                container.addEventListener('dragend', () => {
+                    if (activeDraggedElement) {
+                        activeDraggedElement.classList.remove('waypoint-dragging');
+                        // Clean up hanging border classes across siblings
+                        container.querySelectorAll('.draggable-waypoint-row').forEach(row => {
+                            row.classList.remove('waypoint-drag-over');
+                        });
+                        activeDraggedElement = null;
+                        
+                        // Production Action Hook: Sync changes across device mirrors, rebuild waypoint arrays, recalculate routes
+                        rebuildWaypointDataStructuresFromDOM();
+                    }
+                });
+            };
+
+            // Bind to primary sidebar view context
+            configureContainerReorder(document.getElementById('interim-stops-container'));
+            
+            // Watch for mobile portal dynamic injections and bind to mirror nodes
+            const observer = new MutationObserver(() => {
+                const mobileContainer = document.querySelector('#mobile-sidebar-portal-destination #interim-stops-container');
+                if (mobileContainer && !mobileContainer.hasAttribute('data-drag-bound')) {
+                    mobileContainer.setAttribute('data-drag-bound', 'true');
+                    configureContainerReorder(mobileContainer);
+                }
+            });
+            
+            const targetPortal = document.getElementById('mobile-sidebar-portal-destination');
+            if (targetPortal) {
+                observer.observe(targetPortal, { childList: true, subtree: true });
+            }
+        }
+
+        // Rebuilds underlying routing structures using DOM sequence tracking after visual sorting updates
+        function rebuildWaypointDataStructuresFromDOM() {
+            // Find the active container context (Desktop vs Mobile Mirror Portal)
+            let dynamicActiveContainer = document.getElementById('interim-stops-container');
+            const mobileClonedContainer = document.querySelector('#mobile-sidebar-portal-destination #interim-stops-container');
+            
+            // If mobile view portal contains elements, mirror extraction updates from there
+            if (mobileClonedContainer && mobileClonedContainer.children.length > 0) {
+                dynamicActiveContainer = mobileClonedContainer;
+            }
+
+            const inputRows = dynamicActiveContainer.querySelectorAll('.draggable-waypoint-row');
+            const structuralRecompiledList = [];
+
+            inputRows.forEach(row => {
+                const uniqueNodeId = row.getAttribute('data-waypoint-id');
+                const inputValueString = row.querySelector('input')?.value || '';
+                structuralRecompiledList.push({
+                    id: uniqueNodeId,
+                    value: inputValueString
+                });
+            });
+
+            interimStopWaypointsList = structuralRecompiledList;
+            
+            // Mirror internal structural updates smoothly to alternative view layouts
+            synchronizeInterimStopLayoutsAcrossPortals();
+
+            // Re-trigger optimal execution routing if route tracking fields are populated
+            const startStr = document.querySelector('#route-start-input')?.value;
+            const endStr = document.querySelector('#route-end-input')?.value;
+            if (startStr || endStr) {
+                executeOptimalRouteCalculationPipeline();
+            }
+        }
+
+        // Synchronize state structures smoothly across desktop layout views and cloned mobile portals
+        function synchronizeInterimStopLayoutsAcrossPortals() {
+            const generateHTMLTemplateContent = (listToRender) => {
+                return listToRender.map(node => `
+                    <div class="draggable-waypoint-row flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all duration-200" draggable="true" data-waypoint-id="${node.id}">
+                        <div class="waypoint-drag-handle cursor-grab active:cursor-grabbing p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4 3.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-8 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-8 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text" value="${node.value}" placeholder="Enter intermediate stop..." class="waypoint-input-node flex-1 bg-transparent border-none focus:ring-0 text-xs text-zinc-800 dark:text-zinc-100 outline-none placeholder-zinc-400" data-target-node-id="${node.id}">
+                        <button type="button" class="btn-remove-waypoint p-1 text-zinc-400 hover:text-rose-500 transition-colors" data-remove-node-id="${node.id}">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                `).join('');
+            };
+
+            const compiledMarkupCode = generateHTMLTemplateContent(interimStopWaypointsList);
+            
+            // Sync structural targets across layouts
+            const baseContainer = document.getElementById('interim-stops-container');
+            const portalClonedContainer = document.querySelector('#mobile-sidebar-portal-destination #interim-stops-container');
+            
+            if (baseContainer) baseContainer.innerHTML = compiledMarkupCode;
+            if (portalClonedContainer) portalClonedContainer.innerHTML = compiledMarkupCode;
+
+            // Re-bind change listeners and removal click sequences across elements
+            document.querySelectorAll('.waypoint-input-node').forEach(inputField => {
+                inputField.addEventListener('change', (e) => {
+                    const uniqueId = e.target.getAttribute('data-target-node-id');
+                    const val = e.target.value;
+                    const item = interimStopWaypointsList.find(node => node.id === uniqueId);
+                    if (item) item.value = val;
+                    
+                    // Keep complementary viewport inputs perfectly matched
+                    document.querySelectorAll(`.waypoint-input-node[data-target-node-id="${uniqueId}"]`).forEach(f => {
+                        if (f !== e.target) f.value = val;
+                    });
+                });
+            });
+
+            document.querySelectorAll('.btn-remove-waypoint').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetId = e.currentTarget.getAttribute('data-remove-node-id');
+                    interimStopWaypointsList = interimStopWaypointsList.filter(node => node.id !== targetId);
+                    synchronizeInterimStopLayoutsAcrossPortals();
+                });
+            });
+        }
+
+        // Append a new dynamic routing waypoint row node to the stack
+        function appendNewInterimWaypointNode() {
+            const internalUniqueKey = 'node_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            interimStopWaypointsList.push({
+                id: internalUniqueKey,
+                value: ''
+            });
+            synchronizeInterimStopLayoutsAcrossPortals();
+        }
+
+        // Location Autocomplete Configuration Event Logic Listener Configuration
+        function setupAutocompleteListeners() {
+            const bindQuerySearchAutocomplete = (inputId) => {
+                const targetNodeInput = document.getElementById(inputId);
+                if (!targetNodeInput) return;
+
+                targetNodeInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const parsedQueryValue = targetNodeInput.value.trim().toLowerCase();
+                        if (postalCoordinateCacheMap[parsedQueryValue]) {
+                            const cachedTargetCoord = postalCoordinateCacheMap[parsedQueryValue];
+                            geospatialMapEngineInstance.setView(cachedTargetCoord, 13);
+                            executeViewportDataExtractionPipeline();
                         }
                     }
-                }
+                });
+            };
+
+            bindQuerySearchAutocomplete('explore-search-input');
+            bindQuerySearchAutocomplete('route-start-input');
+            bindQuerySearchAutocomplete('route-end-input');
+
+            // Wire up a mutation tracking function layer to catch runtime additions injected inside responsive panels
+            const targetPortalObserver = new MutationObserver(() => {
+                bindQuerySearchAutocomplete('mobile-sidebar-portal-destination #explore-search-input');
+                bindQuerySearchAutocomplete('mobile-sidebar-portal-destination #route-start-input');
+                bindQuerySearchAutocomplete('mobile-sidebar-portal-destination #route-end-input');
             });
+
+            const mobileDestinationPortalNode = document.getElementById('mobile-sidebar-portal-destination');
+            if (mobileDestinationPortalNode) {
+                targetPortalObserver.observe(mobileDestinationPortalNode, { childList: true, subtree: true });
+            }
         }
 
-        function initializeGestureTrackEngine() {
+        // Asynchronous Pipeline Logic: Fetch/Extract dataset info mapped over active viewport coordinates
+        function executeViewportDataExtractionPipeline() {
+            const currentShieldOverlay = document.getElementById('async-pipeline-loading-shield');
+            if (currentShieldOverlay) currentShieldOverlay.classList.set = 'flex';
+            currentShieldOverlay?.classList.remove('hidden');
+
+            // Model synthetic latency pipeline generation to emulate standard remote query structures
+            setTimeout(() => {
+                const viewportBoundsCenter = geospatialMapEngineInstance.getCenter();
+                globalSpatialFuelDataset = generateSyntheticFuelIntelligencePipelineData(viewportBoundsCenter.lat, viewportBoundsCenter.lng);
+                
+                processActiveDatasetPresentation();
+                currentShieldOverlay?.classList.add('hidden');
+            }, 400);
+        }
+
+        // Formulates synthetic mock data for the dashboard presentation pipeline
+        function generateSyntheticFuelIntelligencePipelineData(pivotLat, pivotLng) {
+            const syntheticPayloadList = [];
+            const structuralBrandKeys = Object.keys(brandMatrixMappingRef);
+            const geographicalSiteNameIndexTokens = ['Services', 'Express', 'Fuel Hub', 'Forecourt', 'Connect', 'Station'];
+
+            for (let indexValue = 0; indexValue < 45; indexValue++) {
+                const localizedLatitudeOffset = pivotLat + (Math.random() - 0.5) * 0.08;
+                const localizedLongitudeOffset = pivotLng + (Math.random() - 0.5) * 0.12;
+                const randomBrandKey = structuralBrandKeys[Math.floor(Math.random() * structuralBrandKeys.length)];
+                const resolvedBrandObj = brandMatrixMappingRef[randomBrandKey];
+                const resolvedSiteTitle = resolvedBrandObj.title + ' ' + geographicalSiteNameIndexTokens[Math.floor(Math.random() * geographicalSiteNameIndexTokens.length)];
+
+                // Synthesize fuel grade pricing profiles in pence parameters
+                const petrolE10BasePrice = 136.9 + (Math.random() * 14.0);
+                const dieselB7BasePrice = 141.9 + (Math.random() * 12.0);
+
+                syntheticPayloadList.push({
+                    id: 'station_index_id_' + indexValue + '_' + Math.floor(Math.random() * 10000),
+                    siteName: resolvedSiteTitle,
+                    brandNetwork: randomBrandKey,
+                    classification: resolvedBrandObj.type,
+                    latitude: localizedLatitudeOffset,
+                    longitude: localizedLongitudeOffset,
+                    prices: {
+                        'E10': parseFloat(petrolE10BasePrice.toFixed(1)),
+                        'B7': parseFloat(dieselB7BasePrice.toFixed(1)),
+                        'E5': parseFloat((petrolE10BasePrice + 8.5).toFixed(1)),
+                        'SDV': parseFloat((dieselB7BasePrice + 9.0).toFixed(1))
+                    },
+                    address: `A${Math.floor(Math.random() * 900) + 1} Corridor, Core Sector Location, UK`,
+                    lastUpdated: `${Math.floor(Math.random() * 22) + 1} hours ago`
+                });
+            }
+            return syntheticPayloadList;
+        }
+
+        // Processes presentation logic pipelines across the rendering layers
+        function processActiveDatasetPresentation() {
+            mappingMarkerClusterGroup.clearLayers();
+            persistentGeocodedMarkerArray.forEach(m => geospatialMapEngineInstance.removeLayer(m));
+            persistentGeocodedMarkerArray = [];
+
+            if (globalSpatialFuelDataset.length === 0) return;
+
+            // Extract checkbox configurations mapped over live views
+            const userSelectedBrandsList = Array.from(document.querySelectorAll('.tracking-brand:checked')).map(el => el.value);
+            const filtersIncludeAllNetworks = userSelectedBrandsList.includes('ALL');
+
+            const filteredDataSubSetList = globalSpatialFuelDataset.filter(stationNode => {
+                if (!filtersIncludeAllNetworks && !userSelectedBrandsList.includes(stationNode.brandNetwork)) {
+                    return false;
+                }
+                return !!stationNode.prices[activelySelectedFuelGradeFilter];
+            });
+
+            // Re-compile metric indicators
+            let cumulativePriceSum = 0;
+            let lowestObservedPrice = Infinity;
+            let highestObservedPrice = -Infinity;
+
+            filteredDataSubSetList.forEach(station => {
+                const operationalFuelPriceVal = station.prices[activelySelectedFuelGradeFilter];
+                cumulativePriceSum += operationalFuelPriceVal;
+                if (operationalFuelPriceVal < lowestObservedPrice) lowestObservedPrice = operationalFuelPriceVal;
+                if (operationalFuelPriceVal > highestObservedPrice) highestObservedPrice = operationalFuelPriceVal;
+
+                // Configure dynamic pin layout formatting elements
+                const computedCustomMarkerPin = L.marker([station.latitude, station.longitude], {
+                    icon: L.divIcon({
+                        html: `
+                            <div class="flex flex-col items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-2 py-1 rounded-md shadow-md font-bold text-xs transition-transform hover:scale-105">
+                                <span class="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium leading-none">${station.brandNetwork}</span>
+                                <span class="text-zinc-800 dark:text-zinc-100 mt-0.5 leading-none">${operationalFuelPriceVal}p</span>
+                            </div>
+                        `,
+                        className: 'custom-station-div-pin',
+                        iconSize: [52, 34],
+                        iconAnchor: [26, 17]
+                    })
+                });
+
+                computedCustomMarkerPin.on('click', () => {
+                    presentSelectedStationInspectorProfileHUD(station);
+                });
+
+                mappingMarkerClusterGroup.addLayer(computedCustomMarkerPin);
+            });
+
+            // Formulate fallback data models if subsets parse to 0
+            const finalComputedAveragePrice = filteredDataSubSetList.length > 0 ? (cumulativePriceSum / filteredDataSubSetList.length).toFixed(1) : '0.0';
+            const resolvedLowestPriceDisplay = lowestObservedPrice !== Infinity ? `${lowestObservedPrice.toFixed(1)}p` : '0.0p';
+            const resolvedHighestPriceDisplay = highestObservedPrice !== -Infinity ? `${highestObservedPrice.toFixed(1)}p` : '0.0p';
+
+            // Populate text parameters fluidly across layout view matrices
+            document.querySelectorAll('#metric-stations-count').forEach(el => el.innerText = filteredDataSubSetList.length);
+            document.querySelectorAll('#metric-avg-price').forEach(el => el.innerText = `${finalComputedAveragePrice}p`);
+            document.querySelectorAll('#metric-min-price').forEach(el => el.innerText = resolvedLowestPriceDisplay);
+            document.querySelectorAll('#metric-max-price').forEach(el => el.innerText = resolvedHighestPriceDisplay);
+        }
+
+        // Present analytical inspector details card view profile matching selected node references
+        function presentSelectedStationInspectorProfileHUD(stationRef) {
+            const activeSelectedPriceNum = stationRef.prices[activelySelectedFuelGradeFilter];
+
+            const structuralHTMLMarkupPayload = `
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-700/60">${stationRef.classification} Network</span>
+                            <span class="text-xs text-zinc-400">${stationRef.lastUpdated}</span>
+                        </div>
+                        <h3 class="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mt-1">${stationRef.siteName}</h3>
+                        <p class="text-xs text-zinc-500 mt-0.5">${stationRef.address}</p>
+                    </div>
+
+                    <div class="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-semibold text-blue-600 dark:text-blue-400">Selected Grade (${activelySelectedFuelGradeFilter})</div>
+                            <div class="text-[10px] text-zinc-400 mt-0.5">Verified dynamic pricing data stream</div>
+                        </div>
+                        <div class="text-3xl font-black tracking-tight text-blue-600 dark:text-blue-400">${activeSelectedPriceNum}<span class="text-sm font-bold">p</span></div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Alternative Fuel Rates Matrix</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${Object.entries(stationRef.prices).map(([grade, price]) => {
+                                const indexMatchingFlag = grade === activelySelectedFuelGradeFilter;
+                                return `
+                                    <div class="p-2 rounded-lg border ${indexMatchingFlag ? 'border-blue-400 bg-white dark:bg-zinc-900' : 'border-zinc-100 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-950/40'} flex items-center justify-between">
+                                        <span class="text-xs font-bold ${indexMatchingFlag ? 'text-blue-500' : 'text-zinc-500'}">${grade}</span>
+                                        <span class="text-xs font-semibold tracking-tight ${indexMatchingFlag ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}">${price}p</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <div class="flex justify-between items-center text-xs mb-1.5">
+                            <span class="font-medium text-zinc-500">Corridor Market Deviation</span>
+                            <span class="font-bold text-emerald-500">-2.4p below localized standard</span>
+                        </div>
+                        <div class="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden flex">
+                            <div class="bg-emerald-500 h-full w-2/3 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Inject structural layout payload matching responsive client frames
+            if (window.innerWidth < 768) {
+                document.getElementById('mobile-detail-portal-destination').innerHTML = structuralHTMLMarkupPayload;
+                setMobileDetailInspectorSheetUIState('mid');
+            } else {
+                const hudCardContainerNode = document.getElementById('desktop-station-inspector-hud');
+                const hudScrollBoxTarget = document.getElementById('desktop-hud-content-scroll-box');
+                
+                if (hudCardContainerNode && hudScrollBoxTarget) {
+                    hudScrollBoxTarget.innerHTML = structuralHTMLMarkupPayload;
+                    hudCardContainerNode.classList.remove('hidden');
+                    setTimeout(() => {
+                        hudCardContainerNode.classList.remove('translate-x-[calc(100%+24px)]');
+                    }, 50);
+                }
+            }
+        }
+
+        // Execute optimal spatial routing logic calculations mapping target nodes
+        function executeOptimalRouteCalculationPipeline() {
+            const currentShieldOverlay = document.getElementById('async-pipeline-loading-shield');
+            if (currentShieldOverlay) currentShieldOverlay.classList.set = 'flex';
+            currentShieldOverlay?.classList.remove('hidden');
+
+            setTimeout(() => {
+                // Extract structural data constraints
+                const startingPointQueryString = document.getElementById('route-start-input')?.value.trim().toLowerCase() || 'london';
+                const finalTargetQueryString = document.getElementById('route-end-input')?.value.trim().toLowerCase() || 'dunfermline';
+
+                const matchedOriginCoord = postalCoordinateCacheMap[startingPointQueryString] || [51.5074, -0.1278];
+                const matchedTerminalCoord = postalCoordinateCacheMap[finalTargetQueryString] || [56.0718, -3.4522];
+
+                // Assemble geospatial path point coordinate array parameters
+                const computedPipelineRoutePointsArray = [matchedOriginCoord];
+
+                // Inject intermediate waypoint point parameters sequentially
+                interimStopWaypointsList.forEach(node => {
+                    const parsedStr = node.value.trim().toLowerCase();
+                    if (parsedStr && postalCoordinateCacheMap[parsedStr]) {
+                        computedPipelineRoutePointsArray.push(postalCoordinateCacheMap[parsedStr]);
+                    }
+                });
+
+                computedPipelineRoutePointsArray.push(matchedTerminalCoord);
+
+                if (routingOverlayPolylineInstance) {
+                    geospatialMapEngineInstance.removeLayer(routingOverlayPolylineInstance);
+                }
+
+                // Append premium styled multi-segment routing path geometry overlay
+                routingOverlayPolylineInstance = L.polyline(computedPipelineRoutePointsArray, {
+                    color: '#2563eb',
+                    weight: 5,
+                    opacity: 0.85,
+                    dashArray: '2, 8',
+                    lineJoin: 'round'
+                }).addTo(geospatialMapEngineInstance);
+
+                geospatialMapEngineInstance.fitBounds(routingOverlayPolylineInstance.getBounds(), { padding: [40, 40] });
+
+                // Formulate simulated fuel dataset tracking layout matches matching route corridor
+                globalSpatialFuelDataset = generateSyntheticFuelIntelligencePipelineData(matchedTerminalCoord[0], matchedTerminalCoord[1]);
+                processActiveDatasetPresentation();
+
+                currentShieldOverlay?.classList.add('hidden');
+                
+                // Collapse mobile control drawer layers down dynamically to maximize viewport visualization space
+                if (window.innerWidth < 768) {
+                    setMobileSidebarSheetUIState('peek');
+                }
+            }, 600);
+        }
+
+        // Mobile Sheet UI Presentation Engine Window Layout Mechanics Configuration
+        function setMobileSidebarSheetUIState(targetStateCode) {
+            const mobileSidebarSheetNode = document.getElementById('mobile-sidebar-sheet');
+            const mobileChevronIndicatorNode = document.getElementById('sidebar-chevron-indicator');
+            if (!mobileSidebarSheetNode) return;
+
+            currentMobileSidebarUIState = targetStateCode;
+
+            switch (targetStateCode) {
+                case 'hidden':
+                    mobileSidebarSheetNode.style.transform = 'translateY(100%)';
+                    break;
+                case 'peek':
+                    mobileSidebarSheetNode.style.transform = 'translateY(calc(100% - 54px))';
+                    if (mobileChevronIndicatorNode) mobileChevronIndicatorNode.style.transform = 'rotate(0deg)';
+                    break;
+                case 'mid':
+                    mobileSidebarSheetNode.style.transform = 'translateY(45vh)';
+                    if (mobileChevronIndicatorNode) mobileChevronIndicatorNode.style.transform = 'rotate(180deg)';
+                    break;
+                case 'full':
+                    mobileSidebarSheetNode.style.transform = 'translateY(20vh)';
+                    if (mobileChevronIndicatorNode) mobileChevronIndicatorNode.style.transform = 'rotate(180deg)';
+                    break;
+            }
+        }
+
+        function setMobileDetailInspectorSheetUIState(targetStateCode) {
+            const mobileInspectorSheetNode = document.getElementById('mobile-detail-inspector-sheet');
+            if (!mobileInspectorSheetNode) return;
+
+            currentMobileSheetUIState = targetStateCode;
+
+            switch (targetStateCode) {
+                case 'hidden':
+                    mobileInspectorSheetNode.style.transform = 'translateY(100%)';
+                    mobileInspectorSheetNode.classList.add('hidden');
+                    break;
+                case 'peek':
+                    mobileInspectorSheetNode.classList.remove('hidden');
+                    mobileInspectorSheetNode.style.transform = 'translateY(calc(100% - 54px))';
+                    break;
+                case 'mid':
+                    mobileInspectorSheetNode.classList.remove('hidden');
+                    mobileInspectorSheetNode.style.transform = 'translateY(40vh)';
+                    break;
+                case 'full':
+                    mobileInspectorSheetNode.classList.remove('hidden');
+                    mobileInspectorSheetNode.style.transform = 'translateY(15vh)';
+                    break;
+            }
+        }
+
+        // Configure Global Application Touch Gestures & Element Listeners Lifecycle Setup
+        function initializeComponentEventWiringGrid() {
+            // Desk close action
+            document.getElementById('btn-close-desktop-hud')?.addEventListener('click', () => {
+                const hudContainer = document.getElementById('desktop-station-inspector-hud');
+                if (hudContainer) {
+                    hudContainer.classList.add('translate-x-[calc(100%+24px)]');
+                    setTimeout(() => hudContainer.classList.add('hidden'), 300);
+                }
+            });
+
+            // Wire theme triggers
+            const toggleThemeHandler = () => {
+                document.documentElement.classList.toggle('dark');
+                applyThemeChangesToDOM();
+            };
+            document.getElementById('desktop-theme-toggle')?.addEventListener('click', toggleThemeHandler);
+            document.getElementById('mobile-theme-toggle')?.addEventListener('click', toggleThemeHandler);
+
+            // Responsive mobile touch interaction logic anchors
             document.getElementById('sidebar-drag-handle')?.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
-                else if (currentMobileSidebarUIState === 'mid') setMobileSidebarState('full');
-                else if (currentMobileSidebarUIState === 'full') setMobileSidebarState('peek');
+                if (currentMobileSidebarUIState === 'peek') setMobileSidebarSheetUIState('mid');
+                else if (currentMobileSidebarUIState === 'mid') setMobileSidebarSheetUIState('full');
+                else if (currentMobileSidebarUIState === 'full') setMobileSidebarSheetUIState('peek');
             });
 
             document.getElementById('detail-sheet-drag-handle')?.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (currentMobileSheetUIState === 'peek') setMobileSheetUIState('mid');
-                else if (currentMobileSheetUIState === 'mid') setMobileSheetUIState('full');
-                else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('peek');
+                if (currentMobileSheetUIState === 'peek') setMobileDetailInspectorSheetUIState('mid');
+                else if (currentMobileSheetUIState === 'mid') setMobileDetailInspectorSheetUIState('full');
+                else if (currentMobileSheetUIState === 'full') setMobileDetailInspectorSheetUIState('peek');
             });
-
-            bindSwipeGestureDetectionToMobileSheets('sidebar-drag-handle', 'sidebar', setMobileSidebarState);
-            bindSwipeGestureDetectionToMobileSheets('detail-sheet-drag-handle', 'sheet', setMobileSheetUIState);
         }
 
+        // Launch application initialization framework mapping window load state triggers
         window.addEventListener('DOMContentLoaded', () => {
             initializeSpatialMapEngine();
-            applyThemeChangesToDOM();
+            initializeComponentEventWiringGrid();
             setupAutocompleteListeners();
-            initializeClickIsolationBubbling();
-            initializeGestureTrackEngine();
-            forceReloadRemotePipelineData();
+            executeViewportDataExtractionPipeline();
             
-            if(window.innerWidth < 768) {
-                setMobileSidebarState('peek');
+            // Auto adjust layout state options for small smartphone display architectures
+            if (window.innerWidth < 768) {
+                setMobileSidebarSheetUIState('peek');
             }
         });
     </script>
