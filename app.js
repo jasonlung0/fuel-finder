@@ -2,88 +2,9 @@
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
-// Persona to OSM Tag Mapping (The Discovery Engine)
-const PERSONA_CONFIG = {
-    family: 'node["amenity"~"zoo|theme_park|playground|restaurant"](around:2000),way["leisure"="park"]',
-    adventure: 'node["tourism"="viewpoint|wilderness_hut"](around:2000),way["sport"="climbing|hiking"]',
-    romance: 'node["amenity"="restaurant|spa"](around:2000),node["tourism"="viewpoint"]',
-    business: 'node["amenity"="bank|conference_centre|hotel"](around:2000)',
-    culture: 'node["tourism"="museum|attraction|monument"](around:2000),node["amenity"="marketplace"]'
-};
-
-// Initialize Leaflet Map
+// Initialize Leaflet Map Object Instance 
 const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
 L.control.zoom({ position: 'topright' }).addTo(map);
-
-// State Tracking
-let activePersona = 'none'; 
-let poiMarkers = L.layerGroup().addTo(map);
-
-// POI Fetching Logic using Persona Engine
-async function fetchPoiData(spatialPolygon = null) {
-    const persona = document.getElementById('poiPersona')?.value || 'none';
-    if (persona === 'none' || !PERSONA_CONFIG[persona]) return [];
-    
-    // Safety check for Turf.js
-    if (typeof turf === 'undefined') {
-        console.warn("Turf.js not loaded. Skipping spatial buffer.");
-        return [];
-    }
-
-    let overpassUrl = "https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];(";
-    overpassUrl += PERSONA_CONFIG[persona];
-    overpassUrl += ");out body;";
-
-    try {
-        const response = await fetch(overpassUrl);
-        const data = await response.json();
-        return data.elements || [];
-    } catch (e) {
-        console.error("Persona data fetch failed:", e);
-        return [];
-    }
-}
-
-// Icon Factory for Personas
-function getPoiIcon(persona) {
-    const icons = {
-        family: '👨‍👩‍👧', adventure: '🧗', romance: '❤️', business: '💼', culture: '🏛️'
-    };
-    return L.divIcon({
-        className: 'custom-poi-marker',
-        html: `<div style="font-size:20px; background:white; border-radius:50%; padding:2px;">${icons[persona] || '📍'}</div>`,
-        iconSize: [30, 30]
-    });
-}
-
-// Rendering Logic
-function processAndRenderPois(poiElementsArray) {
-    poiMarkers.clearLayers();
-    const listContainer = document.getElementById('poiElementsList');
-    if (listContainer) listContainer.innerHTML = '';
-
-    poiElementsArray.forEach(poi => {
-        const marker = L.marker([poi.lat, poi.lon], { icon: getPoiIcon(activePersona) })
-            .bindPopup(`<strong>${poi.tags.name || 'Point of Interest'}</strong>`)
-            .addTo(poiMarkers);
-        
-        // Add to Sidebar
-        const li = document.createElement('li');
-        li.className = "text-xs p-2 border-b hover:bg-zinc-100 cursor-pointer";
-        li.innerText = poi.tags.name || 'Unnamed Location';
-        li.onclick = () => map.flyTo([poi.lat, poi.lon], 15);
-        listContainer?.appendChild(li);
-    });
-}
-
-// Persona Change Handler
-window.handlePersonaChange = async function(type) {
-    activePersona = type;
-    const data = await fetchPoiData();
-    processAndRenderPois(data);
-};
-
-// ... (Keep existing fuel finding logic, routing, and autocomplete listeners)
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
@@ -101,14 +22,10 @@ let currentMode = 'local';
 let waypointsList = []; 
 let routeLayer = null;
 let stationMarkers = L.layerGroup().addTo(map);
-let poiMarkers = L.layerGroup().addTo(map); // Dedicated layer for Points of Interest
 let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
-
-// POI Configuration & State Tracker
-let activePoiType = 'none'; // 'none', 'cafe', 'restaurant', 'supermarket', 'parking'
 
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
@@ -146,7 +63,6 @@ window.switchTab = function(tabId) {
             filterFuelStationsRouteMode(lastSavedRouteData);
         } else {
             stationMarkers.clearLayers();
-            poiMarkers.clearLayers();
             const container = document.getElementById('topStationsContainer');
             if (container) container.classList.add('hidden');
         }
@@ -179,12 +95,6 @@ window.searchThisArea = function() {
     if (status) status.innerText = "Scanning visible viewport...";
     userLocation = { lat: mapCenter.lat, lon: mapCenter.lng };
     filterFuelStationsLocalMode();
-};
-
-// POI Selection Handler
-window.handlePoiTypeChange = function(type) {
-    activePoiType = type;
-    refreshActiveDataView();
 };
 
 window.addNewWaypointField = function(customLabel) {
@@ -304,7 +214,6 @@ window.calculateJourney = async function() {
     
     if (statusDiv) statusDiv.innerText = "Requesting multi-stop track traces...";
     stationMarkers.clearLayers();
-    poiMarkers.clearLayers();
     if (routeLayer) map.removeLayer(routeLayer);
 
     try {
@@ -429,52 +338,12 @@ async function fetchLiveGovStationData() {
     }
 }
 
-// Fetch Points of Interest via Overpass API within an area bbox or near route corridor
-async function fetchPoiData(spatialPolygon = null) {
-    if (activePoiType === 'none') return [];
-    
-    // Safety check: Prevent crash if Turf.js hasn't loaded yet
-    if (typeof turf === 'undefined') {
-        console.error("Turf.js library is missing! Cannot calculate POI route boundary.");
-        return [];
-    }
-    
-    let queryFilter = "";
-    if (activePoiType === 'cafe') queryFilter = 'node["amenity"="cafe"]';
-    else if (activePoiType === 'restaurant') queryFilter = 'node["amenity"="restaurant"]';
-    else if (activePoiType === 'supermarket') queryFilter = 'node["shop"="supermarket"]';
-    else if (activePoiType === 'parking') queryFilter = 'node["amenity"="parking"]';
-
-    let overpassUrl = "https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];";
-    
-    if (spatialPolygon) {
-        // Turf calculates the bounding box of the route corridor
-        const bbox = turf.bbox(spatialPolygon); 
-        overpassUrl += `node(${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]})[${queryFilter.split('[')[1]};out body;`;
-    } else {
-        const bounds = map.getBounds();
-        overpassUrl += `node(${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()})[${queryFilter.split('[')[1]};out body;`;
-    }
-
-    try {
-        const response = await fetch(overpassUrl);
-        if (!response.ok) return [];
-        const data = await response.json();
-        return data.elements || [];
-    } catch (e) {
-        console.error("POI fetching fault:", e);
-        return [];
-    }
-}
-
 async function filterFuelStationsLocalMode() {
     const statusEl = document.getElementById('status');
     if (statusEl) statusEl.innerText = "Streaming live GOV API telemetry...";
     try {
         const stations = await fetchLiveGovStationData();
-        const pois = await fetchPoiData(null);
         processAndRenderStations(stations, null);
-        processAndRenderPois(pois, null);
     } catch (err) {
         console.error(err);
         if (statusEl) statusEl.innerText = "Telemetry lookup error.";
@@ -490,10 +359,7 @@ async function filterFuelStationsRouteMode(routeData) {
         const radiusInKm = selectedRadiusMiles * 1.60934;
         
         const corridor = turf.buffer(routeData.features[0], radiusInKm, {units: 'kilometers'});
-        const pois = await fetchPoiData(corridor);
-        
         processAndRenderStations(stations, corridor);
-        processAndRenderPois(pois, corridor);
     } catch (err) {
         console.error(err);
         if (statusEl) statusEl.innerText = "Telemetry lookup error.";
@@ -539,15 +405,8 @@ function getBrandLogoVector(brandName) {
         return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="46" fill="#005A36"/><path d="M30 50 Q50 20 70 50 Q50 80 30 50 Z" fill="#81B622"/></svg>`;
     }
 
+    // Default Fallback Fuel Icon Container
     return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 12h-2v-2h2v2zm-2-4h2V6h-2v2zm3-5H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V12h2c1.66 0 3-1.34 3-3V7c0-2.21-1.79-4-4-4zm-4 15H4V5h10v13zm4-7c-.55 0-1-.45-1-1V7c0-.55.45-1 1-1s1 .45 1 1v3c0 .55-.45 1-1 1z" fill="#475569"/></svg>`;
-}
-
-// POI SVG Icons Map
-function getPoiLogoVector(type) {
-    if (type === 'cafe') return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2 21h18v-2H2v2zM20 8h-2V5h2v3zm2-5H4v13c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="#b45309"/></svg>`;
-    if (type === 'restaurant') return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z" fill="#be123c"/></svg>`;
-    if (type === 'supermarket') return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="#15803d"/></svg>`;
-    return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#0369a1"/></svg>`;
 }
 
 function processAndRenderStations(stationsArray, spatialBufferPolygon) {
@@ -623,6 +482,7 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const color = getMarkerColor(badgeValue);
         const vectorLogo = getBrandLogoVector(station.brand);
 
+        // Single-line layout generation using structural flex wrappers
         const icon = L.divIcon({
             className: 'custom-leaflet-pill-marker',
             html: `
@@ -675,70 +535,6 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
             const costSumCont = document.getElementById('costSummary');
             if (costSumCont) costSumCont.classList.remove('hidden');
         }
-    }
-}
-
-// Processing and Layer Generation Pipeline for POIs
-function processAndRenderPois(poiElementsArray, spatialBufferPolygon) {
-    poiMarkers.clearLayers();
-    
-    const poiListContainer = document.getElementById('poiElementsList');
-    const sideBlock = document.getElementById('topPoiContainer');
-    if (poiListContainer) poiListContainer.innerHTML = '';
-
-    if (activePoiType === 'none' || !poiElementsArray.length) {
-        if (sideBlock) sideBlock.classList.add('hidden');
-        return;
-    }
-
-    let validPois = [];
-
-    poiElementsArray.forEach(poi => {
-        const lat = poi.lat;
-        const lon = poi.lon;
-        
-        if (spatialBufferPolygon) {
-            if (!turf.booleanPointInPolygon(turf.point([lon, lat]), spatialBufferPolygon)) return;
-        }
-        
-        poi.name = poi.tags.name || poi.tags.brand || `${activePoiType.toUpperCase()} Node`;
-        if (currentMode === 'local' && userLocation) {
-            poi.calculatedDistance = calculateDistanceInMiles(userLocation.lat, userLocation.lon, lat, lon);
-        }
-        validPois.push(poi);
-    });
-
-    // Render Markers on Map Viewport
-    validPois.forEach(poi => {
-        const vectorIcon = getPoiLogoVector(activePoiType);
-        
-        const customPoiIcon = L.divIcon({
-            className: 'custom-poi-marker-badge',
-            html: `<div class="poi-map-pill">${vectorIcon}</div>`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-
-        L.marker([poi.lat, poi.lon], { icon: customPoiIcon })
-            .bindPopup(`<strong class="text-slate-900">${poi.name}</strong><br/><span class="text-xs text-slate-500">${activePoiType.toUpperCase()} Info</span>`)
-            .addTo(poiMarkers);
-    });
-
-    // Sort POIs by closeness and sync list to Sidebar Interface
-    if (validPois.length > 0) {
-        if (sideBlock) sideBlock.classList.remove('hidden');
-        const sortedPois = [...validPois].sort((a, b) => (a.calculatedDistance || 0) - (b.calculatedDistance || 0));
-        
-        sortedPois.slice(0, 5).forEach(poi => {
-            const distanceLabel = poi.calculatedDistance ? ` (${poi.calculatedDistance.toFixed(1)} mi)` : '';
-            const itemElement = document.createElement('li');
-            itemElement.className = "cursor-pointer py-1.5 border-b border-slate-100 last:border-none hover:bg-slate-50 transition-colors rounded text-xs px-2 flex justify-between items-center text-slate-700";
-            itemElement.innerHTML = `<span class="font-medium truncate max-w-[150px]">${poi.name}</span><span class="text-slate-400 text-[10px]">${distanceLabel}</span>`;
-            itemElement.onclick = () => { map.flyTo([poi.lat, poi.lon], 15); };
-            if (poiListContainer) poiListContainer.appendChild(itemElement);
-        });
-    } else {
-        if (sideBlock) sideBlock.classList.add('hidden');
     }
 }
 
@@ -864,6 +660,7 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
     return 7918 * Math.asin(Math.sqrt(a)); 
 }
 
+// Custom range specifications: 150.9 - 156.8 Green | 156.9 - 162.8 Blue | 162.9+ Red
 function getMarkerColor(p) { 
     if (!p || isNaN(p)) return '#94a3b8'; 
     if (p <= 156.8) return '#10b981';                
@@ -872,6 +669,7 @@ function getMarkerColor(p) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
+    // Mobile Layout Setup: Collapse menu by default on smaller mobile displays
     if (window.innerWidth <= 768) {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.classList.add('collapsed');
@@ -905,8 +703,8 @@ window.addEventListener('DOMContentLoaded', function() {
 });
 
 map.on('moveend', function() {
-    if (!searchByAreaActive) {
-        refreshActiveDataView();
+    if (currentMode === 'local' && !searchByAreaActive) {
+        filterFuelStationsLocalMode();
     }
 });
 
@@ -916,21 +714,3 @@ function refreshActiveDataView() {
 }
 
 function debounce(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
-
-// Add this check at the bottom of app3.js
-function startApplication() {
-    if (typeof L === 'undefined' || typeof turf === 'undefined') {
-        console.warn("Waiting for dependencies...");
-        setTimeout(startApplication, 500);
-        return;
-    }
-    
-    // YOUR EXISTING DOMContentLoaded CODE GOES HERE
-    addNewWaypointField("Start");
-    addNewWaypointField("Destination");
-    setupTab1Autocomplete();
-    // ... rest of your initialization
-}
-
-// Kickoff
-startApplication();

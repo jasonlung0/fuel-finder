@@ -67,33 +67,3 @@ body { font-family: 'Inter', sans-serif; }
     
     #global-detail-sheet { z-index: 5000 !important; }
 }
-
-/* Custom POI Marker Badge Structure */
-.custom-poi-marker-badge {
-    background: transparent;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.poi-map-pill {
-    background: #ffffff;
-    border: 2px solid #0f172a;
-    border-radius: 9999px;
-    padding: 4px;
-    width: 32px;
-    height: 32px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.poi-map-pill:hover {
-    transform: scale(1.18);
-    z-index: 999999 !important;
-}
-.poi-map-pill svg {
-    width: 100%;
-    height: 100%;
-}

@@ -9,15 +9,8 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.1/dist/geosearch.css" />
-    <script src="https://unpkg.com/leaflet-geosearch@3.11.1/dist/bundle.min.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-
-    <script src="uiapp.js" defer></script>
-    <script src="app.js" defer></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,23 +107,6 @@
                     </select>
                     <div class="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
                 </div>
-            </div>
-
-            <select id="poiPersona" onchange="handlePersonaChange(this.value)" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-2.5 text-xs">
-                <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Point Of Interest</label>
-                <option value="none">Select your travel vibe...</option>
-                <option value="family">👨‍👩‍👧 Families (Zoos, Parks, Fun)</option>
-                <option value="adventure">🧗 Adventure (Trails, Sports, Nature)</option>
-                <option value="romance">❤️ Couples (Spas, Fine Dining, Views)</option>
-                <option value="business">💼 Business (Lounges, Hotels, Wi-Fi)</option>
-                <option value="culture">🏛️ Culture (Museums, Landmarks, Markets)</option>
-            </select>
-            
-            <div id="topPoiContainer" class="mt-4 bg-white border border-slate-200 rounded-lg p-3 hidden shadow-sm">
-                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-1.5 mb-2 flex items-center gap-1.5">
-                    <span>📍</span> Nearby Tracked Amenities
-                </h3>
-                <ul id="poiElementsList" class="divide-y divide-slate-100 max-h-[140px] overflow-y-auto"></ul>
             </div>
 
             <!-- TAB 1 CONTENT CONTAINER: NEIGHBOURHOOD GEOMETRIES -->
@@ -312,6 +288,6 @@
     </div>
 
     <!-- Script Entry point Asset Delivery Connection link -->
-    
+    <script src="uiapp.js" defer></script>
 </body>
 </html>
