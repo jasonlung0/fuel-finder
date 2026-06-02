@@ -1237,20 +1237,22 @@ let map = null;
                       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
-        
+
+        // Calcumate Optimal Refuel Points
         async function calculateOptimalRefuelStrategy() {
             if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
                 alert("Please map out a route first!");
                 return;
             }
         
-            // 1. Read Variable Constraints
-            const tankSizeLiters = parseFloat(document.getElementById('refuel-tank-size').value || 55);
-            const initialFuelPct = parseFloat(document.getElementById('refuel-current-level').value || 35) / 100;
-            const safetyBufferMiles = parseFloat(document.getElementById('refuel-safety-buffer').value || 30);
+            // 1. Read Variable Constraints with Corrected Element IDs
+            const tankSizeLiters = parseFloat(document.getElementById('refuel-tank-size')?.value || 55);
+            const initialFuelPct = parseFloat(document.getElementById('refuel-current-level')?.value || 35) / 100;
+            const safetyBufferMiles = parseFloat(document.getElementById('refuel-safety-buffer')?.value || 30);
             
-            const mpgInput = parseFloat(document.getElementById('mpg')?.value || 45);
-            const selectedFuelType = document.getElementById('fuelType')?.value || 'E5'; // matching your application properties
+            // FIXED: Element IDs matched to application layout constraints
+            const mpgInput = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
+            const selectedFuelType = document.getElementById('fuel-type')?.value || 'E10'; 
         
             // Conversions
             const milesPerLiter = (mpgInput * 0.220084); 
@@ -1264,17 +1266,26 @@ let map = null;
             // 2. Linearize stations along your route path vectors
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingsBadge = document.getElementById('refuel-savings-badge');
-            timelineContainer.innerHTML = '';
-            timelineContainer.classList.remove('hidden');
+            
+            if (timelineContainer) {
+                timelineContainer.innerHTML = '';
+                timelineContainer.classList.remove('hidden');
+            }
         
             // Filter available stations nearby the route 
-            // Uses your rawGlobalStationsPool array filtering for active pricing
             let candidateStations = rawGlobalStationsPool.filter(station => {
-                const price = station[selectedFuelType.toLowerCase()] || station.prices?.[selectedFuelType];
-                if (!price || price === 'N/A') return false;
+                // Case-insensitive pricing key extraction
+                const priceKey = selectedFuelType; 
+                const price = station[priceKey] || station[priceKey.toLowerCase()] || station.prices?.[priceKey];
+                if (!price || price === 'N/A' || isNaN(parseFloat(price))) return false;
                 
+                // FIXED: Robust coordinate fallback matching your main dataset properties
+                const sLat = parseFloat(station.latitude || station.lat);
+                const sLon = parseFloat(station.longitude || station.lng || station.lon);
+                if (isNaN(sLat) || isNaN(sLon)) return false;
+        
                 // Match proximity to any waypoint point along the polyline path
-                return plottedRouteCoordinates.some(pt => getDistanceInMiles(pt[0], pt[1], station.lat, station.lng || station.lon) < 2.5);
+                return plottedRouteCoordinates.some(pt => getDistanceInMiles(pt[0], pt[1], sLat, sLon) < 2.5);
             });
         
             // Map distances from start point sequentially
@@ -1296,17 +1307,20 @@ let map = null;
         
             // Bind stations to their closest relative mile marker points along the journey
             let mappedStations = candidateStations.map(station => {
-                let sLat = station.lat;
-                let sLon = station.lng || station.lon;
+                // FIXED: Unified coordinate normalization
+                const sLat = parseFloat(station.latitude || station.lat);
+                const sLon = parseFloat(station.longitude || station.lng || station.lon);
+                
                 let closestPoint = sequencedRoutePoints.reduce((prev, curr) => {
                     let dist = getDistanceInMiles(sLat, sLon, curr.coords[0], curr.coords[1]);
                     return (dist < prev.dist) ? { dist, marker: curr.mileMarker } : prev;
                 }, { dist: Infinity, marker: 0 });
         
+                const priceKey = selectedFuelType;
                 return {
                     ...station,
                     mileMarker: closestPoint.marker,
-                    price: parseFloat(station[selectedFuelType.toLowerCase()] || station.prices?.[selectedFuelType])
+                    price: parseFloat(station[priceKey] || station[priceKey.toLowerCase()] || station.prices?.[priceKey])
                 };
             }).sort((a, b) => a.mileMarker - b.mileMarker);
         
@@ -1314,38 +1328,29 @@ let map = null;
             let currentPositionMiles = 0;
             let stopsPlanned = [];
             let cumulativeCost = 0;
-            let lastRefuelPosition = 0;
-            let baselineCost = 0; // tracking savings metrics
+            let baselineCost = 0; 
         
             while ((currentPositionMiles + currentRangeMiles) < totalRouteDistanceMiles) {
-                // Window of reachable stations before running completely dry
                 let maxReach = currentPositionMiles + currentRangeMiles - safetyBufferMiles;
                 let reachableStations = mappedStations.filter(s => s.mileMarker > currentPositionMiles && s.mileMarker <= maxReach);
         
                 if (reachableStations.length === 0) {
-                    // Safety fallback: if no stations match within the strict safety margin, extend to absolute max range limit
                     maxReach = currentPositionMiles + currentRangeMiles;
                     reachableStations = mappedStations.filter(s => s.mileMarker > currentPositionMiles && s.mileMarker <= maxReach);
                     
-                    if(reachableStations.length === 0) {
-                        // Break out if completely stranded in data deadzones
-                        break;
-                    }
+                    if(reachableStations.length === 0) break; // Break safely if stranded
                 }
         
-                // Strategy algorithm rule: Pick the absolute cheapest station within our reachable window ahead
                 let optimalStation = reachableStations.reduce((cheapest, current) => (current.price < cheapest.price) ? current : cheapest, reachableStations[0]);
         
                 let distanceToStation = optimalStation.mileMarker - currentPositionMiles;
                 currentRangeMiles -= distanceToStation;
                 currentPositionMiles = optimalStation.mileMarker;
         
-                // Simulate full refuel action
                 let fuelNeededLiters = tankSizeLiters - (currentRangeMiles / milesPerLiter);
                 let stopCost = fuelNeededLiters * (optimalStation.price / 100);
                 cumulativeCost += stopCost;
         
-                // Baseline comparison (average fuel cost along the route without using optimization logic)
                 let avgWindowPrice = reachableStations.reduce((sum, s) => sum + s.price, 0) / reachableStations.length;
                 baselineCost += fuelNeededLiters * (avgWindowPrice / 100);
         
@@ -1357,42 +1362,42 @@ let map = null;
                     price: optimalStation.price
                 });
         
-                // Reset range parameters
                 currentRangeMiles = maxRangeMiles; 
             }
         
             // 4. Render Layout & Map Highlights
             let totalSavings = Math.max(0, baselineCost - cumulativeCost);
-            if(totalSavings > 0) {
+            if(totalSavings > 0 && savingsBadge) {
                 savingsBadge.innerText = `SAVING £${totalSavings.toFixed(2)}`;
                 savingsBadge.classList.remove('hidden');
             }
         
-            // Render Timeline components
-            timelineContainer.innerHTML = `
-                <div class="text-[10px] uppercase font-black text-zinc-400 tracking-wider flex items-center gap-1.5">
-                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> Start of Route (0 mi)
-                </div>
-            `;
+            if (timelineContainer) {
+                timelineContainer.innerHTML = `
+                    <div class="text-[10px] uppercase font-black text-zinc-400 tracking-wider flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span> Start of Route (0 mi)
+                    </div>
+                `;
+            }
         
             stopsPlanned.forEach((stop, index) => {
-                // Append entry elements inside sidebar timeline
-                const stopRow = document.createElement('div');
-                stopRow.className = "pl-4 border-l-2 border-dashed border-emerald-500/50 my-2 position-relative py-1";
-                stopRow.innerHTML = `
-                    <div class="text-xs font-black text-emerald-400">${stop.station.brand || stop.station.name || 'Fuel Station'}</div>
-                    <div class="text-[10px] text-zinc-300 font-medium">Stop #${index + 1} at Mile ${stop.mileMarker.toFixed(1)} • <span class="font-bold text-white">${stop.price}p/L</span></div>
-                    <div class="text-[10px] font-bold text-zinc-400 mt-0.5">💡 Action: Fill <span class="text-emerald-400">${stop.litersFilled}L</span> (~£${stop.cost})</div>
-                `;
-                timelineContainer.appendChild(stopRow);
+                if (timelineContainer) {
+                    const stopRow = document.createElement('div');
+                    stopRow.className = "pl-4 border-l-2 border-dashed border-emerald-500/50 my-2 position-relative py-1";
+                    stopRow.innerHTML = `
+                        <div class="text-xs font-black text-emerald-400">${stop.station.brand_name || stop.station.brand || stop.station.name || 'Fuel Station'}</div>
+                        <div class="text-[10px] text-zinc-300 font-medium">Stop #${index + 1} at Mile ${stop.mileMarker.toFixed(1)} • <span class="font-bold text-white">${stop.price}p/L</span></div>
+                        <div class="text-[10px] font-bold text-zinc-400 mt-0.5">💡 Action: Fill <span class="text-emerald-400">${stop.litersFilled}L</span> (~£${stop.cost})</div>
+                    `;
+                    timelineContainer.appendChild(stopRow);
+                }
         
-                // Render Custom Highlight Pin on Map
                 const pulseIcon = L.divIcon({
                     className: 'leaflet-div-icon-reset',
                     html: `
                         <div class="flex flex-col items-center">
                             <div class="bg-black text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-emerald-500 shadow-xl whitespace-nowrap">
-                                ⛽ STOP #${index + 1} (${stop.price}p)
+                                Refuel Stop #${index + 1} (${stop.price}p)
                             </div>
                             <div class="w-2 h-2 bg-emerald-400 rounded-full border border-black animate-ping -mt-1"></div>
                         </div>
@@ -1401,16 +1406,22 @@ let map = null;
                     iconAnchor: [50, 20]
                 });
         
-                L.marker([stop.station.lat, stop.station.lng || stop.station.lon], { icon: pulseIcon })
+                // FIXED: Pulled out sanitized positions for reliable Leaflet rendering
+                const stopLat = parseFloat(stop.station.latitude || stop.station.lat);
+                const stopLon = parseFloat(stop.station.longitude || stop.station.lng || stop.station.lon);
+        
+                L.marker([stopLat, stopLon], { icon: pulseIcon })
                  .addTo(refuelMarkersGroup)
-                 .bindPopup(`<b>${stop.station.brand || 'Refuel Recommendation'}</b><br>Fill Amount: ${stop.litersFilled}L<br>Price: ${stop.price}p`);
+                 .bindPopup(`<b>${stop.station.brand_name || stop.station.brand || 'Refuel Recommendation'}</b><br>Fill Amount: ${stop.litersFilled}L<br>Price: ${stop.price}p`);
             });
         
-            timelineContainer.innerHTML += `
-                <div class="text-[10px] uppercase font-black text-zinc-400 tracking-wider flex items-center gap-1.5 pt-1">
-                    <span class="w-2 h-2 rounded-full bg-red-500"></span> Destination (${totalRouteDistanceMiles.toFixed(1)} mi)
-                </div>
-            `;
+            if (timelineContainer) {
+                timelineContainer.innerHTML += `
+                    <div class="text-[10px] uppercase font-black text-zinc-400 tracking-wider flex items-center gap-1.5 pt-1">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span> Destination (${totalRouteDistanceMiles.toFixed(1)} mi)
+                    </div>
+                `;
+            }
         }
 
 
