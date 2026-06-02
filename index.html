@@ -20,10 +20,8 @@
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-1000 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 light">
 
-    <!-- Map Canvas Background -->
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-    <!-- Scan Area Action Floating Container -->
     <div id="scan-area-container" class="absolute top-24 md:top-[84px] left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
         <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2 px-4 py-2.5 rounded-full border bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 select-none focus:outline-none">
             <svg id="scan-icon-search" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-emerald-600 dark:text-emerald-400">
@@ -37,7 +35,6 @@
         </button>
     </div>
 
-    <!-- Application Global Top Navigation Bar -->
     <header class="absolute top-4 left-4 right-4 z-[4500] flex items-center justify-between pointer-events-none gap-4">
         <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-xl flex items-center gap-2.5 pointer-events-auto transition-colors duration-300">
             <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-sm shadow-sm">⛽</div>
@@ -64,7 +61,6 @@
         </div>
     </header>
 
-    <!-- Saved Directory Dropdown Box Dashboard overlay -->
     <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-colors duration-300">
         <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
             <div class="flex items-center justify-between px-1 pt-1">
@@ -79,7 +75,6 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
     </div>
 
-    <!-- Primary Sidebar control Panel layout wrapper -->
     <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
         <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full"></div>
@@ -109,7 +104,6 @@
                 </div>
             </div>
 
-            <!-- TAB 1 CONTENT CONTAINER: NEIGHBOURHOOD GEOMETRIES -->
             <div id="panel-tab-local" class="space-y-6">
                 <div class="space-y-2 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Location or Postcode</label>
@@ -134,7 +128,6 @@
                 </div>
             </div>
 
-            <!-- TAB 2 CONTENT CONTAINER: ROUTE LOGISTICS CORRIDOR -->
             <div id="panel-tab-route" class="space-y-6 hidden">
                 <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap start and finish">
@@ -184,7 +177,6 @@
                 </div>
             </div>
 
-            <!-- CONDITIONAL METRIC SUMMARY FEEDBACK COMPONENT FRAME -->
             <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-4 hidden flex-col transition duration-300 space-y-3">
                 <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2">
                     <div class="flex items-center gap-1.5 min-w-0">
@@ -206,7 +198,6 @@
                     </div>
                 </div>
                 
-                <!-- DYNAMICALLY INJECTED LIVE TRAFFIC METRICS OVERLAY -->
                 <div id="traffic-telemetry-node" class="hidden p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl items-center justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
@@ -219,7 +210,21 @@
                 </div>
             </div>
 
-            <!-- RANKING ORDER CARDS OVERLAY PANEL -->
+            <div id="poi-filter-container" class="hidden space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-900">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs">⚡</span>
+                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Smart Route Layers</h3>
+                </div>
+                <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button onclick="fetchRoutePOIs('scenic', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🌅 Scenic & Leisure</button>
+                    <button onclick="fetchRoutePOIs('family', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">👨‍👩‍👧 Family-Friendly</button>
+                    <button onclick="fetchRoutePOIs('remote', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">💻 Remote Worker</button>
+                    <button onclick="fetchRoutePOIs('adventure', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🧗 Adventure & Eco</button>
+                    <button onclick="fetchRoutePOIs('budget', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🏷️ Budget Explorer</button>
+                </div>
+                <div id="poi-results-stack" class="hidden flex gap-3 overflow-x-auto no-scrollbar py-1"></div>
+            </div>
+
             <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🏆</span>
@@ -228,7 +233,6 @@
                 <div id="cheapest-cards-stack" class="space-y-3"></div>
             </div>
 
-            <!-- DYNAMIC METEOROLOGY OVERLAY INTERACTIVE FRAME -->
             <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🌤️</span>
@@ -238,14 +242,12 @@
             </div>
         </div>
 
-        <!-- Sticky Control Sidebar Footer Counter Row -->
         <div class="p-4 md:p-3 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase shrink-0 transition-colors duration-300 pb-[calc(14px+env(safe-area-inset-bottom,16px))] md:pb-3">
             <span>Stations Found</span>
             <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black">Updating maps...</span>
         </div>
     </aside>
 
-    <!-- Global Floating Detail Information Contextual Sheet Element Drawer Overlay -->
     <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-2xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
         <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 -mt-5 -mx-5 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
@@ -287,7 +289,6 @@
         </div>
     </div>
 
-    <!-- Script Entry point Asset Delivery Connection link -->
     <script src="uiapp.js" defer></script>
 </body>
 </html>
