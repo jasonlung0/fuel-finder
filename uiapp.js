@@ -1416,14 +1416,17 @@ let map = null;
 
 
         window.addEventListener('DOMContentLoaded', () => {
-            initializeSpatialMapEngine();
-            applyThemeChangesToDOM();
-            setupAutocompleteListeners();
-            initializeClickIsolationBubbling();
-            initializeGestureTrackEngine();
-            forceReloadRemotePipelineData();
-            
-            if(window.innerWidth < 768) {
-                setMobileSidebarState('peek');
-            }
-        });
+        initializeSpatialMapEngine();
+        applyThemeChangesToDOM();
+        setupAutocompleteListeners();
+        initializeClickIsolationBubbling();
+        initializeGestureTrackEngine();
+        forceReloadRemotePipelineData();
+        
+        // ADD THIS LINE HERE:
+        document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', calculateOptimalRefuelStrategy);
+        
+        if(window.innerWidth < 768) {
+            setMobileSidebarState('peek');
+        }
+    });
