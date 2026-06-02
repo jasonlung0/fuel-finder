@@ -1,25 +1,58 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full w-full antialiased">
+<html lang="en" class="h-full w-full antialiased light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>UK Fuel Price Finder</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zinc: {
+                            1000: '#09090b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style4.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Mobile Bottom Drawer Smooth Transitions */
+        @media (max-width: 767px) {
+            .mobile-bottom-drawer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                z-index: 4500;
+                transform: translateY(100%);
+                transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            .drawer-peek { transform: translateY(calc(100% - 110px)); }
+            .drawer-open { transform: translateY(0); }
+            .drawer-hidden { transform: translateY(100%); }
+        }
+    </style>
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-1000 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 light">
 
@@ -87,7 +120,7 @@
             <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm">
                 Search Nearby
             </button>
-            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
+            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-indigo-500 hover:text-zinc-950 dark:hover:text-white">
                 Route Planner
             </button>
         </div>
@@ -95,9 +128,9 @@
         <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
             
             <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
-                <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Fuel Type</label>
+                <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Fuel Type Preference</label>
                 <div class="relative">
-                    <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
+                    <select id="fuel-type" onchange="handleGlobalFuelTypeSelectionChange()" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
                         <option value="E10" selected>Unleaded Petrol (E10)</option>
                         <option value="E5">Super Unleaded (E5)</option>
                         <option value="B7">Diesel (B7)</option>
@@ -146,14 +179,14 @@
 
                     <div class="space-y-2">
                         <div class="flex justify-between items-center">
-                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Stops Along the Way (Optional)</label>
+                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Stops Along the Way</label>
                             <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
                         </div>
                         <div id="dynamic-waypoints-container" class="space-y-2.5"></div>
                     </div>
 
                     <div class="relative pt-1">
-                        <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
+                        <div class="absolute left-[-5px] top-[30px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
                         <div class="space-y-1 relative">
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">End Location</label>
                             <input id="route-end" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
@@ -164,11 +197,11 @@
 
                 <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
                     <div class="space-y-1">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block">Fuel Efficiency (MPG)</label>
+                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block">Vehicle Efficiency (MPG)</label>
                         <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none text-zinc-800 dark:text-zinc-100" />
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block flex justify-between">Max Detour Distance <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
+                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block flex justify-between">Max Detour <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
                         <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-3" />
                     </div>
                 </div>
@@ -196,14 +229,14 @@
                         <span id="summary-distance" class="text-xs font-black text-zinc-800 dark:text-zinc-200 mt-0.5 block truncate">Local Area</span>
                     </div>
                     <div class="bg-emerald-50/10 border border-emerald-500/20 rounded-xl p-2.5">
-                        <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Lowest Price</span>
-                        <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
+                        <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Est. Cost</span>
+                        <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">£0.00</span>
                     </div>
                 </div>
                 
                 <div id="traffic-telemetry-node" class="hidden p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl items-center justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                        <span id="traffic-pulse" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
                         <div class="min-w-0">
                             <span class="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Live Traffic Flow</span>
                             <span id="traffic-status-label" class="text-xs font-black text-amber-600 dark:text-amber-400 block truncate">Moderate Delays</span>
@@ -219,17 +252,12 @@
                     <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Smart Route Layers</h3>
                 </div>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <button onclick="setActivePersonaAndFetch('family')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">👨‍👩‍👧 Families</button>
-                    <button onclick="setActivePersonaAndFetch('adventure')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🧗 Adventure Seekers</button>
-                    <button onclick="setActivePersonaAndFetch('romance')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">❤️ Couples & Romance</button>
-                    <button onclick="setActivePersonaAndFetch('business')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">💼 Business Travellers</button>
-                    <button onclick="setActivePersonaAndFetch('culture')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🏛️ Culture & History</button>
+                    <button onclick="fetchRoutePOIs('scenic', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🌅 Scenic Spots</button>
+                    <button onclick="fetchRoutePOIs('family', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">👨‍👩‍👧 Family Services</button>
+                    <button onclick="fetchRoutePOIs('remote', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">💻 Work Hubs</button>
+                    <button onclick="fetchRoutePOIs('adventure', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🧗 Eco Charging</button>
                 </div>
                 <div id="poi-results-stack" class="hidden flex gap-3 overflow-x-auto no-scrollbar py-1"></div>
-                
-                <ul id="poiElementsList" class="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-60 overflow-y-auto no-scrollbar mt-2">
-                    <li class="text-[11px] p-2 text-zinc-400 italic text-center">Select a profile context above to scan route data...</li>
-                </ul>
             </div>
 
             <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
@@ -243,15 +271,15 @@
             <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🌤️</span>
-                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">5-Day Weather Forecast</h3>
+                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Route Destination Forecast</h3>
                 </div>
-                <div id="weather-nodes-stack" class="space-y-3"></div>
+                <div id="weather-nodes-stack" class="grid grid-cols-5 gap-1.5"></div>
             </div>
         </div>
 
         <div class="p-4 md:p-3 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase shrink-0 transition-colors duration-300 pb-[calc(14px+env(safe-area-inset-bottom,16px))] md:pb-3">
-            <span>Stations Found</span>
-            <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black">Updating maps...</span>
+            <span>Stations Identified</span>
+            <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black">Initializing...</span>
         </div>
     </aside>
 
@@ -266,27 +294,27 @@
                 <p id="sheet-address-details" class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-1.5 leading-normal truncate">Station Information Available</p>
             </div>
             <div class="flex items-center gap-1 shrink-0">
-                <button id="sheet-star-btn" onclick="toggleCurrentStationStar(event)" class="p-2 border rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8"></button>
+                <button id="sheet-star-btn" onclick="toggleCurrentStationStar(event)" class="p-2 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8 text-zinc-400 hover:text-amber-500 bg-zinc-50 dark:bg-zinc-900 font-bold text-xs">★</button>
                 <button onclick="closeForecourtDetailSheet(event)" class="p-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer flex items-center justify-center w-8 h-8">✕</button>
             </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
-            <div id="card-wrap-e10" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
-                <span id="sheet-price-e10" class="text-xs font-black block mt-0.5">N/A</span>
+            <div id="card-wrap-e10" class="border p-2.5 rounded-xl text-center transition-all duration-200 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <span class="text-[8px] font-black uppercase tracking-wider block text-zinc-400 dark:text-zinc-500">Unleaded E10</span>
+                <span id="sheet-price-e10" class="text-sm font-black block mt-0.5">N/A</span>
             </div>
-            <div id="card-wrap-e5" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super Unleaded E5</span>
-                <span id="sheet-price-e5" class="text-xs font-black block mt-0.5">N/A</span>
+            <div id="card-wrap-e5" class="border p-2.5 rounded-xl text-center transition-all duration-200 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <span class="text-[8px] font-black uppercase tracking-wider block text-zinc-400 dark:text-zinc-500">Super E5</span>
+                <span id="sheet-price-e5" class="text-sm font-black block mt-0.5">N/A</span>
             </div>
-            <div id="card-wrap-b7" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Diesel B7</span>
-                <span id="sheet-price-b7" class="text-xs font-black block mt-0.5">N/A</span>
+            <div id="card-wrap-b7" class="border p-2.5 rounded-xl text-center transition-all duration-200 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <span class="text-[8px] font-black uppercase tracking-wider block text-zinc-400 dark:text-zinc-500">Diesel B7</span>
+                <span id="sheet-price-b7" class="text-sm font-black block mt-0.5">N/A</span>
             </div>
-            <div id="card-wrap-premiumdiesel" class="border p-2.5 rounded-xl text-center transition-all duration-200">
-                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Premium Diesel</span>
-                <span id="sheet-price-premiumdiesel" class="text-xs font-black block mt-0.5">N/A</span>
+            <div id="card-wrap-premiumdiesel" class="border p-2.5 rounded-xl text-center transition-all duration-200 border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
+                <span class="text-[8px] font-black uppercase tracking-wider block text-zinc-400 dark:text-zinc-500">Premium Diesel</span>
+                <span id="sheet-price-premiumdiesel" class="text-sm font-black block mt-0.5">N/A</span>
             </div>
         </div>
 
@@ -296,6 +324,6 @@
         </div>
     </div>
 
-    <script src="uiapp4.js" defer></script>
+    <script src="uiapp.js" defer></script>
 </body>
 </html>
