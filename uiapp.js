@@ -43,7 +43,6 @@ let dynamicWaypointIncrementalIndex = 0;
 
 // --- VIEWPORT AREA TRACKING METRICS ---
 let originalMapCenter = null;
-let scanAreaTimeout = null;
 
 // --- REUSABLE ICON DESIGN MARKS ---
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
@@ -137,9 +136,7 @@ window.executeContextualAreaScanPipeline = function(event) {
     mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
     originalMapCenter = newCenter;
 
-    if (typeof forceReloadRemotePipelineData === 'function') {
-        forceReloadRemotePipelineData();
-    }
+    forceReloadRemotePipelineData();
 
     setTimeout(() => {
         container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
@@ -336,7 +333,7 @@ function addWaypointFieldInputRow(initialValue = '') {
             <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer">Clear</button>
         </div>
         <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold" title="Delete stop">✕</button>
-        <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+        <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
     `;
 
     container.appendChild(rowNode);
@@ -425,7 +422,7 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
-// --- CORE OSRM DRIVING ENGINE WITH TRAFFIC RENDERING SECTIONS ---
+// --- CORE DRIVING ENGINE WITH TRAFFIC RENDERING SECTIONS ---
 async function executeRouteGenerationPipeline() {
     const startVal = document.getElementById('route-start').value.trim();
     const endVal = document.getElementById('route-end').value.trim();
@@ -503,7 +500,8 @@ async function executeRouteGenerationPipeline() {
             }).addTo(routePolylineLayer);
         }
 
-        map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
+        // Lock map view down exclusively to the computed journey path dimensions
+        map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
         
         refreshViewportViewFilter(distanceMiles);
         triggerRouteWeatherFetchPipeline();
@@ -626,73 +624,12 @@ function saveActiveRouteCorridor() {
     alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
 }
 
-function deleteSavedRouteCorridor(routeId, event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    savedRoutes = savedRoutes.filter(r => r.id !== routeId);
-    localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-    updateDirectoryTotalBadge();
-    renderDirectoryDropdown();
-}
-
-function loadSavedRouteCorridorDataIntoWorkspace(routeId) {
-    const matchedRoute = savedRoutes.find(r => r.id === routeId);
-    if (!matchedRoute) return;
-
-    switchWorkflowTabContext('route');
-    document.getElementById('route-start').value = matchedRoute.start;
-    document.getElementById('route-end').value = matchedRoute.end;
-    if(document.getElementById('vehicle-mpg')) document.getElementById('vehicle-mpg').value = matchedRoute.mpg;
-    
-    if(document.getElementById('route-radius-slider')) {
-        document.getElementById('route-radius-slider').value = matchedRoute.radius;
-        document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
-    }
-
-    const container = document.getElementById('dynamic-waypoints-container');
-    if (container) {
-        container.innerHTML = '';
-        if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) {
-            matchedRoute.waypoints.forEach(wpStr => {
-                addWaypointFieldInputRow(wpStr);
-            });
-        } else {
-            addWaypointFieldInputRow();
-        }
-    }
-    executeRouteGenerationPipeline();
-    document.getElementById('starred-dropdown-panel').classList.add('hidden');
-}
-
-function clearCalculatedRouteLayers() {
-    if (routePolylineLayer) {
-        map.removeLayer(routePolylineLayer);
-        routePolylineLayer = null;
-    }
-    if (refuelMarkersGroup) {
-        map.removeLayer(refuelMarkersGroup);
-        refuelMarkersGroup = null;
-    }
-    plottedRouteCoordinates = [];
-    const trafficNode = document.getElementById('traffic-telemetry-node');
-    if (trafficNode) {
-        trafficNode.classList.remove('flex');
-        trafficNode.classList.add('hidden');
-    }
-    const timelineContainer = document.getElementById('refuel-timeline-container');
-    if (timelineContainer) {
-        timelineContainer.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-medium">Configure options above and generate optimization matrix profiles.</div>`;
-    }
-    const finCard = document.getElementById('financial-card');
-    if (finCard) finCard.classList.add('hidden');
-}
-
 // --- NETWORK PIPELINE SYNCHRONIZATION DATA REPOSITORIES ---
 async function forceReloadRemotePipelineData() {
     const clockLabel = document.getElementById('live-timestamp-label');
     if(clockLabel) clockLabel.textContent = "Syncing network logs...";
     
     try {
-        // Safe proxy backup layer configuration matching regulatory data streams
         const proxyFeedUrls = [
             'https://corsproxy.io/?' + encodeURIComponent('https://www.asda.com/fuel-prices/fuel-prices.json'),
             'https://jasonlung0.github.io/fuel-finder/mock-fuel.json'
@@ -882,16 +819,16 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         const numericPrice = parseFloat(station[variant]);
         if (!numericPrice) return;
         
-        let tierBgClassColor = 'bg-fuel-blue';
+        let tierBgClassColor = 'bg-blue-600';
         const pricesArrayZone = currentlyVisibleStations.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
         const zoneMin = Math.min(...pricesArrayZone);
         const zoneSpread = Math.max(...pricesArrayZone) - zoneMin;
         
         if (zoneSpread > 0) {
             const step = zoneSpread / 3;
-            if (numericPrice <= (zoneMin + step)) tierBgClassColor = 'bg-fuel-green';
-            else if (numericPrice <= (zoneMin + (step * 2))) tierBgClassColor = 'bg-fuel-blue';
-            else tierBgClassColor = 'bg-fuel-red';
+            if (numericPrice <= (zoneMin + step)) tierBgClassColor = 'bg-emerald-600';
+            else if (numericPrice <= (zoneMin + (step * 2))) tierBgClassColor = 'bg-blue-600';
+            else tierBgClassColor = 'bg-rose-600';
         }
 
         const markerInstance = L.marker([station.latitude, station.longitude], {
@@ -1155,10 +1092,6 @@ function computeMinimumDistanceToRouteCorridor(lat, lon) {
     return minimumRecordedDistanceMiles;
 }
 
-function getDistanceInMiles(lat1, lon1, lat2, lon2) {
-    return computeDistanceVectorMiles(lat1, lon1, lat2, lon2);
-}
-
 // --- GREEDY MULTI-STOP REFUELING OPTIMIZATION ALGORITHM ---
 async function calculateOptimalRefuelStrategy() {
     if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
@@ -1166,19 +1099,16 @@ async function calculateOptimalRefuelStrategy() {
         return;
     }
 
-    // 1. Read Variable Constraints
     const tankSizeLiters = parseFloat(document.getElementById('refuel-tank-size')?.value || 55);
     const initialFuelPct = parseFloat(document.getElementById('refuel-current-level')?.value || 35) / 100;
     const safetyBufferMiles = parseFloat(document.getElementById('refuel-safety-buffer')?.value || 30);
     const mpgInput = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
     const selectedFuelType = document.getElementById('fuel-type')?.value || 'E10'; 
 
-    // Conversions
     const milesPerLiter = (mpgInput * 0.220084);
     const maxRangeMiles = tankSizeLiters * milesPerLiter;
     let currentRangeMiles = (tankSizeLiters * initialFuelPct) * milesPerLiter;
 
-    // Build timeline container profiles
     const timelineContainer = document.getElementById('refuel-timeline-container');
     if (!timelineContainer) return;
     timelineContainer.innerHTML = '';
@@ -1186,12 +1116,11 @@ async function calculateOptimalRefuelStrategy() {
     if (refuelMarkersGroup) map.removeLayer(refuelMarkersGroup);
     refuelMarkersGroup = L.featureGroup().addTo(map);
 
-    // 2. Map route coordinates to total cumulative trip scale miles
     let totalRouteDistanceMiles = 0;
     let progressiveMileMarkers = [0];
 
     for (let i = 1; i < plottedRouteCoordinates.length; i++) {
-        let seg = getDistanceInMiles(
+        let seg = computeDistanceVectorMiles(
             plottedRouteCoordinates[i-1][0], plottedRouteCoordinates[i-1][1],
             plottedRouteCoordinates[i][0], plottedRouteCoordinates[i][1]
         );
@@ -1199,10 +1128,10 @@ async function calculateOptimalRefuelStrategy() {
         progressiveMileMarkers.push(totalRouteDistanceMiles);
     }
 
-    // Process filtered stations mapped alongside the corridor timeline path
+    // Fixed Bug: Correctly references station.latitude and station.longitude structures
     let mappedStations = currentlyVisibleStations.map(station => {
         let closestPoint = plottedRouteCoordinates.reduce((closest, pt, idx) => {
-            let dist = getDistanceInMiles(lat, lon, pt[0], pt[1]);
+            let dist = computeDistanceVectorMiles(station.latitude, station.longitude, pt[0], pt[1]);
             return dist < closest.dist ? { dist, marker: progressiveMileMarkers[idx] } : closest;
         }, { dist: Infinity, marker: 0 });
 
@@ -1213,14 +1142,11 @@ async function calculateOptimalRefuelStrategy() {
         };
     }).sort((a, b) => a.mileMarker - b.mileMarker);
 
-    // Filter stations with invalid prices
     mappedStations = mappedStations.filter(s => !isNaN(s.price) && s.price > 0);
 
-    // 3. Greedy Optimization Sweep Architecture
     let currentPositionMiles = 0;
     let stopsPlanned = [];
     let cumulativeCost = 0;
-    let lastRefuelPosition = 0;
 
     timelineContainer.innerHTML += `
         <div class="text-[10px] uppercase font-black text-zinc-400 tracking-wider flex items-center gap-1.5 pb-1 border-b border-zinc-100 dark:border-zinc-800/50">
@@ -1236,26 +1162,20 @@ async function calculateOptimalRefuelStrategy() {
             maxReach = currentPositionMiles + currentRangeMiles;
             reachableStations = mappedStations.filter(s => s.mileMarker > currentPositionMiles && s.mileMarker <= maxReach);
 
-            if(reachableStations.length === 0) {
-                // If completely stranded, break loop layout fallback safely
-                break;
-            }
+            if(reachableStations.length === 0) break;
         }
 
-        // Strategy rule: Pick the absolute cheapest station within our reachable window ahead
         let optimalStation = reachableStations.reduce((cheapest, current) => (current.price < cheapest.price) ? current : cheapest, reachableStations[0]);
 
         let distanceDrivenSinceLastStop = optimalStation.mileMarker - currentPositionMiles;
         currentRangeMiles -= distanceDrivenSinceLastStop;
         currentPositionMiles = optimalStation.mileMarker;
 
-        // Calculate liters needed to top back up completely
-        let fuelConsumedLiters = (distanceDrivenSinceLastStop / milesPerLiter);
         let litersToFill = (tankSizeLiters - (currentRangeMiles / milesPerLiter)).toFixed(1);
         let fillCost = ((litersToFill * optimalStation.price) / 100).toFixed(2);
 
         cumulativeCost += parseFloat(fillCost);
-        currentRangeMiles = maxRangeMiles; // Refilled to full tank capacity
+        currentRangeMiles = maxRangeMiles; 
 
         stopsPlanned.push({
             station: optimalStation,
@@ -1266,7 +1186,6 @@ async function calculateOptimalRefuelStrategy() {
         });
     }
 
-    // 4. Render recommendations directly into UI timeline views
     if (stopsPlanned.length === 0) {
         timelineContainer.innerHTML += `
             <div class="p-3 my-2 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-center">
@@ -1304,6 +1223,7 @@ async function calculateOptimalRefuelStrategy() {
                 iconAnchor: [22, 12]
             });
 
+            // Fixed Bug: Replaced stop.station.lat references with normalized station structural metrics
             L.marker([stop.station.latitude, stop.station.longitude], { icon: pulseIcon })
              .addTo(refuelMarkersGroup)
              .bindPopup(`<b>${stop.station.brand_name}</b><br>Fill Volume: ${stop.litersFilled}L<br>Price: ${stop.price}p`);
