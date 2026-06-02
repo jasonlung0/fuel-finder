@@ -351,18 +351,23 @@ async function filterFuelStationsLocalMode() {
 }
 
 async function filterFuelStationsRouteMode(routeData) {
-    const statusEl = document.getElementById('status');
-    if (statusEl) statusEl.innerText = "Streaming live GOV API telemetry...";
+    if (typeof turf === 'undefined') return;
+    
     try {
         const stations = await fetchLiveGovStationData();
-        const selectedRadiusMiles = parseFloat(document.getElementById('bufferRadius').value || 2);
+        const selectedRadiusMiles = parseFloat(document.getElementById('bufferRadius')?.value || 2);
         const radiusInKm = selectedRadiusMiles * 1.60934;
         
-        const corridor = turf.buffer(routeData.features[0], radiusInKm, {units: 'kilometers'});
-        processAndRenderStations(stations, corridor);
+        if (routeData && routeData.features && routeData.features[0]) {
+            const corridor = turf.buffer(routeData.features[0], radiusInKm, { units: 'kilometers' });
+            
+            // CRITICAL STEP: Make this available globally so the persona selection can query it instantly
+            window.lastComputedCorridorPoly = corridor; 
+
+            processAndRenderStations(stations, corridor);
+        }
     } catch (err) {
-        console.error(err);
-        if (statusEl) statusEl.innerText = "Telemetry lookup error.";
+        console.error("Route processing layout pipeline mismatch:", err);
     }
 }
 
