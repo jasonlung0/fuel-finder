@@ -9,14 +9,17 @@
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style4.css">
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-1000 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 light">
 
@@ -216,13 +219,17 @@
                     <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Smart Route Layers</h3>
                 </div>
                 <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <button onclick="fetchRoutePOIs('scenic', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🌅 Scenic & Leisure</button>
-                    <button onclick="fetchRoutePOIs('family', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">👨‍👩‍👧 Family-Friendly</button>
-                    <button onclick="fetchRoutePOIs('remote', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">💻 Remote Worker</button>
-                    <button onclick="fetchRoutePOIs('adventure', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🧗 Adventure & Eco</button>
-                    <button onclick="fetchRoutePOIs('budget', this)" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🏷️ Budget Explorer</button>
+                    <button onclick="setActivePersonaAndFetch('family')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">👨‍👩‍👧 Families</button>
+                    <button onclick="setActivePersonaAndFetch('adventure')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🧗 Adventure Seekers</button>
+                    <button onclick="setActivePersonaAndFetch('romance')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">❤️ Couples & Romance</button>
+                    <button onclick="setActivePersonaAndFetch('business')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">💼 Business Travellers</button>
+                    <button onclick="setActivePersonaAndFetch('culture')" class="poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1">🏛️ Culture & History</button>
                 </div>
                 <div id="poi-results-stack" class="hidden flex gap-3 overflow-x-auto no-scrollbar py-1"></div>
+                
+                <ul id="poiElementsList" class="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-60 overflow-y-auto no-scrollbar mt-2">
+                    <li class="text-[11px] p-2 text-zinc-400 italic text-center">Select a profile context above to scan route data...</li>
+                </ul>
             </div>
 
             <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
@@ -289,6 +296,6 @@
         </div>
     </div>
 
-    <script src="uiapp.js" defer></script>
+    <script src="uiapp4.js" defer></script>
 </body>
 </html>
