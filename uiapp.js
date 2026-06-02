@@ -658,71 +658,56 @@ async function triggerRouteWeatherFetchPipeline() {
 }
 
 // --- HIGH PERFORMANCE CORRIDOR POI SPAWN ENGINE ---
-async function fetchRoutePOIs(persona, btnElement) {
-    if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return;
+async function fetchRoutePOIs(personaKey, routePolygonFeature) {
+    // 1. Safety check
+    if (!routePolygonFeature || !routePolygonFeature.geometry) return [];
 
-    // Reset styles on all POI chips
-    document.querySelectorAll('.poi-chip').forEach(btn => {
-        btn.className = "poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1";
-    });
-    // Highlight active chip
-    if (btnElement) {
-        btnElement.className = "poi-chip border border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-full px-3 py-1.5 text-[10px] font-black whitespace-nowrap shadow-sm transition active:scale-95 flex items-center gap-1";
-    }
-    
-    const resultsContainer = document.getElementById('poi-results-stack');
-    if (resultsContainer) {
-        resultsContainer.innerHTML = '<span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold py-3 animate-pulse">Running corridor scan mapping...</span>';
-        resultsContainer.classList.remove('hidden');
-    }
+    // 2. Extract and format the coordinates
+    // Turf polygons are nested: coordinates[0] is the outer boundary ring.
+    // We must map [lon, lat] to "lat lon" and join them with a single space.
+    const rawCoords = routePolygonFeature.geometry.coordinates[0];
+    const overpassPolyString = rawCoords.map(coord => `${coord[1]} ${coord[0]}`).join(' ');
 
-    const radiusMiles = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
-    const searchRadiusMeters = radiusMiles * 1609.34;
+    // 3. Define the OSM tags based on the active persona
+    let tagFilter = '';
+    if (personaKey === 'family') tagFilter = 'node["amenity"~"zoo|theme_park|playground|restaurant"]';
+    else if (personaKey === 'adventure') tagFilter = 'node["tourism"="viewpoint|wilderness_hut"]';
+    else if (personaKey === 'romance') tagFilter = 'node["amenity"="restaurant|spa"]';
+    else if (personaKey === 'business') tagFilter = 'node["amenity"="bank|conference_centre|hotel"]';
+    else if (personaKey === 'culture') tagFilter = 'node["tourism"="museum|attraction|monument"]';
+    else return []; // Fallback if no valid persona is selected
 
-    // Sample 12 distinct milestone points along the route corridor to avoid overwhelming the API
-    const samplePointsCount = 12;
-    const stride = Math.max(1, Math.floor(plottedRouteCoordinates.length / samplePointsCount));
-    const sampledPoints = [];
-    
-    for (let i = 0; i < plottedRouteCoordinates.length; i += stride) {
-        sampledPoints.push(plottedRouteCoordinates[i]);
-    }
-    // Make sure the absolute destination endpoint is included
-    if (plottedRouteCoordinates.length > 0 && !sampledPoints.includes(plottedRouteCoordinates[plottedRouteCoordinates.length - 1])) {
-        sampledPoints.push(plottedRouteCoordinates[plottedRouteCoordinates.length - 1]);
-    }
+    // 4. Construct the Overpass Query Language (QL) string
+    // We inject the poly boundary filter directly into the node request
+    const query = `
+        [out:json][timeout:25];
+        (
+            ${tagFilter}(poly:"${overpassPolyString}");
+        );
+        out body;
+    `;
 
-    // Cleanly extract search tags defined in POI_QUERY_MAP
-    const rawSubQueries = POI_QUERY_MAP[persona].split(';').map(q => q.trim()).filter(q => q.length > 0);
-    
-    // Construct a valid Union block sequence of individual (around) criteria definitions
-    let queryClauses = [];
-    rawSubQueries.forEach(baseQuery => {
-        sampledPoints.forEach(point => {
-            queryClauses.push(`${baseQuery}(around:${searchRadiusMeters.toFixed(0)},${point[0]},${point[1]});`);
-        });
-    });
-
-    // Compile into a clean native Overpass QL execution string
-    const overpassQLQuery = `[out:json][timeout:30];(${queryClauses.join('')});out center limit 30;`;
-
+    // 5. Execute the POST request with the correct headers and encoding
     try {
         const response = await fetch('https://overpass-api.de/api/interpreter', {
             method: 'POST',
-            body: overpassQLQuery
+            headers: {
+                // Overpass expects form-urlencoded data for POST requests
+                'Content-Type': 'application/x-www-form-urlencoded' 
+            },
+            // The query must be prefixed with 'data=' and safely URL encoded
+            body: 'data=' + encodeURIComponent(query.trim())
         });
 
         if (!response.ok) {
-            throw new Error(`Overpass server rejected request with status code: ${response.status}`);
+            throw new Error(`Overpass rejected request: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        renderPOISmartLayers(data.elements, persona);
+        return data.elements || [];
     } catch (error) {
         console.error("Spatial asset corridor injection error:", error);
-        if (resultsContainer) {
-            resultsContainer.innerHTML = '<span class="text-[10px] text-rose-500 font-black py-3">Vector spatial server timeout. Try reducing radius.</span>';
-        }
+        return [];
     }
 }
 
