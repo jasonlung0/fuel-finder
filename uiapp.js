@@ -19,7 +19,7 @@ let map = null;
 let tileLayerInstance = null;
 let markerClusterGroupInstance = null;
 let routePolylineLayer = null;
-let currentPOILayer = null; // Smart Layer POI Feature Overlay Asset Group
+let currentPOILayer = null; 
 
 let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
@@ -40,15 +40,12 @@ let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
 let dynamicWaypointIncrementalIndex = 0;
 
-// --- SCAN AREA TRACKING CONFIGURATIONS ---
 let originalMapCenter = null;
-let scanAreaTimeout = null;
 
 // SVG Design Asset Tokens
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
 const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
-// --- POI SMART LAYER STRUCTURAL MATRIX CONFIGURATIONS ---
 const POI_QUERY_MAP = {
     'scenic': 'nwr["tourism"="viewpoint"]; nwr["historic"]; nwr["leisure"="nature_reserve"];',
     'family': 'nwr["amenity"="rest_area"]; nwr["leisure"="playground"]; nwr["amenity"="restaurant"]; nwr["amenity"="hospital"]; nwr["amenity"="clinic"];',
@@ -108,12 +105,16 @@ function applyThemeChangesToDOM() {
     }
     refreshViewportViewFilter();
     updateDirectoryTotalBadge();
-    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+    const dropPanel = document.getElementById('starred-dropdown-panel');
+    if (dropPanel && !dropPanel.classList.contains('hidden')) renderDirectoryDropdown();
     updateAllStarUIStates();
 }
 
 // --- SPATIAL MAP INITIALIZATION LAYER ---
 function initializeSpatialMapEngine() {
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) return;
+
     map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
     
     const targetedTilesetURI = isDarkMode 
@@ -148,7 +149,6 @@ function initializeSpatialMapEngine() {
     triggerActiveDeviceLocationLookup();
 }
 
-// --- DYNAMIC "SCAN THE AREA" PIPELINE ---
 window.executeContextualAreaScanPipeline = function(event) {
     if (event) event.stopPropagation();
     
@@ -158,35 +158,36 @@ window.executeContextualAreaScanPipeline = function(event) {
     const iconSpinner = document.getElementById('scan-icon-spinner');
     const btnText = document.getElementById('scan-btn-string');
 
-    btn.disabled = true;
-    iconSearch.classList.add('hidden');
-    iconSpinner.classList.remove('hidden');
-    btnText.textContent = "Updating viewport matrix...";
+    if (btn) btn.disabled = true;
+    if (iconSearch) iconSearch.classList.add('hidden');
+    if (iconSpinner) iconSpinner.classList.remove('hidden');
+    if (btnText) btnText.textContent = "Updating viewport matrix...";
 
-    const newCenter = map.getCenter();
-    mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
-    originalMapCenter = newCenter;
-
-    if (typeof forceReloadRemotePipelineData === 'function') {
-        forceReloadRemotePipelineData();
+    const newCenter = map ? map.getCenter() : null;
+    if (newCenter) {
+        mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
+        originalMapCenter = newCenter;
     }
 
-    setTimeout(() => {
-        container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-        container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+    forceReloadRemotePipelineData();
 
+    setTimeout(() => {
+        if (container) {
+            container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+            container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+        }
         setTimeout(() => {
-            btn.disabled = false;
-            iconSearch.classList.remove('hidden');
-            iconSpinner.classList.add('hidden');
-            btnText.textContent = "Search this map area";
+            if (btn) btn.disabled = false;
+            if (iconSearch) iconSearch.classList.remove('hidden');
+            if (iconSpinner) iconSpinner.classList.add('hidden');
+            if (btnText) btnText.textContent = "Search this map area";
         }, 300);
     }, 1000);
 };
 
 // --- GEOLOCATION CORE HANDLERS ---
 function triggerActiveDeviceLocationLookup() {
-    if (navigator.geolocation) {
+    if (navigator.geolocation && map) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const userLat = position.coords.latitude;
@@ -201,10 +202,7 @@ function triggerActiveDeviceLocationLookup() {
                 
                 refreshViewportViewFilter();
             },
-            (error) => {
-                console.warn("Device location rejected. Defaulting coordinates.");
-                refreshViewportViewFilter();
-            },
+            () => { refreshViewportViewFilter(); },
             { enableHighAccuracy: true, timeout: 6000 }
         );
     } else {
@@ -223,8 +221,10 @@ async function triggerManualDeviceLocationSearch(event) {
         const userLat = position.coords.latitude;
         const userLng = position.coords.longitude;
         mapSearchAnchorCoordinates = [userLat, userLng];
-        map.setView(mapSearchAnchorCoordinates, 13);
-        originalMapCenter = L.latLng(userLat, userLng);
+        if (map) {
+            map.setView(mapSearchAnchorCoordinates, 13);
+            originalMapCenter = L.latLng(userLat, userLng);
+        }
 
         try {
             const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
@@ -243,7 +243,6 @@ async function triggerManualDeviceLocationSearch(event) {
     }, { enableHighAccuracy: true, timeout: 8000 });
 }
 
-// --- INITIALIZE LEAFLET MARKER CLUSTERING LAYER ---
 function initializeClusterLayerPipeline() {
     if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
     
@@ -278,7 +277,7 @@ function initializeClusterLayerPipeline() {
             });
         }
     });
-    map.addLayer(markerClusterGroupInstance);
+    if (map) map.addLayer(markerClusterGroupInstance);
 }
 
 // --- UI AND WORKFLOW TAB ROUTER STATE HANDLERS ---
@@ -291,18 +290,18 @@ function switchWorkflowTabContext(contextType) {
     const weatherModule = document.getElementById('route-weather-module');
 
     if (contextType === 'local') {
-        btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-        btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
-        panelLocal.classList.remove('hidden');
-        panelRoute.classList.add('hidden');
-        weatherModule.classList.add('hidden');
+        if (btnLocal) btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
+        if (btnRoute) btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
+        panelLocal?.classList.remove('hidden');
+        panelRoute?.classList.add('hidden');
+        weatherModule?.classList.add('hidden');
         document.getElementById('poi-filter-container')?.classList.add('hidden');
         clearCalculatedRouteLayers();
     } else {
-        btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-        btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
-        panelRoute.classList.remove('hidden');
-        panelLocal.classList.add('hidden');
+        if (btnRoute) btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
+        if (btnLocal) btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
+        panelRoute?.classList.remove('hidden');
+        panelLocal?.classList.add('hidden');
         
         const scanContainer = document.getElementById('scan-area-container');
         if (scanContainer) {
@@ -311,7 +310,7 @@ function switchWorkflowTabContext(contextType) {
         }
 
         if(plottedRouteCoordinates.length > 0) {
-            weatherModule.classList.remove('hidden');
+            weatherModule?.classList.remove('hidden');
             document.getElementById('poi-filter-container')?.classList.remove('hidden');
         }
     }
@@ -324,11 +323,11 @@ function switchDirectoryTabContext(dirType) {
     const tabRoutes = document.getElementById('dir-tab-routes');
     
     if (dirType === 'stations') {
-        tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-        tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+        if (tabStations) tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
+        if (tabRoutes) tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
     } else {
-        tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-        tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+        if (tabRoutes) tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
+        if (tabStations) tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
     }
     renderDirectoryDropdown();
 }
@@ -351,7 +350,6 @@ function swapRouteEndpoints(event) {
     endInput.value = intermediateBuffer;
 }
 
-// --- DYNAMIC INPUT MATRIX GENERATOR CONTROLLERS ---
 function addWaypointFieldInputRow(initialValue = '') {
     dynamicWaypointIncrementalIndex++;
     const currentUid = dynamicWaypointIncrementalIndex;
@@ -379,17 +377,13 @@ function addWaypointFieldInputRow(initialValue = '') {
 function removeWaypointFieldInputRow(uid, event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const rowTarget = document.getElementById(`waypoint-row-context-${uid}`);
-    if (rowTarget) {
-        rowTarget.remove();
-    }
+    if (rowTarget) rowTarget.remove();
 }
 
 function clearSingleWaypointRowInputValue(uid, event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const inputField = document.getElementById(`route-via-${uid}`);
-    if (inputField) {
-        inputField.value = '';
-    }
+    if (inputField) inputField.value = '';
 }
 
 function bindAutocompleteToSpecificInput(inputId, suggestionsBoxId) {
@@ -443,14 +437,16 @@ function setupAutocompleteListeners() {
 }
 
 async function executeAddressGeocodeLookup() {
-    const searchString = document.getElementById('location-input').value.trim();
+    const searchInput = document.getElementById('location-input');
+    if (!searchInput) return;
+    const searchString = searchInput.value.trim();
     if (!searchString) return;
     try {
         const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
         const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
         const matchingNodes = await res.json();
 
-        if (matchingNodes?.length > 0) {
+        if (matchingNodes?.length > 0 && map) {
             mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
             map.setView(mapSearchAnchorCoordinates, 12);
             originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon));
@@ -463,12 +459,17 @@ async function executeAddressGeocodeLookup() {
 
 // --- HIGH PERFORMANCE VECTOR ROUTING CORRIDOR ROUTINES ---
 async function executeRouteGenerationPipeline() {
-    const startVal = document.getElementById('route-start').value.trim();
-    const endVal = document.getElementById('route-end').value.trim();
+    const startInput = document.getElementById('route-start');
+    const endInput = document.getElementById('route-end');
+    if (!startInput || !endInput) return;
+
+    const startVal = startInput.value.trim();
+    const endVal = endInput.value.trim();
     if (!startVal || !endVal) return;
 
-    if (currentPOILayer) map.removeLayer(currentPOILayer);
-    document.getElementById('poi-results-stack').innerHTML = '';
+    if (currentPOILayer && map) map.removeLayer(currentPOILayer);
+    const poiResultsStack = document.getElementById('poi-results-stack');
+    if (poiResultsStack) poiResultsStack.innerHTML = '';
 
     const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
                                 .map(input => input.value.trim())
@@ -510,9 +511,9 @@ async function executeRouteGenerationPipeline() {
         const distanceMiles = routeData.routes[0].distance * 0.000621371;
 
         plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
-        if (routePolylineLayer) map.removeLayer(routePolylineLayer);
+        if (routePolylineLayer && map) map.removeLayer(routePolylineLayer);
         
-        routePolylineLayer = L.featureGroup().addTo(map);
+        if (map) routePolylineLayer = L.featureGroup().addTo(map);
 
         let strideSize = Math.max(1, Math.floor(plottedRouteCoordinates.length / 14));
         let heavyTrafficDiscovered = false;
@@ -537,12 +538,14 @@ async function executeRouteGenerationPipeline() {
                 moderateTrafficDiscovered = true;
             }
 
-            L.polyline(trackSlice, {
-                color: segmentLineColor, weight: strokeThickness, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
-            }).addTo(routePolylineLayer);
+            if (routePolylineLayer) {
+                L.polyline(trackSlice, {
+                    color: segmentLineColor, weight: strokeThickness, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
+                }).addTo(routePolylineLayer);
+            }
         }
 
-        map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
+        if (map && routePolylineLayer) map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
         
         document.getElementById('poi-filter-container')?.classList.remove('hidden');
         refreshViewportViewFilter(distanceMiles);
@@ -661,11 +664,15 @@ async function fetchRoutePOIs(persona, btnElement) {
     document.querySelectorAll('.poi-chip').forEach(btn => {
         btn.className = "poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1";
     });
-    btnElement.className = "poi-chip border border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-full px-3 py-1.5 text-[10px] font-black whitespace-nowrap shadow-sm transition active:scale-95 flex items-center gap-1";
+    if (btnElement) {
+        btnElement.className = "poi-chip border border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-full px-3 py-1.5 text-[10px] font-black whitespace-nowrap shadow-sm transition active:scale-95 flex items-center gap-1";
+    }
     
     const resultsContainer = document.getElementById('poi-results-stack');
-    resultsContainer.innerHTML = '<span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold py-3 animate-pulse">Running corridor scan mapping...</span>';
-    resultsContainer.classList.remove('hidden');
+    if (resultsContainer) {
+        resultsContainer.innerHTML = '<span class="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold py-3 animate-pulse">Running corridor scan mapping...</span>';
+        resultsContainer.classList.remove('hidden');
+    }
 
     const stride = Math.max(1, Math.floor(plottedRouteCoordinates.length / 30));
     const sampledCoords = [];
@@ -690,15 +697,16 @@ async function fetchRoutePOIs(persona, btnElement) {
         renderPOISmartLayers(data.elements, persona);
     } catch (error) {
         console.error("Spatial asset corridor injection error:", error);
-        resultsContainer.innerHTML = '<span class="text-[10px] text-rose-500 font-black py-3">Vector spatial server offline.</span>';
+        if (resultsContainer) resultsContainer.innerHTML = '<span class="text-[10px] text-rose-500 font-black py-3">Vector spatial server offline.</span>';
     }
 }
 
 function renderPOISmartLayers(elements, persona) {
-    if (currentPOILayer) map.removeLayer(currentPOILayer);
-    currentPOILayer = L.featureGroup().addTo(map);
+    if (currentPOILayer && map) map.removeLayer(currentPOILayer);
+    if (map) currentPOILayer = L.featureGroup().addTo(map);
     
     const resultsContainer = document.getElementById('poi-results-stack');
+    if (!resultsContainer) return;
     resultsContainer.innerHTML = '';
 
     if (!elements || elements.length === 0) {
@@ -715,26 +723,27 @@ function renderPOISmartLayers(elements, persona) {
 
         const dynamicBadgeText = getPersonaContextLabel(persona, el.tags);
 
-        const marker = L.marker([lat, lon], {
-            icon: L.divIcon({
-                html: `<div class="w-6 h-6 bg-emerald-600 border border-white dark:border-zinc-950 shadow-lg text-white flex items-center justify-center rounded-full text-xs font-bold hover:scale-110 transform transition duration-200">📍</div>`,
-                className: 'leaflet-div-icon-reset',
-                iconSize: [24, 24]
-            })
-        }).addTo(currentPOILayer);
+        if (currentPOILayer) {
+            const marker = L.marker([lat, lon], {
+                icon: L.divIcon({
+                    html: `<div class="w-6 h-6 bg-emerald-600 border border-white dark:border-zinc-950 shadow-lg text-white flex items-center justify-center rounded-full text-xs font-bold hover:scale-110 transform transition duration-200">📍</div>`,
+                    className: 'leaflet-div-icon-reset',
+                    iconSize: [24, 24]
+                })
+            }).addTo(currentPOILayer);
 
-        marker.bindPopup(`
-            <div class="p-1 min-w-[140px]">
-                <div class="text-[11px] font-black text-zinc-900">${name}</div>
-                <div class="text-[9px] font-black text-emerald-600 mt-1 uppercase tracking-wider">${dynamicBadgeText}</div>
-            </div>
-        `);
+            marker.bindPopup(`
+                <div class="p-1 min-w-[140px]">
+                    <div class="text-[11px] font-black text-zinc-900">${name}</div>
+                    <div class="text-[9px] font-black text-emerald-600 mt-1 uppercase tracking-wider">${dynamicBadgeText}</div>
+                </div>
+            `);
+        }
 
         const card = document.createElement('div');
         card.className = "shrink-0 w-44 p-3 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 rounded-xl shadow-sm cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500/80 transition-all duration-200 group flex flex-col justify-between";
         card.onclick = () => {
-            map.flyTo([lat, lon], 15, { animate: true, duration: 1.2 });
-            marker.openPopup();
+            if (map) map.flyTo([lat, lon], 15, { animate: true, duration: 1.2 });
         };
 
         card.innerHTML = `
@@ -753,10 +762,14 @@ function renderPOISmartLayers(elements, persona) {
 
 // --- WORKSPACE STORAGE INTERACTORS ---
 function saveActiveRouteCorridor() {
-    const startVal = document.getElementById('route-start').value.trim();
-    const endVal = document.getElementById('route-end').value.trim();
-    const currentMpg = document.getElementById('vehicle-mpg').value;
-    const currentDev = document.getElementById('route-radius-slider').value;
+    const startInput = document.getElementById('route-start');
+    const endInput = document.getElementById('route-end');
+    if (!startInput || !endInput) return;
+
+    const startVal = startInput.value.trim();
+    const endVal = endInput.value.trim();
+    const currentMpg = document.getElementById('vehicle-mpg')?.value || 45;
+    const currentDev = document.getElementById('route-radius-slider')?.value || 2;
 
     if (!startVal || !endVal) return;
 
@@ -777,7 +790,8 @@ function saveActiveRouteCorridor() {
     savedRoutes.push(routePayload);
     localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
     updateDirectoryTotalBadge();
-    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+    const dropPanel = document.getElementById('starred-dropdown-panel');
+    if (dropPanel && !dropPanel.classList.contains('hidden')) renderDirectoryDropdown();
     
     if (window.innerWidth < 768) setMobileSidebarState('peek');
     alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
@@ -796,37 +810,45 @@ function loadSavedRouteCorridorDataIntoWorkspace(routeId) {
     if (!matchedRoute) return;
 
     switchWorkflowTabContext('route');
-    document.getElementById('route-start').value = matchedRoute.start;
-    document.getElementById('route-end').value = matchedRoute.end;
-    document.getElementById('vehicle-mpg').value = matchedRoute.mpg;
-    document.getElementById('route-radius-slider').value = matchedRoute.radius;
-    document.getElementById('route-radius-val').textContent = `${matchedRoute.radius} Mi`;
+    const startInput = document.getElementById('route-start');
+    const endInput = document.getElementById('route-end');
+    const mpgInput = document.getElementById('vehicle-mpg');
+    const rSlider = document.getElementById('route-radius-slider');
+    const rVal = document.getElementById('route-radius-val');
+
+    if(startInput) startInput.value = matchedRoute.start;
+    if(endInput) endInput.value = matchedRoute.end;
+    if(mpgInput) mpgInput.value = matchedRoute.mpg;
+    if(rSlider) rSlider.value = matchedRoute.radius;
+    if(rVal) rVal.textContent = `${matchedRoute.radius} Mi`;
 
     const container = document.getElementById('dynamic-waypoints-container');
     if (container) {
         container.innerHTML = '';
         if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) {
-            matchedRoute.waypoints.forEach(wpStr => {
-                addWaypointFieldInputRow(wpStr);
-            });
+            matchedRoute.waypoints.forEach(wpStr => { addWaypointFieldInputRow(wpStr); });
         } else {
             addWaypointFieldInputRow();
         }
     }
 
     executeRouteGenerationPipeline();
-    document.getElementById('starred-dropdown-panel').classList.add('hidden');
+    document.getElementById('starred-dropdown-panel')?.classList.add('hidden');
 }
 
 function clearCalculatedRouteLayers() {
-    if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
-    if (currentPOILayer) { map.removeLayer(currentPOILayer); currentPOILayer = null; }
+    if (routePolylineLayer && map) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
+    if (currentPOILayer && map) { map.removeLayer(currentPOILayer); currentPOILayer = null; }
     plottedRouteCoordinates = [];
     cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
     
-    document.getElementById('route-start').value = '';
-    document.getElementById('route-end').value = '';
-    document.getElementById('location-input').value = '';
+    const startInput = document.getElementById('route-start');
+    const endInput = document.getElementById('route-end');
+    const locInput = document.getElementById('location-input');
+
+    if(startInput) startInput.value = '';
+    if(endInput) endInput.value = '';
+    if(locInput) locInput.value = '';
 
     const container = document.getElementById('dynamic-waypoints-container');
     if (container) {
@@ -834,17 +856,17 @@ function clearCalculatedRouteLayers() {
         addWaypointFieldInputRow();
     }
 
-    document.getElementById('financial-card').classList.add('hidden');
-    document.getElementById('traffic-telemetry-node').classList.add('hidden');
-    document.getElementById('cheapest-ranking-block').classList.add('hidden');
-    document.getElementById('route-weather-module').classList.add('hidden');
+    document.getElementById('financial-card')?.classList.add('hidden');
+    document.getElementById('traffic-telemetry-node')?.classList.add('hidden');
+    document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
+    document.getElementById('route-weather-module')?.classList.add('hidden');
     document.getElementById('poi-filter-container')?.classList.add('hidden');
-    document.getElementById('poi-results-stack').innerHTML = '';
+    const poiStack = document.getElementById('poi-results-stack');
+    if (poiStack) poiStack.innerHTML = '';
     
     refreshViewportViewFilter();
 }
 
-// --- MATHEMATICAL MATH SPATIAL RADIUS MATRIX CONTROLLERS ---
 function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
     const dLat = (lat2 - lat1) * 69.1;
     const dLon = (lon2 - lon1) * 41.0; 
@@ -863,17 +885,20 @@ function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
 
 // Event Sync Handlers
 document.getElementById('radius-slider')?.addEventListener('input', (e) => {
-    document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
+    const rVal = document.getElementById('radius-val');
+    if (rVal) rVal.textContent = `${e.target.value} Miles`; 
     refreshViewportViewFilter();
 });
 document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
-    document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
+    const rrVal = document.getElementById('route-radius-val');
+    if (rrVal) rrVal.textContent = `${e.target.value} Miles`;
     refreshViewportViewFilter();
 });
 document.getElementById('fuel-type')?.addEventListener('change', () => {
     initializeClusterLayerPipeline();
     refreshViewportViewFilter();
-    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+    const dropPanel = document.getElementById('starred-dropdown-panel');
+    if (dropPanel && !dropPanel.classList.contains('hidden')) renderDirectoryDropdown();
 });
 
 document.addEventListener('click', (e) => {
@@ -883,7 +908,6 @@ document.addEventListener('click', (e) => {
     });
 });
 
-// --- TELEMETRY API LOADER DATA RETRIEVAL PIPELINE ---
 async function forceReloadRemotePipelineData() {
     try {
         const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
@@ -898,18 +922,21 @@ async function forceReloadRemotePipelineData() {
         });
         
         const liveClock = new Date();
-        document.getElementById('live-timestamp-label').innerHTML = `Prices Updated At ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        
+        const stampLabel = document.getElementById('live-timestamp-label');
+        if (stampLabel) {
+            stampLabel.innerHTML = `Prices Updated At ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        }
         refreshViewportViewFilter();
     } catch (error) {
         console.error(error);
-        document.getElementById('live-timestamp-label').textContent = "Offline Data Buffer Frame";
+        const stampLabel = document.getElementById('live-timestamp-label');
+        if (stampLabel) stampLabel.textContent = "Offline Data Buffer Frame";
     }
 }
 
 function focusAndHighlightMapMarker(lat, lon) {
     if (isNaN(lat) || isNaN(lon)) return;
-    map.setView([lat, lon], 14, { animate: true, duration: 0.5 });
+    if (map) map.setView([lat, lon], 14, { animate: true, duration: 0.5 });
     
     const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) ||
                            rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
@@ -919,7 +946,6 @@ function focusAndHighlightMapMarker(lat, lon) {
     }
 }
 
-// --- FILTERING AND PACKAGING VIEWS ENGINE ---
 function refreshViewportViewFilter(routeDistanceContext = null) {
     if (!rawGlobalStationsPool?.length) return;
     const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
@@ -939,7 +965,6 @@ function refreshViewportViewFilter(routeDistanceContext = null) {
     generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
 }
 
-// --- MILESTONE COMPONENT LEADERBOARD RENDERING ---
 function generateCheapestRankingListDeck(pool, fuelVariant) {
     const block = document.getElementById('cheapest-ranking-block');
     const container = document.getElementById('cheapest-cards-stack');
@@ -952,7 +977,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
     container.innerHTML = '';
 
     if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
-        blockTitle.textContent = "3 Cheapest Stations On Your Route";
+        if (blockTitle) blockTitle.textContent = "3 Cheapest Stations On Your Route";
         
         const milestoneLocationsList = [];
         milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
@@ -1007,7 +1032,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             }
         });
     } else {
-        blockTitle.textContent = "Cheapest Stations Nearby";
+        if (blockTitle) blockTitle.textContent = "Cheapest Stations Nearby";
         validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
         
         validPool.slice(0, 3).forEach((station, idx) => {
@@ -1034,7 +1059,6 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
     block.classList.remove('hidden');
 }
 
-// --- DYNAMIC PRICING HEATMAP LOGIC ---
 function assignPricingTierColorStyles(valueRaw, variantKey) {
     const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
     if (!valueRaw) return fallbackClasses;
@@ -1064,13 +1088,16 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     const finCard = document.getElementById('financial-card');
     if (finCard && pricesArray.length > 0) {
         finCard.classList.remove('hidden');
+        const sDist = document.getElementById('summary-distance');
+        const sCost = document.getElementById('summary-cost');
         if (activeTabContext === 'route' && routeDistanceContext) {
-            const totalTripPriceCostPounds = ((routeDistanceContext / parseFloat(document.getElementById('vehicle-mpg').value || 45)) * 4.54609 * minPrice) / 100;
-            document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
-            document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
+            const currentMpgVal = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
+            const totalTripPriceCostPounds = ((routeDistanceContext / currentMpgVal) * 4.54609 * minPrice) / 100;
+            if (sDist) sDist.textContent = `${routeDistanceContext.toFixed(1)} miles`;
+            if (sCost) sCost.textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
         } else {
-            document.getElementById('summary-distance').textContent = `Low`;
-            document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
+            if (sDist) sDist.textContent = `Low`;
+            if (sCost) sCost.textContent = `${minPrice.toFixed(1)}p`;
         }
     }
 
@@ -1105,15 +1132,15 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         markerClusterGroupInstance.addLayer(markerInstance);
     });
 
-    if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Stations: ${fallbackTotalCount}`;
+    const counterNode = document.getElementById('station-counter');
+    if (counterNode) counterNode.textContent = `Stations: ${fallbackTotalCount}`;
 }
 
 function dismissFinancialDashboardBox(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
-    document.getElementById('financial-card').classList.add('hidden');
+    document.getElementById('financial-card')?.classList.add('hidden');
 }
 
-// --- BOOKMARKS REPOSITORY HANDLERS ---
 function toggleCurrentStationStar(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     if (!activeSheetStation) return;
@@ -1140,7 +1167,8 @@ function updateAllStarUIStates() {
             : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
     }
 
-    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+    const dropPanel = document.getElementById('starred-dropdown-panel');
+    if (dropPanel && !dropPanel.classList.contains('hidden')) renderDirectoryDropdown();
 }
 
 function toggleStarredDropdownDashboardPanel(event) {
@@ -1173,7 +1201,7 @@ function renderDirectoryDropdown() {
             cardRow.onclick = (event) => {
                 event.stopPropagation();
                 focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
-                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+                document.getElementById('starred-dropdown-panel')?.classList.add('hidden');
             };
 
             cardRow.innerHTML = `
@@ -1199,7 +1227,7 @@ function renderDirectoryDropdown() {
             cardRow.onclick = (event) => {
                 event.stopPropagation();
                 loadSavedRouteCorridorDataIntoWorkspace(route.id);
-                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+                document.getElementById('starred-dropdown-panel')?.classList.add('hidden');
             };
 
             cardRow.innerHTML = `
@@ -1216,26 +1244,34 @@ function renderDirectoryDropdown() {
     }
 }
 
-// --- SLIDING MODAL INTERACTION DRAWER ENGINE ---
 function openForecourtDetailSheet(stationData) {
     const sheet = document.getElementById('global-detail-sheet');
     if (!sheet) return;
 
-    document.getElementById('starred-dropdown-panel').classList.add('hidden');
+    document.getElementById('starred-dropdown-panel')?.classList.add('hidden');
     activeSheetStation = stationData;
 
-    document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
-    document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
+    const bTitle = document.getElementById('sheet-brand-title');
+    const aDetails = document.getElementById('sheet-address-details');
+    if (bTitle) bTitle.textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
+    if (aDetails) aDetails.textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
 
-    document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-    document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-    document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
-    document.getElementById('card-wrap-premiumdiesel').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
+    const wraps = ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'];
+    const keys = ['E10', 'E5', 'B7', 'PremiumDiesel'];
+    wraps.forEach((id, i) => {
+        const target = document.getElementById(id);
+        if (target) target.className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData[keys[i]], keys[i])}`;
+    });
 
-    document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
-    document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
-    document.getElementById('sheet-price-b7').textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
-    document.getElementById('sheet-price-premiumdiesel').textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
+    const labelE10 = document.getElementById('sheet-price-e10');
+    const labelE5 = document.getElementById('sheet-price-e5');
+    const labelB7 = document.getElementById('sheet-price-b7');
+    const labelPrem = document.getElementById('sheet-price-premiumdiesel');
+
+    if (labelE10) labelE10.textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
+    if (labelE5) labelE5.textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
+    if (labelB7) labelB7.textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
+    if (labelPrem) labelPrem.textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
 
     updateAllStarUIStates();
     sheet.classList.remove('hidden');
@@ -1270,10 +1306,9 @@ function triggerExternalMappingVectorRoute(event) {
     if (!activeSheetStation) return;
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    window.open(`https://maps.google.com/?q=${lat},${lon}`, '_blank');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
 }
 
-// --- NATIVE MOBILE GESTURES MATRIX DETECTOR ---
 function setMobileSidebarState(stateStr) {
     currentMobileSidebarUIState = stateStr;
     const sidebar = document.getElementById('primary-control-sidebar');
