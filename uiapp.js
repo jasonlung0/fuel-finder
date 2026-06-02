@@ -1401,7 +1401,7 @@ let map = null;
                     className: 'leaflet-div-icon-reset',
                     html: `
                         <div class="flex flex-col items-center">
-                            <div class="bg-black text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded-md border border-emerald-500 shadow-xl whitespace-nowrap">
+                            <div class="bg-black text-emerald-400 text-[9px] font-black px-2.5 py-1.5 rounded-full border border-emerald-500 shadow-xl whitespace-nowrap">
                                 Refuel Stop #${index + 1} (${stop.price}p)
                             </div>
                             <div class="w-2 h-2 bg-emerald-400 rounded-full border border-black animate-ping -mt-1"></div>
