@@ -91,6 +91,17 @@ let map = null;
             
             initializeClusterLayerPipeline();
             map.on('click', () => { closeForecourtDetailSheet(); });
+
+
+            // ADD THIS LAYER: Real-time traffic layer flow overlay
+            const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6'; 
+            
+            L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`, {
+                maxZoom: 22,
+                attribution: '© TomTom Traffic',
+                opacity: 0.8 // Keeps traffic lines vivid but lets roads behind show through
+            }).addTo(map);
+            
             
             // Set initial Map Center Snapshot for the "Scan the Area" feature
             originalMapCenter = map.getCenter();
@@ -487,18 +498,31 @@ let map = null;
                     let trackSlice = plottedRouteCoordinates.slice(i, nextIdx);
                     if (trackSlice.length < 2) continue;
 
-                    let randomFlowFactor = Math.random();
-                    let segmentLineColor = '#10b981'; 
-                    let strokeThickness = 5.5;
-
-                    if (randomFlowFactor > 0.88) {
-                        segmentLineColor = '#ef4444'; 
-                        strokeThickness = 6.5;
-                        heavyTrafficDiscovered = true;
-                    } else if (randomFlowFactor > 0.68) {
-                        segmentLineColor = '#f59e0b'; 
-                        strokeThickness = 6.0;
-                        moderateTrafficDiscovered = true;
+                    // Replace your existing segment/random line drawing loop with this:
+                    
+                    if (routePolylineLayer) {
+                        map.removeLayer(routePolylineLayer);
+                    }
+                    
+                    // Clear any old simulation badges from your sidebar UI
+                    document.getElementById('heavy-traffic-badge')?.classList.add('hidden');
+                    document.getElementById('moderate-traffic-badge')?.classList.add('hidden');
+                    
+                    // Draw a modern, semi-transparent navigation path 
+                    // This allows TomTom's underlying red/amber/green live lines to pop through
+                    routePolylineLayer = L.polyline(plottedRouteCoordinates, {
+                        color: '#3b82f6',      // A clean indigo/blue navigation color
+                        weight: 6,
+                        opacity: 0.6,          // Crucial: lets the real live traffic show through the route line
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    }).addTo(map);
+                    
+                    // Update your sidebar traffic status banner to reflect the live data feed
+                    const timestampLabel = document.getElementById('live-timestamp-label');
+                    if (timestampLabel) {
+                        const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        timestampLabel.innerHTML = `🌐 Live TomTom Traffic Engine Active Context (${timeNow})`;
                     }
 
                     L.polyline(trackSlice, {
