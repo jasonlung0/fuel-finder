@@ -661,9 +661,11 @@ async function triggerRouteWeatherFetchPipeline() {
 async function fetchRoutePOIs(persona, btnElement) {
     if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return;
 
+    // Reset styles on all POI chips
     document.querySelectorAll('.poi-chip').forEach(btn => {
         btn.className = "poi-chip bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap shadow-sm hover:border-emerald-500 hover:text-emerald-500 transition active:scale-95 flex items-center gap-1";
     });
+    // Highlight active chip
     if (btnElement) {
         btnElement.className = "poi-chip border border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 rounded-full px-3 py-1.5 text-[10px] font-black whitespace-nowrap shadow-sm transition active:scale-95 flex items-center gap-1";
     }
@@ -674,30 +676,53 @@ async function fetchRoutePOIs(persona, btnElement) {
         resultsContainer.classList.remove('hidden');
     }
 
-    const stride = Math.max(1, Math.floor(plottedRouteCoordinates.length / 30));
-    const sampledCoords = [];
-    for (let i = 0; i < plottedRouteCoordinates.length; i += stride) {
-        sampledCoords.push(`${plottedRouteCoordinates[i][0]},${plottedRouteCoordinates[i][1]}`);
-    }
-    const coordString = sampledCoords.join(',');
-    
     const radiusMiles = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
     const searchRadiusMeters = radiusMiles * 1609.34;
 
-    const rawSubQueries = POI_QUERY_MAP[persona].split(';').filter(q => q.trim().length > 0);
-    const compiledCorridorQueries = rawSubQueries.map(q => `${q}(around:${searchRadiusMeters},${coordString});`).join('');
-    const overpassQLQuery = `[out:json][timeout:30];(${compiledCorridorQueries});out center limit 25;`;
+    // Sample 12 distinct milestone points along the route corridor to avoid overwhelming the API
+    const samplePointsCount = 12;
+    const stride = Math.max(1, Math.floor(plottedRouteCoordinates.length / samplePointsCount));
+    const sampledPoints = [];
+    
+    for (let i = 0; i < plottedRouteCoordinates.length; i += stride) {
+        sampledPoints.push(plottedRouteCoordinates[i]);
+    }
+    // Make sure the absolute destination endpoint is included
+    if (plottedRouteCoordinates.length > 0 && !sampledPoints.includes(plottedRouteCoordinates[plottedRouteCoordinates.length - 1])) {
+        sampledPoints.push(plottedRouteCoordinates[plottedRouteCoordinates.length - 1]);
+    }
+
+    // Cleanly extract search tags defined in POI_QUERY_MAP
+    const rawSubQueries = POI_QUERY_MAP[persona].split(';').map(q => q.trim()).filter(q => q.length > 0);
+    
+    // Construct a valid Union block sequence of individual (around) criteria definitions
+    let queryClauses = [];
+    rawSubQueries.forEach(baseQuery => {
+        sampledPoints.forEach(point => {
+            queryClauses.push(`${baseQuery}(around:${searchRadiusMeters.toFixed(0)},${point[0]},${point[1]});`);
+        });
+    });
+
+    // Compile into a clean native Overpass QL execution string
+    const overpassQLQuery = `[out:json][timeout:30];(${queryClauses.join('')});out center limit 30;`;
 
     try {
         const response = await fetch('https://overpass-api.de/api/interpreter', {
             method: 'POST',
             body: overpassQLQuery
         });
+
+        if (!response.ok) {
+            throw new Error(`Overpass server rejected request with status code: ${response.status}`);
+        }
+        
         const data = await response.json();
         renderPOISmartLayers(data.elements, persona);
     } catch (error) {
         console.error("Spatial asset corridor injection error:", error);
-        if (resultsContainer) resultsContainer.innerHTML = '<span class="text-[10px] text-rose-500 font-black py-3">Vector spatial server offline.</span>';
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '<span class="text-[10px] text-rose-500 font-black py-3">Vector spatial server timeout. Try reducing radius.</span>';
+        }
     }
 }
 
