@@ -566,7 +566,7 @@ let map = null;
             if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
             
             Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-                locationsToFetch.push({ label: "Waypoint", data: cachedGeocodedWaypoints.vids[key] });
+                locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] });
             });
 
             if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
@@ -812,7 +812,7 @@ let map = null;
                 milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
                 
                 Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-                    milestoneLocationsList.push({ label: `Stopover Waypoint`, node: cachedGeocodedWaypoints.vids[key] });
+                    milestoneLocationsList.push({ label: `Stopover`, node: cachedGeocodedWaypoints.vids[key] });
                 });
                 
                 milestoneLocationsList.push({ label: "Destination", node: cachedGeocodedWaypoints.end });
