@@ -429,115 +429,158 @@ let map = null;
             } catch (err) { console.error(err); }
         }
 
+        // --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
         async function executeRouteGenerationPipeline() {
             const startVal = document.getElementById('route-start').value.trim();
             const endVal = document.getElementById('route-end').value.trim();
             if (!startVal || !endVal) return;
-
+        
+            // Safety check for TomTom Key (Ensure TOMTOM_API_KEY is defined at the top of your file)
+            if (typeof TOMTOM_API_KEY === 'undefined' || TOMTOM_API_KEY === 'YOUR_TOMTOM_API_KEY') {
+                alert("Please set your production TOMTOM_API_KEY inside the top configuration layer of uiapp.js.");
+                return;
+            }
+        
             const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
                                         .map(input => input.value.trim())
                                         .filter(val => val.length > 0);
-
+        
             try {
+                // Geocode coordinates for start and destination frames
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                 const startNodes = await startRes.json();
                 
                 const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                 const endNodes = await endRes.json();
-
+        
                 if (!startNodes.length || !endNodes.length) return;
-
+        
                 cachedGeocodedWaypoints.start = { name: startVal, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
                 cachedGeocodedWaypoints.end = { name: endVal, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
-
-                let coordinatesStringArray = [`${startNodes[0].lon},${startNodes[0].lat}`];
-
+        
+                // Construct coordinates string payload matching TomTom matrix expectations (lon,lat:lon,lat)
+                // NOTE: TomTom uses Longitude,Latitude order, unlike Nominatim's response.
+                let coordinatesPayloadString = `${startNodes[0].lon},${startNodes[0].lat}`;
+        
                 cachedGeocodedWaypoints.vids = {};
                 for(let w = 0; w < waypointNodes.length; w++) {
                     const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                     const viaNodes = await viaRes.json();
                     if(viaNodes.length) {
-                        coordinatesStringArray.push(`${viaNodes[0].lon},${viaNodes[0].lat}`);
+                        coordinatesPayloadString += `:${viaNodes[0].lon},${viaNodes[0].lat}`;
                         cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: parseFloat(viaNodes[0].lat), lon: parseFloat(viaNodes[0].lon) };
                     }
                 }
-
-                coordinatesStringArray.push(`${endNodes[0].lon},${endNodes[0].lat}`);
-                const osrmQuery = `https://router.project-osrm.org/route/v1/driving/${coordinatesStringArray.join(';')}?overview=full&geometries=geojson`;
-
-                const routeRes = await fetch(osrmQuery);
+                coordinatesPayloadString += `:${endNodes[0].lon},${endNodes[0].lat}`;
+        
+                // Fetch live routing calculations augmented by real-time traffic delay metrics from TomTom API
+                // Added computeTravelTimeFor=all and sectionType=traffic
+                const tomtomRouterEndpoint = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&sectionType=traffic&computeTravelTimeFor=all&routeType=fastest&travelMode=car`;
+        
+                const routeRes = await fetch(tomtomRouterEndpoint);
+                if (!routeRes.ok) throw new Error("TomTom gateway interface returned an authentication or network error.");
                 const routeData = await routeRes.json();
-
+        
                 if (!routeData.routes?.length) return;
-
-                const routeLineGeometry = routeData.routes[0].geometry;
-                const distanceMiles = routeData.routes[0].distance * 0.000621371;
-
-                plottedRouteCoordinates = routeLineGeometry.coordinates.map(coord => [coord[1], coord[0]]);
+        
+                const currentActiveRoute = routeData.routes[0];
+                const distanceMiles = currentActiveRoute.summary.lengthInMeters * 0.000621371;
+                const totalTrafficDelaySeconds = currentActiveRoute.summary.trafficDelayInSeconds || 0;
+        
+                // Process dynamic point mapping coordinate objects array
+                plottedRouteCoordinates = [];
+                currentActiveRoute.legs.forEach(leg => {
+                    leg.points.forEach(point => {
+                        plottedRouteCoordinates.push([point.latitude, point.longitude]);
+                    });
+                });
+        
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
-                
                 routePolylineLayer = L.featureGroup().addTo(map);
-
-                let strideSize = Math.max(1, Math.floor(plottedRouteCoordinates.length / 14));
-                let heavyTrafficDiscovered = false;
-                let moderateTrafficDiscovered = false;
-
-                for (let i = 0; i < plottedRouteCoordinates.length - 1; i += strideSize) {
-                    let nextIdx = Math.min(i + strideSize + 1, plottedRouteCoordinates.length);
-                    let trackSlice = plottedRouteCoordinates.slice(i, nextIdx);
-                    if (trackSlice.length < 2) continue;
-
-                    let randomFlowFactor = Math.random();
-                    let segmentLineColor = '#10b981'; 
-                    let strokeThickness = 5.5;
-
-                    if (randomFlowFactor > 0.88) {
-                        segmentLineColor = '#ef4444'; 
-                        strokeThickness = 6.5;
-                        heavyTrafficDiscovered = true;
-                    } else if (randomFlowFactor > 0.68) {
-                        segmentLineColor = '#f59e0b'; 
-                        strokeThickness = 6.0;
-                        moderateTrafficDiscovered = true;
-                    }
-
-                    L.polyline(trackSlice, {
-                        color: segmentLineColor, weight: strokeThickness, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
+        
+                let jamCount = 0;
+        
+                // Map out safe vector line paths matching parsed TomTom traffic delay metrics
+                if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
+                    currentActiveRoute.sections.forEach(section => {
+                        const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
+                        if (sliceCoords.length < 2) return;
+        
+                        let segmentLineColor = '#10b981'; // Default Clear flow channels
+                        let strokeThickness = 4.0;
+                        let polyOpacity = 0.85;
+        
+                        if (section.simpleCategory === 'JAM' || section.magnitudesOfDelay === 'MAJOR') {
+                            segmentLineColor = '#ef4444'; // Heavy congestion
+                            strokeThickness = 5.0;
+                            polyOpacity = 0.95;
+                            jamCount++;
+                        } else if (section.simpleCategory === 'SLOWDOWN' || section.magnitudesOfDelay === 'MINOR') {
+                            segmentLineColor = '#f59e0b'; // Moderate delays
+                            strokeThickness = 4.5;
+                            polyOpacity = 0.90;
+                            jamCount++;
+                        }
+        
+                        L.polyline(sliceCoords, {
+                            color: segmentLineColor, weight: strokeThickness, opacity: polyOpacity, lineCap: 'round', lineJoin: 'round'
+                        }).addTo(routePolylineLayer);
+                    });
+                } else {
+                    // Draw clean path fallback lines if no specific sub-sections are reported
+                    L.polyline(plottedRouteCoordinates, {
+                        color: '#10b981', weight: 4.0, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
                     }).addTo(routePolylineLayer);
                 }
-
-                map.fitBounds(routePolylineLayer.getBounds(), { padding: [40, 40] });
+        
+                map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
                 refreshViewportViewFilter(distanceMiles);
                 triggerRouteWeatherFetchPipeline();
-
-                const trafficNode = document.getElementById('traffic-telemetry-node');
-                const labelText = document.getElementById('traffic-status-label');
-                const badgeText = document.getElementById('traffic-delay-badge');
-                
-                if (trafficNode && labelText && badgeText) {
-                    trafficNode.classList.remove('hidden');
-                    trafficNode.classList.add('flex');
-                    if (heavyTrafficDiscovered) {
-                        labelText.textContent = "Heavy Traffic Areas";
-                        labelText.className = "text-xs font-black text-rose-650 dark:text-rose-400 block truncate";
-                        badgeText.textContent = "Severe Delay";
-                        badgeText.className = "bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
-                    } else if (moderateTrafficDiscovered) {
-                        labelText.textContent = "Expect Minor Delays";
-                        labelText.className = "text-xs font-black text-amber-600 dark:text-amber-400 block truncate";
-                        badgeText.textContent = "Slight Delay";
-                        badgeText.className = "bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
+        
+                // --- UPDATE DASHBOARD UI ---
+                const dashboard = document.getElementById('traffic-summary-dashboard');
+                const metricDistance = document.getElementById('dash-metric-distance');
+                const metricDelay = document.getElementById('dash-metric-delay');
+                const metricJams = document.getElementById('dash-metric-jams');
+                const statusBadge = document.getElementById('traffic-status-badge');
+                const pulseDot = document.getElementById('traffic-pulse-dot');
+        
+                if (dashboard && metricDistance && metricDelay && metricJams) {
+                    metricDistance.textContent = `${distanceMiles.toFixed(1)} mi`;
+                    metricJams.textContent = jamCount.toString();
+        
+                    if (totalTrafficDelaySeconds > 0) {
+                        const delayMins = Math.max(1, Math.round(totalTrafficDelaySeconds / 60));
+                        metricDelay.textContent = `+${delayMins} min`;
+                        
+                        if (delayMins > 10 || jamCount > 3) {
+                            // Severe
+                            statusBadge.textContent = "HEAVY";
+                            statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase";
+                            pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500";
+                            metricDelay.className = "block text-sm font-black text-rose-600 dark:text-rose-400 leading-none tracking-tight";
+                        } else {
+                            // Moderate
+                            statusBadge.textContent = "MODERATE";
+                            statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase";
+                            pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500";
+                            metricDelay.className = "block text-sm font-black text-amber-600 dark:text-amber-400 leading-none tracking-tight";
+                        }
                     } else {
-                        labelText.textContent = "Clear Roads";
-                        labelText.className = "text-xs font-black text-emerald-600 dark:text-emerald-400 block truncate";
-                        badgeText.textContent = "On Time";
-                        badgeText.className = "bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0";
+                        // Clear
+                        metricDelay.textContent = "None";
+                        metricDelay.className = "block text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none tracking-tight";
+                        statusBadge.textContent = "CLEAR";
+                        statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase";
+                        pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500";
                     }
+        
+                    dashboard.classList.remove('hidden');
                 }
                 
                 if (window.innerWidth < 768) setMobileSidebarState('peek');
-            } catch (err) { console.error(err); }
+            } catch (err) { console.error("TomTom Integration Error Engine Details: ", err); }
         }
 
         function lookupWeatherIconEmoji(code) {
@@ -696,6 +739,13 @@ let map = null;
                 container.innerHTML = '';
                 addWaypointFieldInputRow();
             }
+
+            // Hide the new Traffic Dashboard
+            const dashboard = document.getElementById('traffic-summary-dashboard');
+            if (dashboard) dashboard.classList.add('hidden');
+
+            // Clean up downstream modules
+            clearFuelOptimizationState();
 
             document.getElementById('financial-card').classList.add('hidden');
             document.getElementById('traffic-telemetry-node').classList.add('hidden');
@@ -1439,8 +1489,6 @@ let map = null;
             // Wipe out and hide the layout DOM outputs
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingsBadge = document.getElementById('refuel-savings-badge');
-            // Clean up downstream modules
-            clearFuelOptimizationState();
             
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
