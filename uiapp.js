@@ -540,7 +540,16 @@ let map = null;
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
                 
                 refreshViewportViewFilter(distanceMiles);
-                triggerRouteWeatherFetchPipeline();
+
+                // --- SAFE WEATHER ISOLATION LAYER ---
+                try {
+                    // Await the weather data, but catch errors locally so it doesn't break the main thread
+                    await triggerRouteWeatherFetchPipeline();
+                } catch (weatherErr) {
+                    console.warn("Weather API is down or failing, bypassing layout module gracefully.", weatherErr);
+                    // Soft downgrade: cleanly hide the weather module if it can't resolve data
+                    document.getElementById('route-weather-module')?.classList.add('hidden');
+                }
         
                 // --- UPDATE DASHBOARD UI ---
                 const dashboard = document.getElementById('traffic-summary-dashboard');
