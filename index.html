@@ -190,7 +190,25 @@
                             <span class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">✨AI</span>
                             <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Optimise Fuel Stops</h4>
                         </div>
-                        <span id="refuel-savings-badge" class="hidden text-[10px] font-black bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full shadow-sm animate-pulse">SAVING £0.00</span>
+                        
+                        <!-- Unified Badging and Local Reset Action Wrapper -->
+                        <div class="flex items-center gap-2.5">
+                            <!-- Dynamic Saving Pill Badge -->
+                            <span id="fuel-saving-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                                Saving £4.98
+                            </span>
+                            
+                            <!-- Enhancement: Minimalist Local Clear Trigger -->
+                            <button 
+                                type="button" 
+                                id="btn-clear-fuel-optimization" 
+                                onclick="clearFuelOptimizationState()"
+                                class="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors duration-150 focus:outline-none cursor-pointer tracking-tight"
+                            >
+                                Reset
+                            </button>
+                        </div>
+                        
                     </div>
                     
                     <div class="grid grid-cols-3 gap-2 mb-4">
