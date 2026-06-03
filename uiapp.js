@@ -1640,7 +1640,14 @@ let map = null;
         function clearRoute() {
             // Check if the layer exists BEFORE calling clearLayers()
             if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer !== null) {
-                routePolylineLayer.clearLayers();
+                if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer !== null) {
+                    routePolylineLayer.clearLayers();
+                }
+                
+                // And check your refuel group too:
+                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
+                    refuelMarkersGroup.clearLayers();
+                }
             }
         
             // CHECK HERE: This prevents the crash when clicking 'Clear' on a fresh load
