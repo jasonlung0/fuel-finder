@@ -1592,6 +1592,46 @@ let map = null;
             console.log("Fuel Optimization interface states successfully defaulted.");
         }
 
+        /**
+         * Completely clears out map paths, main route address inputs, 
+         * active dynamic waypoints, and resets dashboard metric totals.
+         */
+        function clearRoute() {
+            // 1. Wipe out active map path track layers
+            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
+                routePolylineLayer.clearLayers();
+            }
+            
+            // 2. Empty the Main Route Address input fields (checks common IDs)
+            const startInput = document.getElementById('route-start-point') || document.getElementById('start-point') || document.getElementById('start');
+            const endInput = document.getElementById('route-end-point') || document.getElementById('end-point') || document.getElementById('end');
+            if (startInput) startInput.value = '';
+            if (endInput) endInput.value = '';
+        
+            // 3. Purge any dynamic mid-trip waypoint inputs
+            const dynamicWaypointsContainer = document.getElementById('dynamic-waypoints-container') || document.getElementById('waypoints-list');
+            if (dynamicWaypointsContainer) {
+                dynamicWaypointsContainer.innerHTML = ''; 
+            } else {
+                document.querySelectorAll('.dynamic-waypoint-input').forEach(input => input.value = '');
+            }
+        
+            // 4. Reset Traffic Dashboard metrics back to zero/blank placeholders
+            const distCard = document.getElementById('dashboard-total-distance');
+            const durCard = document.getElementById('dashboard-travel-duration');
+            const txtDelay = document.getElementById('dashboard-traffic-delay');
+            if (distCard) distCard.innerText = '-- mi';
+            if (durCard) durCard.innerText = '-- min';
+            if (txtDelay) txtDelay.innerText = 'No active route';
+        
+            // 5. Also trigger the fuel optimization wipe to clean up everything at once
+            if (typeof clearFuelOptimizationState === 'function') {
+                clearFuelOptimizationState();
+            }
+        
+            console.log("Core routing footprints and map layers successfully cleared.");
+        }
+
 
 
         window.addEventListener('DOMContentLoaded', () => {
