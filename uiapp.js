@@ -1228,7 +1228,11 @@ let map = null;
         function renderDirectoryDropdown() {
             const container = document.getElementById('starred-list-container');
             if (!container) return;
-
+        
+            // ADDED FIX: Force refresh the arrays from local storage right before rendering
+            starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
+            savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
+        
             if (activeDirectoryTab === 'stations') {
                 if (starredStations.length === 0) {
                     container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
@@ -1243,7 +1247,7 @@ let map = null;
                         focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
                         if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
                     };
-
+        
                     cardRow.innerHTML = `
                         <div class="min-w-0">
                             <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
@@ -1269,7 +1273,7 @@ let map = null;
                         loadSavedRouteCorridorDataIntoWorkspace(route.id);
                         if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
                     };
-
+        
                     cardRow.innerHTML = `
                         <div class="min-w-0 flex-1">
                             <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
@@ -1544,22 +1548,48 @@ let map = null;
             // Update Sidebar
             if (timelineContainer) {
                 timelineContainer.classList.remove('hidden');
+                
+                // Calculate precise amounts for the UI
+                const averageMotorwayPrice = 166.9; 
+                const litersToFill = (totalTripDistance / averageMpg) * 4.54609;
+                const totalCost = (litersToFill * bestPrice) / 100;
+        
                 timelineContainer.innerHTML = `
-                    <div class="space-y-2">
-                        <div class="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 p-3 rounded-xl text-xs flex justify-between items-start shadow-sm">
-                            <div class="flex gap-2 items-start min-w-0">
-                                <div class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg font-bold mt-0.5 shrink-0">⛽</div>
-                                <div class="min-w-0 pr-2">
-                                    <div class="font-bold text-zinc-900 dark:text-zinc-100 truncate">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</div>
-                                    <div class="text-zinc-500 dark:text-zinc-400 text-[10px] mt-0.5 truncate">${(bestStation.address || '').replace(/['"]/g, '')}</div>
-                                </div>
-                            </div>
-                            <div class="text-right shrink-0">
-                                <span class="text-emerald-600 dark:text-emerald-400 font-black text-xs bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${bestPrice.toFixed(1)}p</span>
+                    <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm">
+                        
+                        <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                            <span class="text-zinc-500 font-medium">Start to Destination</span>
+                            <span class="font-bold text-zinc-900 dark:text-white">${totalTripDistance.toFixed(1)} miles</span>
+                        </div>
+                        
+                        <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                            <span class="text-zinc-500 font-medium pt-1">Stop at</span>
+                            <div class="text-right">
+                                <span class="font-bold text-zinc-900 dark:text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
+                                <span class="text-[10px] text-zinc-400 block">${(bestStation.address || '').replace(/['"]/g, '')}</span>
                             </div>
                         </div>
-                        <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black py-2.5 rounded-lg transition active:scale-[0.98] shadow-sm uppercase tracking-wider cursor-pointer">
-                            View Station Details
+                        
+                        <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                            <span class="text-zinc-500 font-medium">Vehicle Mileage</span>
+                            <span class="font-bold text-zinc-900 dark:text-white">${averageMpg} MPG</span>
+                        </div>
+                        
+                        <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2 bg-emerald-50 dark:bg-emerald-500/10 -mx-4 px-4 py-2">
+                            <span class="text-emerald-700 dark:text-emerald-400 font-bold">Action</span>
+                            <span class="font-black text-emerald-700 dark:text-emerald-400">Fill ${litersToFill.toFixed(1)} Litres</span>
+                        </div>
+                        
+                        <div class="flex justify-between pt-1 items-center">
+                            <span class="text-zinc-500 font-medium">Estimated Cost</span>
+                            <div class="text-right">
+                                <span class="font-black text-zinc-900 dark:text-white text-lg">£${totalCost.toFixed(2)}</span>
+                                <span class="text-[10px] text-zinc-400 block">@ ${bestPrice.toFixed(1)}p/L</span>
+                            </div>
+                        </div>
+        
+                        <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 text-[11px] font-bold py-3 rounded-lg transition active:scale-[0.98] shadow-sm tracking-wide cursor-pointer">
+                            View Station on Map
                         </button>
                     </div>
                 `;
@@ -1665,79 +1695,46 @@ let map = null;
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
         function clearRoute() {
-            // Check if the layer exists BEFORE calling clearLayers()
-            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer !== null) {
-                if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer !== null) {
+            // 1. Clear ONLY the specific routing layers (Safe method)
+            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
+                if (typeof routePolylineLayer.clearLayers === 'function') {
                     routePolylineLayer.clearLayers();
-                }
-                
-                // And check your refuel group too:
-                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
-                    refuelMarkersGroup.clearLayers();
+                } else if (map.hasLayer(routePolylineLayer)) {
+                    map.removeLayer(routePolylineLayer);
                 }
             }
         
-            // CHECK HERE: This prevents the crash when clicking 'Clear' on a fresh load
-            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
                 refuelMarkersGroup.clearLayers();
             }
         
-            // 2. SWEEP: Wipe *any* stray pin/marker that isn't the base map
-            if (typeof map !== 'undefined' && map) {
-                map.eachLayer((layer) => {
-                    // Protect base map tiles and your main station cluster groups
-                    if (layer === tileLayerInstance || layer === markerClusterGroupInstance) return;
-                    // Purge everything else (routing polylines, start/end markers, waypoints)
-                    map.removeLayer(layer);
-                });
-            }
+            // DO NOT use map.eachLayer here anymore! It destroys the base markers.
         
-            // 3. Clear main text inputs from DOM
-            const routeStart = document.getElementById('route-start');
-            const routeEnd = document.getElementById('route-end');
-            const locationInput = document.getElementById('location-input');
-            if (routeStart) routeStart.value = '';
-            if (routeEnd) routeEnd.value = '';
-            if (locationInput) locationInput.value = '';
+            // 2. Clear main text inputs from DOM
+            ['route-start', 'route-end', 'location-input'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
         
-            // 4. Clear dynamic waypoints UI structure
+            // 3. Clear dynamic waypoints UI structure
             const container = document.getElementById('dynamic-waypoints-container');
             if (container) {
                 container.innerHTML = '';
                 if (typeof addWaypointFieldInputRow === 'function') {
-                    addWaypointFieldInputRow(); // Reset back to a single empty field
+                    addWaypointFieldInputRow(); 
                 }
             }
         
-            // 5. Hide all dashboard modules and reset badges
-            const timelineContainer = document.getElementById('refuel-timeline-output');
-            if (timelineContainer) {
-                timelineContainer.innerHTML = '';
-                timelineContainer.classList.add('hidden');
-            }
+            // 4. Hide all dashboard modules
+            ['refuel-timeline-output', 'fuel-saving-badge', 'traffic-summary-dashboard', 'traffic-telemetry-node', 'financial-card', 'cheapest-ranking-block', 'route-weather-module'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
         
-            const savingBadge = document.getElementById('fuel-saving-badge');
-            if (savingBadge) {
-                savingBadge.innerText = 'Saving £0.00';
-                savingBadge.classList.add('hidden');
-            }
-        
-            document.getElementById('traffic-summary-dashboard')?.classList.add('hidden');
-            document.getElementById('traffic-telemetry-node')?.classList.add('hidden');
-            document.getElementById('financial-card')?.classList.add('hidden');
-            document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
-            document.getElementById('route-weather-module')?.classList.add('hidden');
-        
-            // 6. Wipe background memory tracking
+            // 5. Wipe background memory tracking
             plottedRouteCoordinates = [];
-            cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
-        
-            // 7. Trigger map component refresh
-            if (typeof refreshViewportViewFilter === 'function') {
-                refreshViewportViewFilter();
-            }
             
-            console.log("Workspace cleared and stabilized.");
+            console.log("Workspace cleared safely without affecting nearby station markers.");
         }
         
         // Ensure alias bindings match inline HTML trigger mappings
@@ -1754,6 +1751,15 @@ let map = null;
         initializeClickIsolationBubbling();
         initializeGestureTrackEngine();
         forceReloadRemotePipelineData();
+
+        const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'vehicle-mpg', 'fuel-type'];
+        refuelInputs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', calculateOptimalRefuelStrategy);
+                el.addEventListener('change', calculateOptimalRefuelStrategy);
+            }
+        });
         
         // Clean, error-free event listener binding
         document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', calculateOptimalRefuelStrategy);
