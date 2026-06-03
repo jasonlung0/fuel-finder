@@ -434,111 +434,113 @@ let map = null;
 
         // --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
         async function executeRouteGenerationPipeline() {
-            const startVal = document.getElementById('route-start').value.trim();
-            const endVal = document.getElementById('route-end').value.trim();
-            if (!startVal || !endVal) return;
-        
-            // Safety check for TomTom Key (Ensure TOMTOM_API_KEY is defined at the top of your file)
-            if (typeof TOMTOM_API_KEY === 'undefined' || TOMTOM_API_KEY === 'YOUR_TOMTOM_API_KEY') {
-                alert("Please set your production TOMTOM_API_KEY inside the top configuration layer of uiapp.js.");
-                return;
-            }
-        
-            const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
-                                        .map(input => input.value.trim())
-                                        .filter(val => val.length > 0);
-        
             try {
-                // Geocode coordinates for start and destination frames
-                const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
+                // 1. Validate inputs
+                const startInput = document.getElementById('route-start-point').value;
+                const endInput = document.getElementById('route-end-point').value;
+                if (!startInput || !endInput) {
+                    alert("Please enter both a start point and an end point.");
+                    return;
+                }
+        
+                // 2. Geocode start location
+                const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
                 const startNodes = await startRes.json();
-                
-                const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endVal)}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
+                if (!startNodes.length) {
+                    alert("Could not find coordinates for the start point.");
+                    return;
+                }
+        
+                // 3. Geocode end location
+                const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
                 const endNodes = await endRes.json();
+                if (!endNodes.length) {
+                    alert("Could not find coordinates for the end point.");
+                    return;
+                }
         
-                if (!startNodes.length || !endNodes.length) return;
+                // 4. Build waypoints list dynamically
+                let waypointInputs = document.querySelectorAll('.dynamic-waypoint-input');
+                let waypointStrings = [];
+                waypointInputs.forEach(input => {
+                    if (input.value && input.value.trim() !== "") {
+                        waypointStrings.push(input.value.trim());
+                    }
+                });
         
-                cachedGeocodedWaypoints.start = { name: startVal, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
-                cachedGeocodedWaypoints.end = { name: endVal, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
+                // Cache coordinates for other application pipelines
+                cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
+                cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
-                // Construct coordinates string payload matching TomTom matrix expectations (lon,lat:lon,lat)
-                // --- CORRECTED COORDINATE PAYLOAD ---
-                // TomTom API expects: lat,lon:lat,lon
+                // 5. Construct TomTom strict payload string format (lat,lon:lat,lon)
                 let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
-                
-                for(let w = 0; w < waypointNodes.length; w++) {
-                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`);
+        
+                for (let w = 0; w < waypointStrings.length; w++) {
+                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointStrings[w])}&countrycodes=gb&limit=1`);
                     const viaNodes = await viaRes.json();
-                    if(viaNodes.length) {
+                    if (viaNodes.length) {
                         coordinatesPayloadString += `:${viaNodes[0].lat},${viaNodes[0].lon}`;
-                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: parseFloat(viaNodes[0].lat), lon: parseFloat(viaNodes[0].lon) };
+                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { 
+                            name: waypointStrings[w], 
+                            lat: parseFloat(viaNodes[0].lat), 
+                            lon: parseFloat(viaNodes[0].lon) 
+                        };
                     }
                 }
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
-                coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-                // Fetch live routing calculations augmented by real-time traffic delay metrics from TomTom API
-                // Added computeTravelTimeFor=all and sectionType=traffic
-                const tomtomRouterEndpoint = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&sectionType=traffic&computeTravelTimeFor=all&routeType=fastest&travelMode=car`;
-        
-                const routeRes = await fetch(tomtomRouterEndpoint);
-                if (!routeRes.ok) throw new Error("TomTom gateway interface returned an authentication or network error.");
+                // 6. Connect to TomTom Traffic & Routing API
+                const API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
+                const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest`;
+                
+                const routeRes = await fetch(tomtomUrl);
+                if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
+                
                 const routeData = await routeRes.json();
-        
-                if (!routeData.routes?.length) return;
+                if (!routeData.routes || !routeData.routes.length) throw new Error("No routes found from server coordinates.");
         
                 const currentActiveRoute = routeData.routes[0];
-                const distanceMiles = currentActiveRoute.summary.lengthInMeters * 0.000621371;
-                const totalTrafficDelaySeconds = currentActiveRoute.summary.trafficDelayInSeconds || 0;
         
-                // Process dynamic point mapping coordinate objects array
+                // 7. Flatten leg segments into coordinate tracking array for Leaflet
                 plottedRouteCoordinates = [];
                 currentActiveRoute.legs.forEach(leg => {
-                    leg.points.forEach(point => {
-                        plottedRouteCoordinates.push([point.latitude, point.longitude]);
+                    leg.points.forEach(pt => {
+                        plottedRouteCoordinates.push([pt.latitude, pt.longitude]);
                     });
                 });
         
+                // 8. Reinitialize Map Layer Group
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 routePolylineLayer = L.featureGroup().addTo(map);
         
-                let jamCount = 0;
-        
-                // Map out safe vector line paths matching parsed TomTom traffic delay metrics
-                // 1. Always draw the complete base route first to guarantee 100% continuous green line coverage
+                // A. Draw unbroken green base track layer across the entire trip
                 L.polyline(plottedRouteCoordinates, {
-                    color: '#10b981', // Clean, default optimal green
+                    color: '#10b981', 
                     weight: 4.5,
                     opacity: 0.85,
                     lineCap: 'round',
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
-                
-                // 🔍 SMART ADAPTER: Automatically look for 'currentActiveRoute' or fallback to 'route'
-                const targetRouteObj = (typeof currentActiveRoute !== 'undefined') ? currentActiveRoute : (typeof route !== 'undefined' ? route : null);
-                
-                // 🛠️ SCOPE FIX: Assign variables instead of redeclaring 'let' to prevent syntax crashes
-                if (typeof jamCount !== 'undefined') jamCount = 0; else var jamCount = 0;
-                if (typeof heavyTrafficDiscovered !== 'undefined') heavyTrafficDiscovered = false; else var heavyTrafficDiscovered = false;
-                if (typeof moderateTrafficDiscovered !== 'undefined') moderateTrafficDiscovered = false; else var moderateTrafficDiscovered = false;
-                
-                // 2. Overlay traffic incidents directly on top of the continuous base line
-                if (targetRouteObj && targetRouteObj.sections && targetRouteObj.sections.length > 0) {
-                    targetRouteObj.sections.forEach(section => {
+        
+                // Setup clear tracking counters inside the local loop scope
+                let jamCount = 0;
+                let heavyTrafficDiscovered = false;
+                let moderateTrafficDiscovered = false;
+        
+                // B. Overlay specific congestion lines cleanly on top of the green line
+                if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
+                    currentActiveRoute.sections.forEach(section => {
                         if (section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
                             const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
                             if (sliceCoords.length < 2) return;
-                
+        
                             const isJam = section.simpleCategory === 'JAM';
-                            if (isJam) {
-                                heavyTrafficDiscovered = true;
-                            } else {
-                                moderateTrafficDiscovered = true;
-                            }
-                
+                            if (isJam) heavyTrafficDiscovered = true;
+                            else moderateTrafficDiscovered = true;
+        
                             L.polyline(sliceCoords, {
-                                color: isJam ? '#ef4444' : '#f59e0b', // Red for JAM, Amber for SLOWDOWN
-                                weight: isJam ? 6.0 : 5.0, // Marginally thicker so it wraps beautifully over the green
+                                color: isJam ? '#ef4444' : '#f59e0b', 
+                                weight: isJam ? 6.0 : 5.0, 
                                 opacity: 1.0,
                                 lineCap: 'round',
                                 lineJoin: 'round'
@@ -549,63 +551,51 @@ let map = null;
                     });
                 }
         
-                map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
+                // Center map framework bounds around the generated path
+                if (plottedRouteCoordinates.length > 0) {
+                    map.fitBounds(routePolylineLayer.getBounds());
+                }
+        
+                // 9. Update live Dashboard metrics cards
+                const summary = currentActiveRoute.summary;
+                const distanceMiles = (summary.lengthInMeters / 1609.34);
+                const travelTimeMinutes = (summary.travelTimeInSeconds / 60);
+                const trafficDelayMinutes = (summary.trafficDelayInSeconds / 60);
+        
+                document.getElementById('dashboard-total-distance').innerText = `${distanceMiles.toFixed(1)} mi`;
+                document.getElementById('dashboard-travel-duration').innerText = `${Math.round(travelTimeMinutes)} min`;
                 
-                refreshViewportViewFilter(distanceMiles);
-
-                // --- SAFE WEATHER ISOLATION LAYER ---
+                const txtDelay = document.getElementById('dashboard-traffic-delay');
+                if (txtDelay) {
+                    txtDelay.innerText = trafficDelayMinutes > 0 ? `+${Math.round(trafficDelayMinutes)} min delay` : 'No delays';
+                    txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
+                }
+        
+                // 10. Run Map Viewport Station Filters
+                if (typeof refreshViewportViewFilter === 'function') {
+                    refreshViewportViewFilter(distanceMiles);
+                }
+        
+                // 11. Run Isolated Weather Component
                 try {
-                    // Await the weather data, but catch errors locally so it doesn't break the main thread
-                    await triggerRouteWeatherFetchPipeline();
+                    if (typeof triggerRouteWeatherFetchPipeline === 'function') {
+                        await triggerRouteWeatherFetchPipeline();
+                    }
                 } catch (weatherErr) {
-                    console.warn("Weather API is down or failing, bypassing layout module gracefully.", weatherErr);
-                    // Soft downgrade: cleanly hide the weather module if it can't resolve data
+                    console.warn("Weather API unreachable. Bypassing safely...", weatherErr);
                     document.getElementById('route-weather-module')?.classList.add('hidden');
                 }
         
-                // --- UPDATE DASHBOARD UI ---
-                const dashboard = document.getElementById('traffic-summary-dashboard');
-                const metricDistance = document.getElementById('dash-metric-distance');
-                const metricDelay = document.getElementById('dash-metric-delay');
-                const metricJams = document.getElementById('dash-metric-jams');
-                const statusBadge = document.getElementById('traffic-status-badge');
-                const pulseDot = document.getElementById('traffic-pulse-dot');
-        
-                if (dashboard && metricDistance && metricDelay && metricJams) {
-                    metricDistance.textContent = `${distanceMiles.toFixed(1)} mi`;
-                    metricJams.textContent = jamCount.toString();
-        
-                    if (totalTrafficDelaySeconds > 0) {
-                        const delayMins = Math.max(1, Math.round(totalTrafficDelaySeconds / 60));
-                        metricDelay.textContent = `+${delayMins} min`;
-                        
-                        if (delayMins > 10 || jamCount > 3) {
-                            // Severe
-                            statusBadge.textContent = "HEAVY";
-                            statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase";
-                            pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500";
-                            metricDelay.className = "block text-sm font-black text-rose-600 dark:text-rose-400 leading-none tracking-tight";
-                        } else {
-                            // Moderate
-                            statusBadge.textContent = "MODERATE";
-                            statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 uppercase";
-                            pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500";
-                            metricDelay.className = "block text-sm font-black text-amber-600 dark:text-amber-400 leading-none tracking-tight";
-                        }
-                    } else {
-                        // Clear
-                        metricDelay.textContent = "None";
-                        metricDelay.className = "block text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none tracking-tight";
-                        statusBadge.textContent = "CLEAR";
-                        statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase";
-                        pulseDot.className = "relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500";
-                    }
-        
-                    dashboard.classList.remove('hidden');
+                // 12. Run Fuel Refuelling Optimizer
+                console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
+                if (typeof calculateOptimalRefuelStrategy === 'function') {
+                    calculateOptimalRefuelStrategy();
                 }
-                
-                if (window.innerWidth < 768) setMobileSidebarState('peek');
-            } catch (err) { console.error("TomTom Integration Error Engine Details: ", err); }
+        
+            } catch (err) {
+                console.error("Pipeline Engine Broken:", err);
+                alert(`Failed to trace route: ${err.message}`);
+            }
         }
 
         function lookupWeatherIconEmoji(code) {
@@ -1506,18 +1496,19 @@ let map = null;
 
         // Wipe out the optimiser results when clearing the route planner
         function clearRefuelStrategy() {
-            // 1. Clear and wipe out the markers layer group safely
-            if (refuelMarkersGroup) {
+            // 1. Clear and wipe out all layer markers inside your map group instance
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
                 refuelMarkersGroup.clearLayers();
             }
             
-            // 2. Fallback safety: Wipe out the inner contents of your dynamic lists
+            // 2. Clear out the sidebar dynamic timeline list tree
             const timelineContainer = document.getElementById('refuel-timeline-output');
             if (timelineContainer) {
-                timelineContainer.innerHTML = ''; 
+                timelineContainer.innerHTML = '';
+                timelineContainer.classList.add('hidden');
             }
             
-            // 3. Hide any hanging layout badges from viewports
+            // 3. Clear and wrap up savings context headers
             const savingsBadge = document.getElementById('refuel-savings-badge');
             if (savingsBadge) {
                 savingsBadge.innerHTML = '';
