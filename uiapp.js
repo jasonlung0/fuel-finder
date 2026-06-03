@@ -1522,17 +1522,11 @@ let map = null;
         }
 
         /**
-         * Destroys calculated fuel stop optimization states locally
-         * without interrupting the primary core route planning workflow matrix.
+         * Destroys calculated fuel stop optimization states locally,
+         * resets panel configuration inputs, and wipes map overlays.
          */
         function clearFuelOptimizationState() {
-            // 1. Target and clear calculated timeline nodes from DOM
-            const fuelResultsContainer = document.getElementById('fuel-optimizer-results-node'); 
-            if (fuelResultsContainer) {
-                fuelResultsContainer.innerHTML = ''; // Safely drop the ASDA / timeline nodes
-            }
-        
-            // 2. Reset local configuration entry matrix back to default profiles
+            // 1. Reset panel configuration entry fields back to default profiles
             const inputTank = document.getElementById('input-tank-capacity');
             const inputStarting = document.getElementById('input-starting-fuel');
             const inputReserve = document.getElementById('input-miles-reserve');
@@ -1541,22 +1535,30 @@ let map = null;
             if (inputStarting) inputStarting.value = "25";
             if (inputReserve) inputReserve.value = "10";
         
-            // 3. Hide or reset the contextual header tracking values
+            // 2. Clear and wipe out all layer markers inside your Leaflet map group safely
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
+                refuelMarkersGroup.clearLayers();
+            }
+        
+            // 3. Target and empty the timeline result lists (Checks both potential container IDs for safety)
+            const timelineContainer = document.getElementById('refuel-timeline-output') || document.getElementById('fuel-optimizer-results-node');
+            if (timelineContainer) {
+                timelineContainer.innerHTML = '';
+            }
+        
+            // 4. Hide any dynamic visual savings badges from viewports
             const savingBadge = document.getElementById('fuel-saving-badge');
             if (savingBadge) {
-                // Transition down smoothly rather than popping out of existence jarringly
                 savingBadge.classList.add('hidden');
             }
         
-            // 4. Fire Map Redraw Pipeline if active
-            // Wipes fuel markers and snaps back to standard, clean OSRM path geometry
-            if (typeof clearFuelMarkersFromMap === 'function') {
-                clearFuelMarkersFromMap();
+            const savingsBadgeAlternative = document.getElementById('refuel-savings-badge');
+            if (savingsBadgeAlternative) {
+                savingsBadgeAlternative.innerHTML = '';
+                savingsBadgeAlternative.classList.add('hidden');
             }
             
-            if (typeof triggerRouteRegeneration === 'function') {
-                triggerRouteRegeneration({ skipFuelOptimization: true });
-            }
+            console.log("Fuel Optimization interface states successfully defaulted.");
         }
 
 
