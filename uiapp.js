@@ -434,6 +434,12 @@ let map = null;
 
         // --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
         async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
+            // 0. Defensive Map Guard
+            if (!map) {
+                console.warn("Spatial Map Engine is not initialized yet.");
+                return;
+            }
+        
             try {
                 // 1. Smart Element Discovery (Looks for any common ID naming styles to prevent null crashes)
                 const startElement = document.getElementById('route-start-point') || 
@@ -441,22 +447,22 @@ let map = null;
                                      document.getElementById('route-start') || 
                                      document.getElementById('start-location') || 
                                      document.getElementById('start');
-        
+                
                 const endElement = document.getElementById('route-end-point') || 
                                    document.getElementById('end-point') || 
                                    document.getElementById('route-end') || 
                                    document.getElementById('end-location') || 
                                    document.getElementById('end');
-        
+                
                 // 2. Resolve values safely using optional chaining (?.) or passed arguments
                 const startInput = forcedStart || startElement?.value || "";
                 const endInput = forcedEnd || endElement?.value || "";
-        
+                
                 if (!startInput || !endInput) {
                     alert("Please enter both a start point and an end point.");
                     return;
                 }
-        
+                
                 // 3. Geocode start location
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
                 const startNodes = await startRes.json();
@@ -464,7 +470,7 @@ let map = null;
                     alert("Could not find coordinates for the start point.");
                     return;
                 }
-        
+                
                 // 4. Geocode end location
                 const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
                 const endNodes = await endRes.json();
@@ -472,7 +478,7 @@ let map = null;
                     alert("Could not find coordinates for the end point.");
                     return;
                 }
-        
+                
                 // 5. Build waypoints list dynamically
                 let waypointInputs = document.querySelectorAll('.dynamic-waypoint-input');
                 let waypointStrings = [];
@@ -483,31 +489,46 @@ let map = null;
                         }
                     });
                 }
-        
+                
                 // Cache coordinates safely for other application pipelines
                 if (typeof cachedGeocodedWaypoints === 'undefined') {
                     window.cachedGeocodedWaypoints = { start: {}, end: {}, vids: {} };
                 }
                 cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
                 cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
-        
+                
                 // 6. Construct TomTom strict payload string format (lat,lon:lat,lon)
                 let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
+                
+                // OPTIMIZATION: Geocode all intermediate stops concurrently in parallel
+                if (waypointStrings.length > 0) {
+                    const waypointPromises = waypointStrings.map(async (wpStr, wIndex) => {
+                        try {
+                            const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(wpStr)}&countrycodes=gb&limit=1`);
+                            const viaNodes = await viaRes.json();
+                            if (viaNodes.length) {
+                                return { wIndex, name: wpStr, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
+                            }
+                        } catch (e) {
+                            console.error(`Failed to resolve midpoint geocode sequence: ${wpStr}`, e);
+                        }
+                        return null;
+                    });
         
-                for (let w = 0; w < waypointStrings.length; w++) {
-                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointStrings[w])}&countrycodes=gb&limit=1`);
-                    const viaNodes = await viaRes.json();
-                    if (viaNodes.length) {
-                        coordinatesPayloadString += `:${viaNodes[0].lat},${viaNodes[0].lon}`;
-                        cachedGeocodedWaypoints.vids[`wp_${w}`] = { 
-                            name: waypointStrings[w], 
-                            lat: parseFloat(viaNodes[0].lat), 
-                            lon: parseFloat(viaNodes[0].lon) 
-                        };
-                    }
+                    const resolvedWaypoints = await Promise.all(waypointPromises);
+                    resolvedWaypoints.forEach(wp => {
+                        if (wp) {
+                            coordinatesPayloadString += `:${wp.lat},${wp.lon}`;
+                            cachedGeocodedWaypoints.vids[`wp_${wp.wIndex}`] = { 
+                                name: wp.name, 
+                                lat: parseFloat(wp.lat), 
+                                lon: parseFloat(wp.lon) 
+                            };
+                        }
+                    });
                 }
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
-        
+                
                 // 7. Connect to TomTom Traffic & Routing API
                 const API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
                 const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
@@ -517,9 +538,9 @@ let map = null;
                 
                 const routeData = await routeRes.json();
                 if (!routeData.routes || !routeData.routes.length) throw new Error("No routes found from server coordinates.");
-        
+                
                 const currentActiveRoute = routeData.routes[0];
-        
+                
                 // 8. Flatten leg segments into coordinate tracking array for Leaflet
                 plottedRouteCoordinates = [];
                 currentActiveRoute.legs.forEach(leg => {
@@ -527,13 +548,13 @@ let map = null;
                         plottedRouteCoordinates.push([pt.latitude, pt.longitude]);
                     });
                 });
-        
-                // 9. Reinitialize Map Layer Group
+                
+                // 9. Reinitialize Map Layer Group safely
                 if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
                     map.removeLayer(routePolylineLayer);
                 }
                 routePolylineLayer = L.featureGroup().addTo(map);
-        
+                
                 // A. Draw unbroken green base track layer across the entire trip
                 L.polyline(plottedRouteCoordinates, {
                     color: '#10b981', 
@@ -542,16 +563,14 @@ let map = null;
                     lineCap: 'round',
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
-        
+                
                 // B. Robust TomTom Congestion Overlay Map Rendering
                 if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
                     currentActiveRoute.sections.forEach(section => {
-                        // Check for explicit TRAFFIC section markers or semantic jam tags
                         if (section.sectionType === 'TRAFFIC' || section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
                             const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
                             if (sliceCoords.length < 2) return;
-        
-                            // Magnitude 3 & 4 indicate heavy delays/jams. Magnitude 1 & 2 indicate minor/moderate slowdowns.
+                            
                             const isJam = section.simpleCategory === 'JAM' || (section.magnitudeOfDelay && section.magnitudeOfDelay >= 3);
                             
                             L.polyline(sliceCoords, {
@@ -564,21 +583,21 @@ let map = null;
                         }
                     });
                 }
-        
+                
                 // Center map framework bounds around the generated path
                 if (plottedRouteCoordinates.length > 0) {
                     map.fitBounds(routePolylineLayer.getBounds());
                 }
-        
+                
                 // 10. Update live Dashboard metrics cards
                 const summary = currentActiveRoute.summary;
-                const distanceMiles = (summary.lengthInMeters / 1609.34);
+                let finalDistanceMiles = (summary.lengthInMeters / 1609.34); // Scoped globally to reuse in Step 12
                 const travelTimeMinutes = (summary.travelTimeInSeconds / 60);
                 const trafficDelayMinutes = (summary.trafficDelayInSeconds / 60);
-        
+                
                 const distCard = document.getElementById('dashboard-total-distance');
                 const durCard = document.getElementById('dashboard-travel-duration');
-                if (distCard) distCard.innerText = `${distanceMiles.toFixed(1)} mi`;
+                if (distCard) distCard.innerText = `${finalDistanceMiles.toFixed(1)} mi`;
                 if (durCard) durCard.innerText = `${Math.round(travelTimeMinutes)} min`;
                 
                 const txtDelay = document.getElementById('dashboard-traffic-delay');
@@ -586,7 +605,7 @@ let map = null;
                     txtDelay.innerText = trafficDelayMinutes > 0 ? `+${Math.round(trafficDelayMinutes)} min delay` : 'No delays';
                     txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
                 }
-        
+                
                 // 11. Reveal Dashboard Panels (Enforces structural CSS visibility swaps explicitly)
                 const trafficDashboard = document.getElementById('traffic-summary-dashboard');
                 if (trafficDashboard) {
@@ -594,30 +613,28 @@ let map = null;
                     trafficDashboard.style.setProperty('display', 'block', 'important');
                 }
                 
-                // BUG FIX: Changed 'data' to 'routeData' to match your fetch response variable
                 if (typeof routeData !== 'undefined' && routeData.routes && routeData.routes[0]) {
                     const summaryMetrics = routeData.routes[0].summary;
                     
-                    // Convert TomTom metrics safely
-                    const distanceMiles = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
+                    // Format distance string for presentation metrics cleanly
+                    const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
                     const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
                     
                     const jamsCount = routeData.routes[0].sections 
                         ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
                         : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
-                
-                    // 1. UPDATE THE PRIMARY SIDEBAR DASHBOARD FIELDS
+                    
+                    // Update Primary Sidebar Fields
                     const distanceMetric = document.getElementById('dash-metric-distance');
                     const delayMetric = document.getElementById('dash-metric-delay');
                     const jamsMetric = document.getElementById('dash-metric-jams');
                     const statusBadge = document.getElementById('traffic-status-badge');
-                
-                    if (distanceMetric) distanceMetric.innerText = `${distanceMiles} mi`;
+                    
+                    if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
                     if (jamsMetric) jamsMetric.innerText = jamsCount;
                     
                     if (delayMetric) {
                         delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
-                        
                         if (delayMinutes > 5) {
                             delayMetric.className = 'block text-sm font-black text-rose-500 leading-none tracking-tight';
                             if (statusBadge) {
@@ -632,12 +649,12 @@ let map = null;
                             }
                         }
                     }
-                
-                    // 2. UPDATE THE SECONDARY FINANCIAL CARD TELEMETRY NODE
+                    
+                    // Update Secondary Telemetry Nodes
                     const telemetryNode = document.getElementById('traffic-telemetry-node');
                     const telemetryLabel = document.getElementById('traffic-status-label');
                     const telemetryBadge = document.getElementById('traffic-delay-badge');
-                
+                    
                     if (telemetryNode) {
                         telemetryNode.classList.remove('hidden');
                         telemetryNode.style.setProperty('display', 'flex', 'important');
@@ -649,15 +666,15 @@ let map = null;
                         telemetryBadge.innerText = delayMinutes > 0 ? `+${delayMinutes} mins delay` : 'On Time';
                         telemetryBadge.className = delayMinutes > 5 
                             ? 'bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'
-                            : 'bg-emerald-500/15 border border-amber-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0';
+                            : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'; // FIXED: Visual typo border corrected to emerald
                     }
                 }
-        
-                // 12. Run Map Viewport Station Filters
+                
+                // 12. Run Map Viewport Station Filters (Now accurately receives the unshadowed numerical layout tracking metric)
                 if (typeof refreshViewportViewFilter === 'function') {
-                    refreshViewportViewFilter(distanceMiles);
+                    refreshViewportViewFilter(finalDistanceMiles);
                 }
-        
+                
                 // 13. Run Isolated Weather Component
                 try {
                     if (typeof triggerRouteWeatherFetchPipeline === 'function') {
@@ -667,18 +684,18 @@ let map = null;
                     console.warn("Weather API unreachable. Bypassing safely...", weatherErr);
                     document.getElementById('route-weather-module')?.classList.add('hidden');
                 }
-        
+                
                 // 14. Run Fuel Refuelling Optimizer and force reveal the saving pill
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
                 if (typeof calculateOptimalRefuelStrategy === 'function') {
                     calculateOptimalRefuelStrategy();
                 }
-        
+                
                 const savingBadge = document.getElementById('fuel-saving-badge') || document.getElementById('refuel-savings-badge') || document.getElementById('savings-pill');
                 if (savingBadge) {
                     savingBadge.classList.remove('hidden');
                 }
-        
+                
             } catch (err) {
                 console.error("Pipeline Engine Broken:", err);
                 alert(`Failed to trace route: ${err.message}`);
@@ -1721,7 +1738,7 @@ let map = null;
 
 
         window.addEventListener('DOMContentLoaded', () => {
-        initializeSpatialMapEngine();
+        ();
         applyThemeChangesToDOM();
         setupAutocompleteListeners();
         initializeClickIsolationBubbling();
