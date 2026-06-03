@@ -1551,7 +1551,7 @@ let map = null;
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
         function clearRoute() {
-            // 1. Clean map route vectors and optimized station marker pin nodes
+            // 1. Clear explicitly declared group wrapper layers
             if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
                 routePolylineLayer.clearLayers();
             }
@@ -1559,45 +1559,71 @@ let map = null;
                 refuelMarkersGroup.clearLayers();
             }
         
-            // 2. Empty textual destination fields 
-            const routeStartInput = document.getElementById('route-start');
-            const routeEndInput = document.getElementById('route-end');
-            if (routeStartInput) routeStartInput.value = '';
-            if (routeEndInput) routeEndInput.value = '';
+            // 2. FOOLPROOF SWEEP: Purge any stray routing/fuel marker nodes from the map instance
+            if (typeof map !== 'undefined' && map) {
+                map.eachLayer((layer) => {
+                    // Check for custom DOM elements or popups containing fuel strategy metadata
+                    if (layer instanceof L.Marker) {
+                        const popup = layer.getPopup();
+                        const popupContent = popup ? popup.getContent() : '';
+                        
+                        if (
+                            layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
+                            layer.options.icon?.options?.className === 'custom-fuel-icon' ||
+                            (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))
+                        ) {
+                            map.removeLayer(layer);
+                        }
+                    }
+                    // Clear out remaining polyline path tracks safely
+                    if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                        if (layer !== window.baseTileLayer) { // Ensure maps tile sets aren't stripped
+                            map.removeLayer(layer);
+                        }
+                    }
+                });
+            }
         
-            // 3. RESET OPTIMIZER FIELDS MATCHING YOUR EXACT HTML VALUE ID ASSIGNMENTS
-            const tankSizeInput = document.getElementById('refuel-tank-size');
+            // 3. Clear textual user inputs from DOM
+            const routeStart = document.getElementById('route-start');
+            const routeEnd = document.getElementById('route-end');
+            if (routeStart) routeStart.value = '';
+            if (routeEnd) routeEnd.value = '';
+        
+            // 4. Reset fuel optimizer input parameters back to base defaults
+            const tankInput = document.getElementById('refuel-tank-size');
             const currentFuelInput = document.getElementById('refuel-current-level');
-            const safetyBufferInput = document.getElementById('refuel-safety-buffer');
-            
-            if (tankSizeInput) tankSizeInput.value = 0;
+            const bufferInput = document.getElementById('refuel-safety-buffer');
+            if (tankInput) tankInput.value = 0;
             if (currentFuelInput) currentFuelInput.value = 0;
-            if (safetyBufferInput) safetyBufferInput.value = 0;
+            if (bufferInput) bufferInput.value = 0;
         
-            // 4. Empty out rendered timeline elements and hide container completely
+            // 5. Reset display components and toggle visibilities off
             const timelineContainer = document.getElementById('refuel-timeline-output');
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
                 timelineContainer.classList.add('hidden');
             }
         
-            // 5. Restore saving badge string variables back to factory baselines
             const savingBadge = document.getElementById('fuel-saving-badge');
             if (savingBadge) {
                 savingBadge.innerText = 'Saving £0.00';
             }
         
-            // 6. Completely hide your live traffic panel workspace element
             const trafficDashboard = document.getElementById('traffic-summary-dashboard');
             if (trafficDashboard) {
                 trafficDashboard.classList.add('hidden');
-                trafficDashboard.style.display = 'none';
             }
             
-            console.log("Workspace, Leaflet pricing map markers, and specific fuel fields fully reset.");
+            const telemetryNode = document.getElementById('traffic-telemetry-node');
+            if (telemetryNode) {
+                telemetryNode.classList.add('hidden');
+            }
+        
+            console.log("Telemetry dashboards hidden and map layout markers cleared successfully.");
         }
         
-        // Map local hook alias safely
+        // Ensure alias bindings match inline HTML trigger mappings
         function clearFuelOptimizationState() {
             clearRoute();
         }
