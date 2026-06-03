@@ -448,7 +448,7 @@ let map = null;
                                    document.getElementById('end-location') || 
                                    document.getElementById('end');
         
-                // 2. Resolve values safely using optional chaining (?.) or passed arguments
+                // 2. Resolve values safely using optional chaining (?.) or passed arguments from saved panel
                 const startInput = forcedStart || startElement?.value || "";
                 const endInput = forcedEnd || endElement?.value || "";
         
@@ -484,7 +484,10 @@ let map = null;
                     });
                 }
         
-                // Cache coordinates for other application pipelines
+                // Cache coordinates safely for other application pipelines
+                if (typeof cachedGeocodedWaypoints === 'undefined') {
+                    window.cachedGeocodedWaypoints = { start: {}, end: {}, vids: {} };
+                }
                 cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
                 cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
@@ -505,9 +508,9 @@ let map = null;
                 }
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-                // 7. Connect to TomTom Traffic & Routing API
+                // 7. Connect to TomTom Traffic & Routing API (with explicit sectionType requested)
                 const API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
-                const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest`;
+                const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
                 
                 const routeRes = await fetch(tomtomUrl);
                 if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
@@ -526,7 +529,9 @@ let map = null;
                 });
         
                 // 9. Reinitialize Map Layer Group
-                if (routePolylineLayer) map.removeLayer(routePolylineLayer);
+                if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
+                    map.removeLayer(routePolylineLayer);
+                }
                 routePolylineLayer = L.featureGroup().addTo(map);
         
                 // A. Draw unbroken green base track layer across the entire trip
@@ -538,7 +543,7 @@ let map = null;
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
         
-                // Setup tracking counters safely in local function scope
+                // Setup clear tracking counters inside the local function scope
                 let jamCount = 0;
                 let heavyTrafficDiscovered = false;
                 let moderateTrafficDiscovered = false;
@@ -589,12 +594,20 @@ let map = null;
                     txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
                 }
         
-                // 11. Run Map Viewport Station Filters
+                // 11. Reveal Dashboard Panels (Wipes any hidden utility classes out of the DOM element container)
+                const trafficDashboard = document.getElementById('traffic-dashboard') || 
+                                         document.getElementById('dashboard-container') || 
+                                         document.getElementById('metrics-dashboard');
+                if (trafficDashboard) {
+                    trafficDashboard.classList.remove('hidden');
+                }
+        
+                // 12. Run Map Viewport Station Filters
                 if (typeof refreshViewportViewFilter === 'function') {
                     refreshViewportViewFilter(distanceMiles);
                 }
         
-                // 12. Run Isolated Weather Component
+                // 13. Run Isolated Weather Component
                 try {
                     if (typeof triggerRouteWeatherFetchPipeline === 'function') {
                         await triggerRouteWeatherFetchPipeline();
@@ -604,7 +617,7 @@ let map = null;
                     document.getElementById('route-weather-module')?.classList.add('hidden');
                 }
         
-                // 13. Run Fuel Refuelling Optimizer
+                // 14. Run Fuel Refuelling Optimizer
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
                 if (typeof calculateOptimalRefuelStrategy === 'function') {
                     calculateOptimalRefuelStrategy();
