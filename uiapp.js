@@ -842,7 +842,7 @@ let map = null;
                 waypointMarkers = [];
             }
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                refuelMarkersGroup.clearLayers();
+                refuelMarkersGroup?.clearLayers();
             }
         
             // 3. FOOLPROOF MAP SWEEP: Scan active map canvas layers for any stray routing/fuel markers
@@ -1486,7 +1486,7 @@ let map = null;
                         </div>
                     `;
                 }
-                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) refuelMarkersGroup.clearLayers();
+                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) refuelMarkersGroup?.clearLayers();
                 return;
             }
         
@@ -1552,7 +1552,7 @@ let map = null;
             if (typeof refuelMarkersGroup === 'undefined' || refuelMarkersGroup === null) {
                 window.refuelMarkersGroup = L.layerGroup().addTo(map);
             }
-            refuelMarkersGroup.clearLayers();
+            refuelMarkersGroup?.clearLayers();
         
             const customFuelIcon = L.divIcon({
                 className: 'custom-fuel-icon',
@@ -1570,7 +1570,7 @@ let map = null;
         function clearRefuelStrategy() {
             // 1. Clear and wipe out all layer markers inside your map group instance
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                refuelMarkersGroup.clearLayers();
+                refuelMarkersGroup?.clearLayers();
             }
             
             // 2. Clear out the sidebar dynamic timeline list tree
@@ -1609,7 +1609,7 @@ let map = null;
         
             // 2. Clear and wipe out all layer markers inside your Leaflet map group safely
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                refuelMarkersGroup.clearLayers();
+                refuelMarkersGroup?.clearLayers();
             }
         
             // 3. Target and empty the timeline result lists (Checks both potential container IDs for safety)
@@ -1638,12 +1638,12 @@ let map = null;
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
         function clearRoute() {
-            // 1. Clear explicitly declared group wrapper layers (with null checks)
-            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
+            // Check if the layer exists BEFORE calling clearLayers()
+            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer !== null) {
                 routePolylineLayer.clearLayers();
             }
-            
-            // DEFENSIVE FIX: Check for null to prevent 'Cannot read properties of null'
+        
+            // CHECK HERE: This prevents the crash when clicking 'Clear' on a fresh load
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
                 refuelMarkersGroup.clearLayers();
             }
