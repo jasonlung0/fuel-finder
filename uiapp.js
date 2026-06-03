@@ -505,36 +505,44 @@ let map = null;
                 let jamCount = 0;
         
                 // Map out safe vector line paths matching parsed TomTom traffic delay metrics
+                // 1. Always draw the complete base route first to guarantee 100% continuous green line coverage
+                L.polyline(plottedRouteCoordinates, {
+                    color: '#10b981', // Clean, default optimal green
+                    weight: 4.5,
+                    opacity: 0.85,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }).addTo(routePolylineLayer);
+                
+                let jamCount = 0;
+                let heavyTrafficDiscovered = false;
+                let moderateTrafficDiscovered = false;
+                
+                // 2. Overlay traffic incidents directly on top of the continuous base line
                 if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
                     currentActiveRoute.sections.forEach(section => {
-                        const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
-                        if (sliceCoords.length < 2) return;
-        
-                        let segmentLineColor = '#10b981'; // Default Clear flow channels
-                        let strokeThickness = 4.0;
-                        let polyOpacity = 0.85;
-        
-                        if (section.simpleCategory === 'JAM' || section.magnitudesOfDelay === 'MAJOR') {
-                            segmentLineColor = '#ef4444'; // Heavy congestion
-                            strokeThickness = 5.0;
-                            polyOpacity = 0.95;
-                            jamCount++;
-                        } else if (section.simpleCategory === 'SLOWDOWN' || section.magnitudesOfDelay === 'MINOR') {
-                            segmentLineColor = '#f59e0b'; // Moderate delays
-                            strokeThickness = 4.5;
-                            polyOpacity = 0.90;
+                        if (section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
+                            const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
+                            if (sliceCoords.length < 2) return;
+                
+                            const isJam = section.simpleCategory === 'JAM';
+                            if (isJam) {
+                                heavyTrafficDiscovered = true;
+                            } else {
+                                moderateTrafficDiscovered = true;
+                            }
+                
+                            L.polyline(sliceCoords, {
+                                color: isJam ? '#ef4444' : '#f59e0b', // Red for JAM, Amber for SLOWDOWN
+                                weight: isJam ? 6.0 : 5.0, // Marginally thicker so it wraps beautifully over the green
+                                opacity: 1.0,
+                                lineCap: 'round',
+                                lineJoin: 'round'
+                            }).addTo(routePolylineLayer);
+                            
                             jamCount++;
                         }
-        
-                        L.polyline(sliceCoords, {
-                            color: segmentLineColor, weight: strokeThickness, opacity: polyOpacity, lineCap: 'round', lineJoin: 'round'
-                        }).addTo(routePolylineLayer);
                     });
-                } else {
-                    // Draw clean path fallback lines if no specific sub-sections are reported
-                    L.polyline(plottedRouteCoordinates, {
-                        color: '#10b981', weight: 4.0, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
-                    }).addTo(routePolylineLayer);
                 }
         
                 map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
@@ -1494,22 +1502,27 @@ let map = null;
 
         // Wipe out the optimiser results when clearing the route planner
         function clearRefuelStrategy() {
-            // Remove the markers layer from map bounds
+            // 1. Clear and wipe out the markers layer group safely
             if (refuelMarkersGroup) {
                 refuelMarkersGroup.clearLayers();
             }
             
-            // Wipe out and hide the layout DOM outputs
+            // 2. Fallback safety: Wipe out the inner contents of your dynamic lists
             const timelineContainer = document.getElementById('refuel-timeline-output');
-            const savingsBadge = document.getElementById('refuel-savings-badge');
-            
             if (timelineContainer) {
-                timelineContainer.innerHTML = '';
-                timelineContainer.classList.add('hidden');
+                timelineContainer.innerHTML = ''; 
             }
+            
+            // 3. Hide any hanging layout badges from viewports
+            const savingsBadge = document.getElementById('refuel-savings-badge');
             if (savingsBadge) {
                 savingsBadge.innerHTML = '';
                 savingsBadge.classList.add('hidden');
+            }
+        
+            const localCardBadge = document.getElementById('fuel-saving-badge');
+            if (localCardBadge) {
+                localCardBadge.classList.add('hidden');
             }
         }
 
