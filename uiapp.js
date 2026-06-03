@@ -433,17 +433,31 @@ let map = null;
         }
 
         // --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
-        async function executeRouteGenerationPipeline() {
+        async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             try {
-                // 1. Validate inputs
-                const startInput = document.getElementById('route-start-point').value;
-                const endInput = document.getElementById('route-end-point').value;
+                // 1. Smart Element Discovery (Looks for any common ID naming styles to prevent null crashes)
+                const startElement = document.getElementById('route-start-point') || 
+                                     document.getElementById('start-point') || 
+                                     document.getElementById('route-start') || 
+                                     document.getElementById('start-location') || 
+                                     document.getElementById('start');
+        
+                const endElement = document.getElementById('route-end-point') || 
+                                   document.getElementById('end-point') || 
+                                   document.getElementById('route-end') || 
+                                   document.getElementById('end-location') || 
+                                   document.getElementById('end');
+        
+                // 2. Resolve values safely using optional chaining (?.) or passed arguments
+                const startInput = forcedStart || startElement?.value || "";
+                const endInput = forcedEnd || endElement?.value || "";
+        
                 if (!startInput || !endInput) {
                     alert("Please enter both a start point and an end point.");
                     return;
                 }
         
-                // 2. Geocode start location
+                // 3. Geocode start location
                 const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
                 const startNodes = await startRes.json();
                 if (!startNodes.length) {
@@ -451,7 +465,7 @@ let map = null;
                     return;
                 }
         
-                // 3. Geocode end location
+                // 4. Geocode end location
                 const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
                 const endNodes = await endRes.json();
                 if (!endNodes.length) {
@@ -459,20 +473,22 @@ let map = null;
                     return;
                 }
         
-                // 4. Build waypoints list dynamically
+                // 5. Build waypoints list dynamically
                 let waypointInputs = document.querySelectorAll('.dynamic-waypoint-input');
                 let waypointStrings = [];
-                waypointInputs.forEach(input => {
-                    if (input.value && input.value.trim() !== "") {
-                        waypointStrings.push(input.value.trim());
-                    }
-                });
+                if (waypointInputs) {
+                    waypointInputs.forEach(input => {
+                        if (input?.value && input.value.trim() !== "") {
+                            waypointStrings.push(input.value.trim());
+                        }
+                    });
+                }
         
                 // Cache coordinates for other application pipelines
                 cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
                 cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
-                // 5. Construct TomTom strict payload string format (lat,lon:lat,lon)
+                // 6. Construct TomTom strict payload string format (lat,lon:lat,lon)
                 let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
         
                 for (let w = 0; w < waypointStrings.length; w++) {
@@ -489,7 +505,7 @@ let map = null;
                 }
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-                // 6. Connect to TomTom Traffic & Routing API
+                // 7. Connect to TomTom Traffic & Routing API
                 const API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
                 const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest`;
                 
@@ -501,7 +517,7 @@ let map = null;
         
                 const currentActiveRoute = routeData.routes[0];
         
-                // 7. Flatten leg segments into coordinate tracking array for Leaflet
+                // 8. Flatten leg segments into coordinate tracking array for Leaflet
                 plottedRouteCoordinates = [];
                 currentActiveRoute.legs.forEach(leg => {
                     leg.points.forEach(pt => {
@@ -509,7 +525,7 @@ let map = null;
                     });
                 });
         
-                // 8. Reinitialize Map Layer Group
+                // 9. Reinitialize Map Layer Group
                 if (routePolylineLayer) map.removeLayer(routePolylineLayer);
                 routePolylineLayer = L.featureGroup().addTo(map);
         
@@ -522,7 +538,7 @@ let map = null;
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
         
-                // Setup clear tracking counters inside the local loop scope
+                // Setup tracking counters safely in local function scope
                 let jamCount = 0;
                 let heavyTrafficDiscovered = false;
                 let moderateTrafficDiscovered = false;
@@ -556,14 +572,16 @@ let map = null;
                     map.fitBounds(routePolylineLayer.getBounds());
                 }
         
-                // 9. Update live Dashboard metrics cards
+                // 10. Update live Dashboard metrics cards
                 const summary = currentActiveRoute.summary;
                 const distanceMiles = (summary.lengthInMeters / 1609.34);
                 const travelTimeMinutes = (summary.travelTimeInSeconds / 60);
                 const trafficDelayMinutes = (summary.trafficDelayInSeconds / 60);
         
-                document.getElementById('dashboard-total-distance').innerText = `${distanceMiles.toFixed(1)} mi`;
-                document.getElementById('dashboard-travel-duration').innerText = `${Math.round(travelTimeMinutes)} min`;
+                const distCard = document.getElementById('dashboard-total-distance');
+                const durCard = document.getElementById('dashboard-travel-duration');
+                if (distCard) distCard.innerText = `${distanceMiles.toFixed(1)} mi`;
+                if (durCard) durCard.innerText = `${Math.round(travelTimeMinutes)} min`;
                 
                 const txtDelay = document.getElementById('dashboard-traffic-delay');
                 if (txtDelay) {
@@ -571,12 +589,12 @@ let map = null;
                     txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
                 }
         
-                // 10. Run Map Viewport Station Filters
+                // 11. Run Map Viewport Station Filters
                 if (typeof refreshViewportViewFilter === 'function') {
                     refreshViewportViewFilter(distanceMiles);
                 }
         
-                // 11. Run Isolated Weather Component
+                // 12. Run Isolated Weather Component
                 try {
                     if (typeof triggerRouteWeatherFetchPipeline === 'function') {
                         await triggerRouteWeatherFetchPipeline();
@@ -586,7 +604,7 @@ let map = null;
                     document.getElementById('route-weather-module')?.classList.add('hidden');
                 }
         
-                // 12. Run Fuel Refuelling Optimizer
+                // 13. Run Fuel Refuelling Optimizer
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
                 if (typeof calculateOptimalRefuelStrategy === 'function') {
                     calculateOptimalRefuelStrategy();
