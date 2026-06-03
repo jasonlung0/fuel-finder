@@ -76,7 +76,7 @@
                 <button onclick="switchDirectoryTabContext('routes')" id="dir-tab-routes" class="py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Routes</button>
             </div>
         </div>
-        <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
+        <div id="starred-list-contner" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
     </div>
 
     <!-- Primary Sidebar control Panel layout wrapper -->
@@ -109,7 +109,7 @@
                 </div>
             </div>
 
-            <!-- TAB 1 CONTENT CONTAINER: NEIGHBOURHOOD GEOMETRIES -->
+            <!-- TAB 1 CONTENT CONTNER: NEIGHBOURHOOD GEOMETRIES -->
             <div id="panel-tab-local" class="space-y-6">
                 <div class="space-y-2 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Location or Postcode</label>
@@ -134,7 +134,7 @@
                 </div>
             </div>
 
-            <!-- TAB 2 CONTENT CONTAINER: ROUTE LOGISTICS CORRIDOR -->
+            <!-- TAB 2 CONTENT CONTNER: ROUTE LOGISTICS CORRIDOR -->
             <div id="panel-tab-route" class="space-y-6 hidden">
                 <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap start and finish">
@@ -153,7 +153,7 @@
                             <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Stops Along the Way (Optional)</label>
                             <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
                         </div>
-                        <div id="dynamic-waypoints-container" class="space-y-2.5"></div>
+                        <div id="dynamic-waypoints-contner" class="space-y-2.5"></div>
                     </div>
 
                     <div class="relative pt-1">
@@ -216,63 +216,86 @@
                 
 
                 <!-- OPTIMAL REFUEL POINT -->
-                <div class="mt-4 bg-gradient-to-br from-zinc-900 via-black to-zinc-900 border border-emerald-500/30 rounded-2xl p-4 text-white shadow-xl">
-                    <div class="flex items-center justify-between mb-3">
+                <div class="mt-4 bg-zinc-900 border border-emerald-500/30 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                
+                    <div class="flex items-center justify-between mb-4 relative z-10">
                         <div class="flex items-center gap-2">
-                            <span class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">✨AI</span>
-                            <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Optimise Fuel Stops</h4>
+                            <span class="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-black uppercase tracking-wider">✨ AI</span>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-100">Smart Refuel</h4>
                         </div>
                         
-                        <!-- Unified Badging and Local Reset Action Wrapper -->
                         <div class="flex items-center gap-2.5">
-                            <!-- Dynamic Saving Pill Badge -->
-                            <span id="fuel-saving-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                            <span id="fuel-saving-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase shadow-sm">
                                 Saving £0.00
                             </span>
-                            
-                            <!-- Enhancement: Minimalist Local Clear Trigger -->
-                            <button 
-                                type="button" 
-                                id="btn-clear-fuel-optimization" 
-                                onclick="clearFuelOptimizationState()"
-                                class="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors duration-150 focus:outline-none cursor-pointer tracking-tight"
-                            >
+                            <button type="button" onclick="clearFuelOptimizationState()" class="text-[10px] font-bold text-zinc-400 hover:text-white transition-colors duration-150 cursor-pointer tracking-tight bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded-md">
                                 Reset
                             </button>
                         </div>
-                        
                     </div>
                     
-                    <div class="grid grid-cols-3 gap-2 mb-4">
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Tank Capacity</label>
-                            <div class="relative">
-                                <input type="number" id="refuel-tank-size" value="0" class="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg pl-2 pr-5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold" />
-                                <span class="absolute right-2 top-2 text-[9px] text-zinc-500 font-bold">L</span>
+                    <div class="space-y-2.5 mb-5 relative z-10">
+                        
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Tank Capacity</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Maximum fuel your vehicle holds.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-tank-size" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="35">35 L (Small)</option>
+                                    <option value="45">45 L (Hatch)</option>
+                                    <option value="55" selected>55 L (Sedan)</option>
+                                    <option value="65">65 L (SUV)</option>
+                                    <option value="80">80 L (Van)</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Starting Fuel</label>
-                            <div class="relative">
-                                <input type="number" id="refuel-current-level" value="0" min="0" max="100" class="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg pl-2 pr-5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold" />
-                                <span class="absolute right-2 top-2 text-[9px] text-zinc-500 font-bold">%</span>
+                
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Current Fuel</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Roughly how much fuel you have now.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-current-level" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="10">10% (Empty)</option>
+                                    <option value="25" selected>25% (Quarter)</option>
+                                    <option value="50">50% (Half)</option>
+                                    <option value="75">75% (3/4 Tank)</option>
+                                    <option value="100">100% (Full)</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[9px] font-bold uppercase tracking-wider text-zinc-400 mb-1">Miles Reserve</label>
-                            <div class="relative">
-                                <input type="number" id="refuel-safety-buffer" value="0" class="w-full bg-zinc-800/80 border border-zinc-700 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold" />
-                                <span class="absolute right-1.5 top-2 text-[9px] text-zinc-500 font-bold">mi</span>
+                
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Safety Buffer</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Extra miles to keep in reserve.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-safety-buffer" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="0">0 mi</option>
+                                    <option value="10" selected>10 mi</option>
+                                    <option value="20">20 mi</option>
+                                    <option value="30">30 mi</option>
+                                    <option value="50">50 mi</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
                             </div>
                         </div>
                     </div>
                 
-                    <button id="trigger-refuel-optimizer" class="w-full bg-emerald-500 hover:bg-emerald-400 transition text-zinc-950 font-black text-xs py-2.5 rounded-xl active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40">
-                        ⛽ Find Cheapest Fuel
+                    <button id="trigger-refuel-optimizer" class="w-full bg-emerald-500 hover:bg-emerald-400 transition-colors text-zinc-950 font-black text-xs py-3 rounded-xl active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.2)] relative z-10 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 0 1-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004ZM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 0 1-.921.42Z" /><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v.816a3.836 3.836 0 0 0-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 0 1-.921-.421l-.879-.66a.75.75 0 0 0-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 0 0 1.5 0v-.81a4.124 4.124 0 0 0 1.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 0 0-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 0 0 .933-1.175l-.415-.33a3.836 3.836 0 0 0-1.719-.755V6Z" clip-rule="evenodd" /></svg>
+                        Find Cheapest Fuel Stop
                     </button>
                 
-                    <div id="refuel-timeline-output" class="mt-4 space-y-3 hidden border-t border-zinc-800 pt-3">
-                        </div>
+                    <div id="refuel-timeline-output" class="mt-4 space-y-3 hidden border-t border-zinc-700 pt-3 relative z-10">
+                    </div>
                 </div>
             </div>
 
