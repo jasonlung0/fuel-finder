@@ -1738,17 +1738,17 @@ let map = null;
 
 
         window.addEventListener('DOMContentLoaded', () => {
-        ();
+        initializeSpatialMapEngine();
         applyThemeChangesToDOM();
         setupAutocompleteListeners();
         initializeClickIsolationBubbling();
         initializeGestureTrackEngine();
         forceReloadRemotePipelineData();
         
-        // ADD THIS LINE HERE:
+        // Clean, error-free event listener binding
         document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', calculateOptimalRefuelStrategy);
         
-        if(window.innerWidth < 768) {
+        if (window.innerWidth < 768) {
             setMobileSidebarState('peek');
         }
     });
