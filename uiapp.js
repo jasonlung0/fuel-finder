@@ -838,31 +838,78 @@ let map = null;
         }
 
         function clearCalculatedRouteLayers() {
-            if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
+            // 1. Remove the polyline path layer
+            if (routePolylineLayer) { 
+                map.removeLayer(routePolylineLayer); 
+                routePolylineLayer = null; 
+            }
+            
+            // 2. DEFENSIVE CLEAR: Wipe explicit route marker instances if they exist globally
+            if (typeof startMarker !== 'undefined' && startMarker) { map.removeLayer(startMarker); startMarker = null; }
+            if (typeof endMarker !== 'undefined' && endMarker) { map.removeLayer(endMarker); endMarker = null; }
+            if (typeof waypointMarkers !== 'undefined' && Array.isArray(waypointMarkers)) {
+                waypointMarkers.forEach(m => map.removeLayer(m));
+                waypointMarkers = [];
+            }
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
+                refuelMarkersGroup.clearLayers();
+            }
+        
+            // 3. FOOLPROOF MAP SWEEP: Scan active map canvas layers for any stray routing/fuel markers
+            if (typeof map !== 'undefined' && map) {
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.Marker) {
+                        const popup = layer.getPopup();
+                        const popupContent = popup ? popup.getContent() : '';
+                        
+                        // Identify routing/refueling markers by title, class, or popup context
+                        if (
+                            layer.options.title === 'Start' || 
+                            layer.options.title === 'End' ||
+                            layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
+                            layer.options.icon?.options?.className === 'custom-fuel-icon' ||
+                            (typeof popupContent === 'string' && (
+                                popupContent.includes('Optimal') || 
+                                popupContent.includes('Refuel') || 
+                                popupContent.includes('Start Point') || 
+                                popupContent.includes('Destination')
+                            ))
+                        ) {
+                            map.removeLayer(layer);
+                        }
+                    }
+                });
+            }
+        
+            // 4. Reset coordinate memory matrices
             plottedRouteCoordinates = [];
             cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
             
+            // 5. Empty user address input forms
             document.getElementById('route-start').value = '';
             document.getElementById('route-end').value = '';
             document.getElementById('location-input').value = '';
-
+        
+            // 6. Regenerate empty waypoint card structures
             const container = document.getElementById('dynamic-waypoints-container');
             if (container) {
                 container.innerHTML = '';
                 addWaypointFieldInputRow();
             }
-
-            // Hide the new Traffic Dashboard
+        
+            // 7. Hide the Traffic Dashboard and telemetry cards
             const dashboard = document.getElementById('traffic-summary-dashboard');
             if (dashboard) dashboard.classList.add('hidden');
-
-            // Clean up downstream modules
-            clearFuelOptimizationState();
-
+        
             document.getElementById('financial-card').classList.add('hidden');
             document.getElementById('traffic-telemetry-node').classList.add('hidden');
             document.getElementById('cheapest-ranking-block').classList.add('hidden');
             document.getElementById('route-weather-module').classList.add('hidden');
+        
+            // 8. Clean up optimization sub-modules
+            clearFuelOptimizationState();
+        
+            // 9. Re-trigger standard viewport calculation to redraw normal fuel station icons
             refreshViewportViewFilter();
         }
 
@@ -1588,80 +1635,82 @@ let map = null;
          * Master cleanup script that completely empties address lookups, 
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
-        function clearCalculatedRouteLayers() {
-            // 1. Remove the polyline path layer
-            if (routePolylineLayer) { 
-                map.removeLayer(routePolylineLayer); 
-                routePolylineLayer = null; 
-            }
-            
-            // 2. DEFENSIVE CLEAR: Wipe explicit route marker instances if they exist globally
-            if (typeof startMarker !== 'undefined' && startMarker) { map.removeLayer(startMarker); startMarker = null; }
-            if (typeof endMarker !== 'undefined' && endMarker) { map.removeLayer(endMarker); endMarker = null; }
-            if (typeof waypointMarkers !== 'undefined' && Array.isArray(waypointMarkers)) {
-                waypointMarkers.forEach(m => map.removeLayer(m));
-                waypointMarkers = [];
+        function clearRoute() {
+            // 1. Clear explicitly declared group wrapper layers
+            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
+                routePolylineLayer.clearLayers();
             }
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
                 refuelMarkersGroup.clearLayers();
             }
         
-            // 3. FOOLPROOF MAP SWEEP: Scan active map canvas layers for any stray routing/fuel markers
+            // 2. FOOLPROOF SWEEP: Purge any stray routing/fuel marker nodes from the map instance
             if (typeof map !== 'undefined' && map) {
                 map.eachLayer((layer) => {
+                    // Check for custom DOM elements or popups containing fuel strategy metadata
                     if (layer instanceof L.Marker) {
                         const popup = layer.getPopup();
                         const popupContent = popup ? popup.getContent() : '';
                         
-                        // Identify routing/refueling markers by title, class, or popup context
                         if (
-                            layer.options.title === 'Start' || 
-                            layer.options.title === 'End' ||
                             layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
                             layer.options.icon?.options?.className === 'custom-fuel-icon' ||
-                            (typeof popupContent === 'string' && (
-                                popupContent.includes('Optimal') || 
-                                popupContent.includes('Refuel') || 
-                                popupContent.includes('Start Point') || 
-                                popupContent.includes('Destination')
-                            ))
+                            (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))
                         ) {
+                            map.removeLayer(layer);
+                        }
+                    }
+                    // Clear out remaining polyline path tracks safely
+                    if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
+                        if (layer !== window.baseTileLayer) { // Ensure maps tile sets aren't stripped
                             map.removeLayer(layer);
                         }
                     }
                 });
             }
         
-            // 4. Reset coordinate memory matrices
-            plottedRouteCoordinates = [];
-            cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
-            
-            // 5. Empty user address input forms
-            document.getElementById('route-start').value = '';
-            document.getElementById('route-end').value = '';
-            document.getElementById('location-input').value = '';
+            // 3. Clear textual user inputs from DOM
+            const routeStart = document.getElementById('route-start');
+            const routeEnd = document.getElementById('route-end');
+            if (routeStart) routeStart.value = '';
+            if (routeEnd) routeEnd.value = '';
         
-            // 6. Regenerate empty waypoint card structures
-            const container = document.getElementById('dynamic-waypoints-container');
-            if (container) {
-                container.innerHTML = '';
-                addWaypointFieldInputRow();
+            // 4. Reset fuel optimizer input parameters back to base defaults
+            const tankInput = document.getElementById('refuel-tank-size');
+            const currentFuelInput = document.getElementById('refuel-current-level');
+            const bufferInput = document.getElementById('refuel-safety-buffer');
+            if (tankInput) tankInput.value = 0;
+            if (currentFuelInput) currentFuelInput.value = 0;
+            if (bufferInput) bufferInput.value = 0;
+        
+            // 5. Reset display components and toggle visibilities off
+            const timelineContainer = document.getElementById('refuel-timeline-output');
+            if (timelineContainer) {
+                timelineContainer.innerHTML = '';
+                timelineContainer.classList.add('hidden');
             }
         
-            // 7. Hide the Traffic Dashboard and telemetry cards
-            const dashboard = document.getElementById('traffic-summary-dashboard');
-            if (dashboard) dashboard.classList.add('hidden');
+            const savingBadge = document.getElementById('fuel-saving-badge');
+            if (savingBadge) {
+                savingBadge.innerText = 'Saving £0.00';
+            }
         
-            document.getElementById('financial-card').classList.add('hidden');
-            document.getElementById('traffic-telemetry-node').classList.add('hidden');
-            document.getElementById('cheapest-ranking-block').classList.add('hidden');
-            document.getElementById('route-weather-module').classList.add('hidden');
+            const trafficDashboard = document.getElementById('traffic-summary-dashboard');
+            if (trafficDashboard) {
+                trafficDashboard.classList.add('hidden');
+            }
+            
+            const telemetryNode = document.getElementById('traffic-telemetry-node');
+            if (telemetryNode) {
+                telemetryNode.classList.add('hidden');
+            }
         
-            // 8. Clean up optimization sub-modules
-            clearFuelOptimizationState();
+            console.log("Telemetry dashboards hidden and map layout markers cleared successfully.");
+        }
         
-            // 9. Re-trigger standard viewport calculation to redraw normal fuel station icons
-            refreshViewportViewFilter();
+        // Ensure alias bindings match inline HTML trigger mappings
+        function clearFuelOptimizationState() {
+            clearRoute();
         }
 
 
