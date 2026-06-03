@@ -180,7 +180,7 @@
                 <div class="grid grid-cols-3 gap-2">
                     <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Get Route</button>
                     <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Save</button>
-                    <button onclick="clearCalculatedRouteLayers()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear</button>
+                    <button onclick="clearFuelOptimizationState()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear</button>
                 </div>
 
                 <!-- TRAFFIC SUMMARY DASHBOARD -->
@@ -234,7 +234,7 @@
                             <button 
                                 type="button" 
                                 id="btn-clear-fuel-optimization" 
-                                onclick="clearRefuelStrategy()"
+                                onclick="clearFuelOptimizationState()"
                                 class="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors duration-150 focus:outline-none cursor-pointer tracking-tight"
                             >
                                 Reset
