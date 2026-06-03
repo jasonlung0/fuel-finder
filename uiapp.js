@@ -596,32 +596,70 @@ let map = null;
                 }
                 
                 // Inject live telemetry metrics into your HTML layout text nodes safely
-                // (Assuming 'data' contains your TomTom API response fields)
-                if (typeof data !== 'undefined' && data.summary) {
-                    const distanceMiles = (data.summary.lengthInMeters / 1609.34).toFixed(1);
-                    const delayMinutes = Math.round(data.summary.trafficDelayInSeconds / 60);
+                // Assuming 'data' is the raw JSON object returned from your TomTom API fetch
+                if (typeof data !== 'undefined' && data.routes && data.routes[0]) {
+                    const routeData = data.routes[0].summary;
                     
-                    const distanceTextNode = document.getElementById('dash-metric-distance');
-                    const delayTextNode = document.getElementById('dash-metric-delay');
-                    const statusBadgeNode = document.getElementById('traffic-status-badge');
+                    // Convert TomTom metrics safely
+                    const distanceMiles = (routeData.lengthInMeters / 1609.34).toFixed(1);
+                    const delayMinutes = Math.round(routeData.trafficDelayInSeconds / 60);
+                    
+                    // Dynamically count traffic sections if available in TomTom's response payload
+                    const jamsCount = data.routes[0].sections 
+                        ? data.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
+                        : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
                 
-                    if (distanceTextNode) distanceTextNode.innerText = `${distanceMiles} mi`;
+                    // 1. UPDATE THE PRIMARY SIDEBAR DASHBOARD FIELDS
+                    const distanceMetric = document.getElementById('dash-metric-distance');
+                    const delayMetric = document.getElementById('dash-metric-delay');
+                    const jamsMetric = document.getElementById('dash-metric-jams');
+                    const statusBadge = document.getElementById('traffic-status-badge');
+                
+                    if (distanceMetric) distanceMetric.innerText = `${distanceMiles} mi`;
+                    if (jamsMetric) jamsMetric.innerText = jamsCount;
                     
-                    if (delayTextNode) {
-                        delayTextNode.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
+                    if (delayMetric) {
+                        delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
+                        
+                        // Dynamic styling shifts based on congestion severity
                         if (delayMinutes > 5) {
-                            delayTextNode.className = 'block text-sm font-black text-rose-500 leading-none tracking-tight';
-                            if (statusBadgeNode) {
-                                statusBadgeNode.innerText = 'CONGESTED';
-                                statusBadgeNode.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
+                            delayMetric.className = 'block text-sm font-black text-rose-500 leading-none tracking-tight';
+                            if (statusBadge) {
+                                statusBadge.innerText = 'CONGESTED';
+                                statusBadge.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
                             }
                         } else {
-                            delayTextNode.className = 'block text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none tracking-tight';
-                            if (statusBadgeNode) {
-                                statusBadgeNode.innerText = 'CLEAR';
-                                statusBadgeNode.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase';
+                            delayMetric.className = 'block text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none tracking-tight';
+                            if (statusBadge) {
+                                statusBadge.innerText = 'CLEAR';
+                                statusBadge.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase';
                             }
                         }
+                    }
+                
+                    // 2. UPDATE THE SECONDARY FINANCIAL CARD TELEMETRY NODE (IF VISIBLE)
+                    const telemetryNode = document.getElementById('traffic-telemetry-node');
+                    const telemetryLabel = document.getElementById('traffic-status-label');
+                    const telemetryBadge = document.getElementById('traffic-delay-badge');
+                
+                    if (telemetryNode) {
+                        telemetryNode.classList.remove('hidden');
+                        telemetryNode.style.setProperty('display', 'flex', 'important');
+                    }
+                    if (telemetryLabel) {
+                        telemetryLabel.innerText = delayMinutes > 5 ? 'Heavy Congestion' : (delayMinutes > 0 ? 'Moderate Delays' : 'Fluid Traffic Flow');
+                    }
+                    if (telemetryBadge) {
+                        telemetryBadge.innerText = delayMinutes > 0 ? `+${delayMinutes} mins delay` : 'On Time';
+                        telemetryBadge.className = delayMinutes > 5 
+                            ? 'bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'
+                            : 'bg-emerald-500/15 border border-amber-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0';
+                    }
+                    
+                    // Force show the main container element
+                    const mainDashboardPanel = document.getElementById('traffic-summary-dashboard');
+                    if (mainDashboardPanel) {
+                        mainDashboardPanel.classList.remove('hidden');
                     }
                 }
         
