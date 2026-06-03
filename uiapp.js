@@ -1439,6 +1439,8 @@ let map = null;
             // Wipe out and hide the layout DOM outputs
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingsBadge = document.getElementById('refuel-savings-badge');
+            // Clean up downstream modules
+            clearFuelOptimizationState();
             
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
@@ -1447,6 +1449,44 @@ let map = null;
             if (savingsBadge) {
                 savingsBadge.innerHTML = '';
                 savingsBadge.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Destroys calculated fuel stop optimization states locally
+         * without interrupting the primary core route planning workflow matrix.
+         */
+        function clearFuelOptimizationState() {
+            // 1. Target and clear calculated timeline nodes from DOM
+            const fuelResultsContainer = document.getElementById('fuel-optimizer-results-node'); 
+            if (fuelResultsContainer) {
+                fuelResultsContainer.innerHTML = ''; // Safely drop the ASDA / timeline nodes
+            }
+        
+            // 2. Reset local configuration entry matrix back to default profiles
+            const inputTank = document.getElementById('input-tank-capacity');
+            const inputStarting = document.getElementById('input-starting-fuel');
+            const inputReserve = document.getElementById('input-miles-reserve');
+        
+            if (inputTank) inputTank.value = "50";
+            if (inputStarting) inputStarting.value = "25";
+            if (inputReserve) inputReserve.value = "10";
+        
+            // 3. Hide or reset the contextual header tracking values
+            const savingBadge = document.getElementById('fuel-saving-badge');
+            if (savingBadge) {
+                // Transition down smoothly rather than popping out of existence jarringly
+                savingBadge.classList.add('hidden');
+            }
+        
+            // 4. Fire Map Redraw Pipeline if active
+            // Wipes fuel markers and snaps back to standard, clean OSRM path geometry
+            if (typeof clearFuelMarkersFromMap === 'function') {
+                clearFuelMarkersFromMap();
+            }
+            
+            if (typeof triggerRouteRegeneration === 'function') {
+                triggerRouteRegeneration({ skipFuelOptimization: true });
             }
         }
 
