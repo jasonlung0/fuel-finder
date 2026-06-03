@@ -514,13 +514,17 @@ let map = null;
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
                 
-                let jamCount = 0;
-                let heavyTrafficDiscovered = false;
-                let moderateTrafficDiscovered = false;
+                // 🔍 SMART ADAPTER: Automatically look for 'currentActiveRoute' or fallback to 'route'
+                const targetRouteObj = (typeof currentActiveRoute !== 'undefined') ? currentActiveRoute : (typeof route !== 'undefined' ? route : null);
+                
+                // 🛠️ SCOPE FIX: Assign variables instead of redeclaring 'let' to prevent syntax crashes
+                if (typeof jamCount !== 'undefined') jamCount = 0; else var jamCount = 0;
+                if (typeof heavyTrafficDiscovered !== 'undefined') heavyTrafficDiscovered = false; else var heavyTrafficDiscovered = false;
+                if (typeof moderateTrafficDiscovered !== 'undefined') moderateTrafficDiscovered = false; else var moderateTrafficDiscovered = false;
                 
                 // 2. Overlay traffic incidents directly on top of the continuous base line
-                if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
-                    currentActiveRoute.sections.forEach(section => {
+                if (targetRouteObj && targetRouteObj.sections && targetRouteObj.sections.length > 0) {
+                    targetRouteObj.sections.forEach(section => {
                         if (section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
                             const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
                             if (sliceCoords.length < 2) return;
