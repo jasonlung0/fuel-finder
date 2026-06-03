@@ -1565,12 +1565,26 @@ let map = null;
                 `;
             }
         
-            // FIX: Safely initialize marker group before using it
-            if (typeof refuelMarkersGroup === 'undefined' || refuelMarkersGroup === null) {
-                window.refuelMarkersGroup = L.layerGroup().addTo(map);
+            // 1. Bulletproof Initialization: Safely resolve or create the layer group
+            let activeMarkerGroup = null;
+            
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
+                activeMarkerGroup = refuelMarkersGroup;
+            } else if (typeof window.refuelMarkersGroup !== 'undefined' && window.refuelMarkersGroup !== null) {
+                activeMarkerGroup = window.refuelMarkersGroup;
+            } else {
+                // Create it fresh and attach to map
+                activeMarkerGroup = L.layerGroup().addTo(map);
+                
+                // Safely update both local and global scopes
+                try { refuelMarkersGroup = activeMarkerGroup; } catch(e) {}
+                window.refuelMarkersGroup = activeMarkerGroup;
             }
-            refuelMarkersGroup?.clearLayers();
         
+            // 2. Now 100% safe to clear previous markers
+            activeMarkerGroup.clearLayers();
+        
+            // 3. Define the UI Icon
             const customFuelIcon = L.divIcon({
                 className: 'custom-fuel-icon',
                 html: `<div class="bg-amber-500 border-2 border-white dark:border-zinc-900 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
@@ -1578,9 +1592,10 @@ let map = null;
                 iconAnchor: [16, 32]
             });
             
+            // 4. Attach to the guaranteed active group
             L.marker([lat, lon], { icon: customFuelIcon })
                 .bindPopup(`<strong class="text-xs text-zinc-900 font-black block mb-0.5">Optimal Refuel Stop</strong><span class="text-[11px] text-emerald-600 font-bold block">${bestPrice.toFixed(1)}p/L</span>`)
-                .addTo(refuelMarkersGroup);
+                .addTo(activeMarkerGroup);
         }
 
         // Wipe out the optimiser results when clearing the route planner
