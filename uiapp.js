@@ -1457,7 +1457,7 @@ let map = null;
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingBadge = document.getElementById('fuel-saving-badge');
             
-            // Default hide the badge
+            // Default hide the badge and container
             if (savingBadge) savingBadge.classList.add('hidden');
         
             if (typeof plottedRouteCoordinates === 'undefined' || plottedRouteCoordinates.length === 0) {
@@ -1468,29 +1468,29 @@ let map = null;
                 return;
             }
         
+            // Capture values
             const startingFuelRange = parseFloat(document.getElementById('refuel-current-level')?.value || 25);
             const milesReserve = parseFloat(document.getElementById('refuel-safety-buffer')?.value || 10);
             const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
-        
             const totalTripDistance = (typeof currentActiveRoute !== 'undefined' && currentActiveRoute?.summary?.lengthInMeters) 
                 ? (currentActiveRoute.summary.lengthInMeters / 1609.34) : 65; 
         
-            // UX: Sufficient fuel handler
+            // Logic: Sufficient fuel
             if (startingFuelRange >= (totalTripDistance + milesReserve)) {
                 if (timelineContainer) {
                     timelineContainer.classList.remove('hidden');
                     timelineContainer.innerHTML = `
                         <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
                             <div class="font-bold flex items-center gap-1">🎉 Fuel Tank Sufficient!</div>
-                            <p class="text-zinc-500 dark:text-zinc-400 font-medium leading-normal">Your current range (<strong>${startingFuelRange.toFixed(0)} mi</strong>) is completely sufficient to cover this <strong>${totalTripDistance.toFixed(1)} mi</strong> trip without making any additional refuel stops.</p>
+                            <p class="text-zinc-500 dark:text-zinc-400 font-medium leading-normal">Your current range is sufficient to cover this ${totalTripDistance.toFixed(1)} mi trip without additional stops.</p>
                         </div>
                     `;
                 }
-                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
+                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) refuelMarkersGroup.clearLayers();
                 return;
             }
         
-            // REAL OPTIMIZATION LOGIC (Scans visible stations along the corridor)
+            // Optimization Logic
             const fuelType = document.getElementById('fuel-type')?.value || 'E10';
             let validStations = currentlyVisibleStations.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
             
@@ -1501,22 +1501,21 @@ let map = null;
             if (validStations.length === 0) {
                 if (timelineContainer) {
                     timelineContainer.classList.remove('hidden');
-                    timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2">No active fuel stations found near this route.</p>';
+                    timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2">No active fuel stations found.</p>';
                 }
                 return;
             }
         
-            // Find the cheapest station matched
+            // Sorting/Selection
             validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
             const bestStation = validStations[0];
             const bestPrice = parseFloat(bestStation[fuelType]);
             
-            // Savings calculation 
+            // Savings calc
             const averageMotorwayPrice = 166.9; 
             const totalLitersRequired = (totalTripDistance / averageMpg) * 4.54609;
             const potentialSavings = totalLitersRequired * ((averageMotorwayPrice - bestPrice) / 100);
         
-            // Unhide badge only if real savings are calculated
             if (potentialSavings > 0 && savingBadge) {
                 savingBadge.innerText = `Saving £${potentialSavings.toFixed(2)}`;
                 savingBadge.classList.remove('hidden');
@@ -1525,7 +1524,7 @@ let map = null;
             const lat = parseFloat(bestStation.latitude || bestStation.lat);
             const lon = parseFloat(bestStation.longitude || bestStation.lng);
         
-            // Build the dynamic UI block and bind the live button to your native app framework
+            // Update Sidebar
             if (timelineContainer) {
                 timelineContainer.classList.remove('hidden');
                 timelineContainer.innerHTML = `
@@ -1534,7 +1533,7 @@ let map = null;
                             <div class="flex gap-2 items-start min-w-0">
                                 <div class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg font-bold mt-0.5 shrink-0">⛽</div>
                                 <div class="min-w-0 pr-2">
-                                    <div class="font-bold text-zinc-900 dark:text-zinc-100 truncate">${(bestStation.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                                    <div class="font-bold text-zinc-900 dark:text-zinc-100 truncate">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</div>
                                     <div class="text-zinc-500 dark:text-zinc-400 text-[10px] mt-0.5 truncate">${(bestStation.address || '').replace(/['"]/g, '')}</div>
                                 </div>
                             </div>
@@ -1549,11 +1548,10 @@ let map = null;
                 `;
             }
         
-            // Handle the live map canvas placement
-            if (typeof refuelMarkersGroup === 'undefined' || !refuelMarkersGroup) {
+            // FIX: Safely initialize marker group before using it
+            if (typeof refuelMarkersGroup === 'undefined' || refuelMarkersGroup === null) {
                 window.refuelMarkersGroup = L.layerGroup().addTo(map);
             }
-            
             refuelMarkersGroup.clearLayers();
         
             const customFuelIcon = L.divIcon({
@@ -1640,15 +1638,17 @@ let map = null;
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
         function clearRoute() {
-            // 1. Clear explicitly declared group wrapper layers
+            // 1. Clear explicitly declared group wrapper layers (with null checks)
             if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
                 routePolylineLayer.clearLayers();
             }
-            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
+            
+            // DEFENSIVE FIX: Check for null to prevent 'Cannot read properties of null'
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
                 refuelMarkersGroup.clearLayers();
             }
         
-            // 2. SWEEP: Wipe *any* stray pin/marker that isn't the base map or fuel clusters
+            // 2. SWEEP: Wipe *any* stray pin/marker that isn't the base map
             if (typeof map !== 'undefined' && map) {
                 map.eachLayer((layer) => {
                     // Protect base map tiles and your main station cluster groups
@@ -1666,22 +1666,16 @@ let map = null;
             if (routeEnd) routeEnd.value = '';
             if (locationInput) locationInput.value = '';
         
-            // 4. FIX: Clear dynamic waypoints UI structure
+            // 4. Clear dynamic waypoints UI structure
             const container = document.getElementById('dynamic-waypoints-container');
             if (container) {
                 container.innerHTML = '';
-                addWaypointFieldInputRow(); // Reset back to a single empty field
+                if (typeof addWaypointFieldInputRow === 'function') {
+                    addWaypointFieldInputRow(); // Reset back to a single empty field
+                }
             }
         
-            // 5. Reset fuel optimizer parameter fields
-            const tankInput = document.getElementById('refuel-tank-size');
-            const currentFuelInput = document.getElementById('refuel-current-level');
-            const bufferInput = document.getElementById('refuel-safety-buffer');
-            if (tankInput) tankInput.value = 0;
-            if (currentFuelInput) currentFuelInput.value = 0;
-            if (bufferInput) bufferInput.value = 0;
-        
-            // 6. Hide all dashboard modules and reset badges
+            // 5. Hide all dashboard modules and reset badges
             const timelineContainer = document.getElementById('refuel-timeline-output');
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
@@ -1691,7 +1685,7 @@ let map = null;
             const savingBadge = document.getElementById('fuel-saving-badge');
             if (savingBadge) {
                 savingBadge.innerText = 'Saving £0.00';
-                savingBadge.classList.add('hidden'); // Ensure it hides fully
+                savingBadge.classList.add('hidden');
             }
         
             document.getElementById('traffic-summary-dashboard')?.classList.add('hidden');
@@ -1700,14 +1694,16 @@ let map = null;
             document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
             document.getElementById('route-weather-module')?.classList.add('hidden');
         
-            // 7. Wipe background memory tracking
+            // 6. Wipe background memory tracking
             plottedRouteCoordinates = [];
             cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
         
-            // 8. Trigger map component refresh
-            refreshViewportViewFilter();
+            // 7. Trigger map component refresh
+            if (typeof refreshViewportViewFilter === 'function') {
+                refreshViewportViewFilter();
+            }
             
-            console.log("Workspace completely cleared.");
+            console.log("Workspace cleared and stabilized.");
         }
         
         // Ensure alias bindings match inline HTML trigger mappings
