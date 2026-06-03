@@ -1,3 +1,7 @@
+// --- GLOBAL CONFIGURATION CREDENTIALS ---
+// Insert your developer token here to authenticate live telemetry frames
+const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
+
 // Tailwind Design Tokens Custom Configuration Layer
 if (window.tailwind) {
     window.tailwind.config = {
