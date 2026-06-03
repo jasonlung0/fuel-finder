@@ -448,7 +448,7 @@ let map = null;
                                    document.getElementById('end-location') || 
                                    document.getElementById('end');
         
-                // 2. Resolve values safely using optional chaining (?.) or passed arguments from saved panel
+                // 2. Resolve values safely using optional chaining (?.) or passed arguments
                 const startInput = forcedStart || startElement?.value || "";
                 const endInput = forcedEnd || endElement?.value || "";
         
@@ -508,7 +508,7 @@ let map = null;
                 }
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-                // 7. Connect to TomTom Traffic & Routing API (with explicit sectionType requested)
+                // 7. Connect to TomTom Traffic & Routing API
                 const API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
                 const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
                 
@@ -543,31 +543,24 @@ let map = null;
                     lineJoin: 'round'
                 }).addTo(routePolylineLayer);
         
-                // Setup clear tracking counters inside the local function scope
-                let jamCount = 0;
-                let heavyTrafficDiscovered = false;
-                let moderateTrafficDiscovered = false;
-        
-                // B. Overlay specific congestion lines cleanly on top of the green line
+                // B. Robust TomTom Congestion Overlay Map Rendering
                 if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
                     currentActiveRoute.sections.forEach(section => {
-                        if (section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
+                        // Check for explicit TRAFFIC section markers or semantic jam tags
+                        if (section.sectionType === 'TRAFFIC' || section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
                             const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
                             if (sliceCoords.length < 2) return;
         
-                            const isJam = section.simpleCategory === 'JAM';
-                            if (isJam) heavyTrafficDiscovered = true;
-                            else moderateTrafficDiscovered = true;
-        
+                            // Magnitude 3 & 4 indicate heavy delays/jams. Magnitude 1 & 2 indicate minor/moderate slowdowns.
+                            const isJam = section.simpleCategory === 'JAM' || (section.magnitudeOfDelay && section.magnitudeOfDelay >= 3);
+                            
                             L.polyline(sliceCoords, {
-                                color: isJam ? '#ef4444' : '#f59e0b', 
-                                weight: isJam ? 6.0 : 5.0, 
+                                color: isJam ? '#ef4444' : '#f59e0b', // Red for jam, Orange for slowdown
+                                weight: isJam ? 6.5 : 5.0, 
                                 opacity: 1.0,
                                 lineCap: 'round',
                                 lineJoin: 'round'
                             }).addTo(routePolylineLayer);
-                            
-                            jamCount++;
                         }
                     });
                 }
@@ -594,13 +587,11 @@ let map = null;
                     txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
                 }
         
-                // 11. Reveal Dashboard Panels (Wipes any hidden utility classes out of the DOM element container)
-                const trafficDashboard = document.getElementById('traffic-dashboard') || 
-                                         document.getElementById('dashboard-container') || 
-                                         document.getElementById('metrics-dashboard');
-                if (trafficDashboard) {
-                    trafficDashboard.classList.remove('hidden');
-                }
+                // 11. Force reveal any matching Traffic Dashboard wrappers
+                const dashboardIds = ['traffic-dashboard', 'dashboard-container', 'metrics-dashboard', 'dashboard'];
+                dashboardIds.forEach(id => {
+                    document.getElementById(id)?.classList.remove('hidden');
+                });
         
                 // 12. Run Map Viewport Station Filters
                 if (typeof refreshViewportViewFilter === 'function') {
@@ -617,10 +608,15 @@ let map = null;
                     document.getElementById('route-weather-module')?.classList.add('hidden');
                 }
         
-                // 14. Run Fuel Refuelling Optimizer
+                // 14. Run Fuel Refuelling Optimizer and force reveal the saving pill
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
                 if (typeof calculateOptimalRefuelStrategy === 'function') {
                     calculateOptimalRefuelStrategy();
+                }
+        
+                const savingBadge = document.getElementById('fuel-saving-badge') || document.getElementById('refuel-savings-badge') || document.getElementById('savings-pill');
+                if (savingBadge) {
+                    savingBadge.classList.remove('hidden');
                 }
         
             } catch (err) {
@@ -1593,30 +1589,51 @@ let map = null;
         }
 
         /**
-         * Completely clears out map paths, main route address inputs, 
-         * active dynamic waypoints, and resets dashboard metric totals.
+         * Master cleanup function that empties input forms, 
+         * clears track polylines, map pins, and collapses metrics frames.
          */
         function clearRoute() {
-            // 1. Wipe out active map path track layers
+            // 1. Completely empty the Start and End input fields
+            const targetAddressInputs = [
+                'route-start-point', 'start-point', 'route-start', 'start-location', 'start',
+                'route-end-point', 'end-point', 'route-end', 'end-location', 'end'
+            ];
+            targetAddressInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+        
+            // 2. Completely empty the Optimal Fuel Stops parameter input fields
+            const targetFuelInputs = ['input-tank-capacity', 'input-starting-fuel', 'input-miles-reserve'];
+            targetFuelInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+        
+            // 3. Clear active map path lines and fuel pins
             if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
                 routePolylineLayer.clearLayers();
             }
-            
-            // 2. Empty the Main Route Address input fields (checks common IDs)
-            const startInput = document.getElementById('route-start-point') || document.getElementById('start-point') || document.getElementById('start');
-            const endInput = document.getElementById('route-end-point') || document.getElementById('end-point') || document.getElementById('end');
-            if (startInput) startInput.value = '';
-            if (endInput) endInput.value = '';
-        
-            // 3. Purge any dynamic mid-trip waypoint inputs
-            const dynamicWaypointsContainer = document.getElementById('dynamic-waypoints-container') || document.getElementById('waypoints-list');
-            if (dynamicWaypointsContainer) {
-                dynamicWaypointsContainer.innerHTML = ''; 
-            } else {
-                document.querySelectorAll('.dynamic-waypoint-input').forEach(input => input.value = '');
+            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
+                refuelMarkersGroup.clearLayers();
+            }
+            if (typeof clearFuelMarkersFromMap === 'function') {
+                clearFuelMarkersFromMap();
             }
         
-            // 4. Reset Traffic Dashboard metrics back to zero/blank placeholders
+            // 4. Purge generated timeline elements and custom dynamic waypoints
+            const dynamicWaypointsContainer = document.getElementById('dynamic-waypoints-container') || document.getElementById('waypoints-list');
+            if (dynamicWaypointsContainer) dynamicWaypointsContainer.innerHTML = '';
+            
+            const timelineContainer = document.getElementById('refuel-timeline-output') || document.getElementById('fuel-optimizer-results-node');
+            if (timelineContainer) timelineContainer.innerHTML = '';
+        
+            // 5. Hide savings badges/pills
+            document.getElementById('fuel-saving-badge')?.classList.add('hidden');
+            document.getElementById('refuel-savings-badge')?.classList.add('hidden');
+            document.getElementById('savings-pill')?.classList.add('hidden');
+            
+            // 6. Reset live dashboard metric displays back to default placeholders
             const distCard = document.getElementById('dashboard-total-distance');
             const durCard = document.getElementById('dashboard-travel-duration');
             const txtDelay = document.getElementById('dashboard-traffic-delay');
@@ -1624,12 +1641,12 @@ let map = null;
             if (durCard) durCard.innerText = '-- min';
             if (txtDelay) txtDelay.innerText = 'No active route';
         
-            // 5. Also trigger the fuel optimization wipe to clean up everything at once
-            if (typeof clearFuelOptimizationState === 'function') {
-                clearFuelOptimizationState();
-            }
+            console.log("Application workspace cleared completely.");
+        }
         
-            console.log("Core routing footprints and map layers successfully cleared.");
+        // Fail-safe wrapper: Maps your live HTML button click directly to the master clear script!
+        function clearFuelOptimizationState() {
+            clearRoute();
         }
 
 
