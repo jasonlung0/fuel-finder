@@ -462,18 +462,19 @@ let map = null;
                 cachedGeocodedWaypoints.end = { name: endVal, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
                 // Construct coordinates string payload matching TomTom matrix expectations (lon,lat:lon,lat)
-                // NOTE: TomTom uses Longitude,Latitude order, unlike Nominatim's response.
+                // --- CORRECTED COORDINATE PAYLOAD ---
+                // TomTom API expects: lat,lon:lat,lon
                 let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
-        
-                cachedGeocodedWaypoints.vids = {};
+                
                 for(let w = 0; w < waypointNodes.length; w++) {
-                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
+                    const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(waypointNodes[w])}&countrycodes=gb&limit=1`);
                     const viaNodes = await viaRes.json();
                     if(viaNodes.length) {
                         coordinatesPayloadString += `:${viaNodes[0].lat},${viaNodes[0].lon}`;
                         cachedGeocodedWaypoints.vids[`wp_${w}`] = { name: waypointNodes[w], lat: parseFloat(viaNodes[0].lat), lon: parseFloat(viaNodes[0].lon) };
                     }
                 }
+                coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
                 coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
                 // Fetch live routing calculations augmented by real-time traffic delay metrics from TomTom API
