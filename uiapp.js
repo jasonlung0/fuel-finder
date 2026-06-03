@@ -1612,41 +1612,36 @@ let map = null;
 
         /**
          * Destroys calculated fuel stop optimization states locally,
-         * resets panel configuration inputs, and wipes map overlays.
+         * resets panel configuration inputs to default profiles, and wipes map overlays.
          */
         function clearFuelOptimizationState() {
-            // 1. Reset panel configuration entry fields back to default profiles
-            const inputTank = document.getElementById('input-tank-capacity');
-            const inputStarting = document.getElementById('input-starting-fuel');
-            const inputReserve = document.getElementById('input-miles-reserve');
+            // 1. Reset dropdown select fields to default starting values
+            const inputTank = document.getElementById('refuel-tank-size');
+            const inputStarting = document.getElementById('refuel-current-level');
+            const inputReserve = document.getElementById('refuel-safety-buffer');
         
-            if (inputTank) inputTank.value = "50";
+            if (inputTank) inputTank.value = "55";
             if (inputStarting) inputStarting.value = "25";
             if (inputReserve) inputReserve.value = "10";
         
-            // 2. Clear and wipe out all layer markers inside your Leaflet map group safely
+            // 2. Clear out layer markers inside Leaflet map safely
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                refuelMarkersGroup?.clearLayers();
+                refuelMarkersGroup.clearLayers();
             }
         
-            // 3. Target and empty the timeline result lists (Checks both potential container IDs for safety)
-            const timelineContainer = document.getElementById('refuel-timeline-output') || document.getElementById('fuel-optimizer-results-node');
+            // 3. Target and empty the timeline result lists
+            const timelineContainer = document.getElementById('refuel-timeline-output');
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
+                timelineContainer.classList.add('hidden');
             }
         
-            // 4. Hide any dynamic visual savings badges from viewports
+            // 4. Hide dynamic visual savings badges
             const savingBadge = document.getElementById('fuel-saving-badge');
             if (savingBadge) {
                 savingBadge.classList.add('hidden');
             }
         
-            const savingsBadgeAlternative = document.getElementById('refuel-savings-badge');
-            if (savingsBadgeAlternative) {
-                savingsBadgeAlternative.innerHTML = '';
-                savingsBadgeAlternative.classList.add('hidden');
-            }
-            
             console.log("Fuel Optimization interface states successfully defaulted.");
         }
 
