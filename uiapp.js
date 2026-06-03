@@ -588,25 +588,22 @@ let map = null;
                 }
         
                 // 11. Reveal Dashboard Panels (Enforces structural CSS visibility swaps explicitly)
-                // Reveal the Live Traffic Telemetry Dashboard Panel cleanly
                 const trafficDashboard = document.getElementById('traffic-summary-dashboard');
                 if (trafficDashboard) {
                     trafficDashboard.classList.remove('hidden');
                     trafficDashboard.style.setProperty('display', 'block', 'important');
                 }
                 
-                // Inject live telemetry metrics into your HTML layout text nodes safely
-                // Assuming 'data' is the raw JSON object returned from your TomTom API fetch
-                if (typeof data !== 'undefined' && data.routes && data.routes[0]) {
-                    const routeData = data.routes[0].summary;
+                // BUG FIX: Changed 'data' to 'routeData' to match your fetch response variable
+                if (typeof routeData !== 'undefined' && routeData.routes && routeData.routes[0]) {
+                    const summaryMetrics = routeData.routes[0].summary;
                     
                     // Convert TomTom metrics safely
-                    const distanceMiles = (routeData.lengthInMeters / 1609.34).toFixed(1);
-                    const delayMinutes = Math.round(routeData.trafficDelayInSeconds / 60);
+                    const distanceMiles = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
+                    const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
                     
-                    // Dynamically count traffic sections if available in TomTom's response payload
-                    const jamsCount = data.routes[0].sections 
-                        ? data.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
+                    const jamsCount = routeData.routes[0].sections 
+                        ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
                         : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
                 
                     // 1. UPDATE THE PRIMARY SIDEBAR DASHBOARD FIELDS
@@ -621,7 +618,6 @@ let map = null;
                     if (delayMetric) {
                         delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
                         
-                        // Dynamic styling shifts based on congestion severity
                         if (delayMinutes > 5) {
                             delayMetric.className = 'block text-sm font-black text-rose-500 leading-none tracking-tight';
                             if (statusBadge) {
@@ -637,7 +633,7 @@ let map = null;
                         }
                     }
                 
-                    // 2. UPDATE THE SECONDARY FINANCIAL CARD TELEMETRY NODE (IF VISIBLE)
+                    // 2. UPDATE THE SECONDARY FINANCIAL CARD TELEMETRY NODE
                     const telemetryNode = document.getElementById('traffic-telemetry-node');
                     const telemetryLabel = document.getElementById('traffic-status-label');
                     const telemetryBadge = document.getElementById('traffic-delay-badge');
@@ -654,12 +650,6 @@ let map = null;
                         telemetryBadge.className = delayMinutes > 5 
                             ? 'bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'
                             : 'bg-emerald-500/15 border border-amber-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0';
-                    }
-                    
-                    // Force show the main container element
-                    const mainDashboardPanel = document.getElementById('traffic-summary-dashboard');
-                    if (mainDashboardPanel) {
-                        mainDashboardPanel.classList.remove('hidden');
                     }
                 }
         
@@ -1467,7 +1457,9 @@ let map = null;
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingBadge = document.getElementById('fuel-saving-badge');
             
-            // 1. Safety Check: Verify a route has been generated first
+            // Default hide the badge
+            if (savingBadge) savingBadge.classList.add('hidden');
+        
             if (typeof plottedRouteCoordinates === 'undefined' || plottedRouteCoordinates.length === 0) {
                 if (timelineContainer) {
                     timelineContainer.classList.remove('hidden');
@@ -1476,92 +1468,104 @@ let map = null;
                 return;
             }
         
-            // 2. EXTRACT VALUES USING YOUR EXACT HTML IDs
-            const tankCapacity = parseFloat(document.getElementById('refuel-tank-size')?.value || 50);
             const startingFuelRange = parseFloat(document.getElementById('refuel-current-level')?.value || 25);
             const milesReserve = parseFloat(document.getElementById('refuel-safety-buffer')?.value || 10);
+            const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
         
-            // Get total distance in miles from the current active route metadata
             const totalTripDistance = (typeof currentActiveRoute !== 'undefined' && currentActiveRoute?.summary?.lengthInMeters) 
-                ? (currentActiveRoute.summary.lengthInMeters / 1609.34) 
-                : 65; 
+                ? (currentActiveRoute.summary.lengthInMeters / 1609.34) : 65; 
         
-            // 3. UX IMPROVEMENT: High Starting Fuel Handling (Fuel range exceeds trip requirements)
+            // UX: Sufficient fuel handler
             if (startingFuelRange >= (totalTripDistance + milesReserve)) {
-                if (savingBadge) {
-                    savingBadge.innerText = 'Saving £0.00';
-                }
-                
                 if (timelineContainer) {
                     timelineContainer.classList.remove('hidden');
                     timelineContainer.innerHTML = `
-                        <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
-                            <div class="font-bold text-emerald-400 flex items-center gap-1">🎉 Fuel Tank Sufficient!</div>
-                            <p class="text-zinc-400 font-medium leading-normal">Your current range (<strong>${startingFuelRange.toFixed(0)} mi</strong>) is completely sufficient to cover this <strong>${totalTripDistance.toFixed(1)} mi</strong> trip without making any additional refuel stops.</p>
+                        <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
+                            <div class="font-bold flex items-center gap-1">🎉 Fuel Tank Sufficient!</div>
+                            <p class="text-zinc-500 dark:text-zinc-400 font-medium leading-normal">Your current range (<strong>${startingFuelRange.toFixed(0)} mi</strong>) is completely sufficient to cover this <strong>${totalTripDistance.toFixed(1)} mi</strong> trip without making any additional refuel stops.</p>
                         </div>
                     `;
                 }
-                
-                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                    refuelMarkersGroup.clearLayers();
+                if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
+                return;
+            }
+        
+            // REAL OPTIMIZATION LOGIC (Scans visible stations along the corridor)
+            const fuelType = document.getElementById('fuel-type')?.value || 'E10';
+            let validStations = currentlyVisibleStations.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
+            
+            if (validStations.length === 0 && rawGlobalStationsPool) {
+                validStations = rawGlobalStationsPool.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
+            }
+        
+            if (validStations.length === 0) {
+                if (timelineContainer) {
+                    timelineContainer.classList.remove('hidden');
+                    timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2">No active fuel stations found near this route.</p>';
                 }
                 return;
             }
         
-            // 4. Optimization Path: Update pricing badge savings text & timeline blocks
+            // Find the cheapest station matched
+            validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
+            const bestStation = validStations[0];
+            const bestPrice = parseFloat(bestStation[fuelType]);
+            
+            // Savings calculation 
+            const averageMotorwayPrice = 166.9; 
+            const totalLitersRequired = (totalTripDistance / averageMpg) * 4.54609;
+            const potentialSavings = totalLitersRequired * ((averageMotorwayPrice - bestPrice) / 100);
+        
+            // Unhide badge only if real savings are calculated
+            if (potentialSavings > 0 && savingBadge) {
+                savingBadge.innerText = `Saving £${potentialSavings.toFixed(2)}`;
+                savingBadge.classList.remove('hidden');
+            }
+        
+            const lat = parseFloat(bestStation.latitude || bestStation.lat);
+            const lon = parseFloat(bestStation.longitude || bestStation.lng);
+        
+            // Build the dynamic UI block and bind the live button to your native app framework
             if (timelineContainer) {
-                const averageMotorwayPrice = 166.9;    
-                const averageOffRoutePrice = 139.9;    
-                const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value || 45);
-                
-                const totalLitersRequired = (totalTripDistance / averageMpg) * 4.54609;
-                const potentialSavings = totalLitersRequired * ((averageMotorwayPrice - averageOffRoutePrice) / 100);
-        
-                // Update saving pill text explicitly
-                if (savingBadge) {
-                    savingBadge.innerText = `Saving £${potentialSavings.toFixed(2)}`;
-                }
-        
-                // Show layout timeline frame structure
                 timelineContainer.classList.remove('hidden');
                 timelineContainer.innerHTML = `
                     <div class="space-y-2">
-                        <div class="bg-zinc-800/50 border border-zinc-700/60 p-3 rounded-xl text-xs flex justify-between items-center">
-                            <div class="flex gap-2 items-center">
-                                <div class="bg-emerald-500/10 text-emerald-400 p-1.5 rounded-lg font-bold">⛽</div>
-                                <div>
-                                    <div class="font-bold text-zinc-100">Applegreen Station</div>
-                                    <div class="text-zinc-400 text-[10px]">Stop at ${(startingFuelRange - milesReserve).toFixed(0)} mi • 1.5 mi off route</div>
+                        <div class="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/60 p-3 rounded-xl text-xs flex justify-between items-start shadow-sm">
+                            <div class="flex gap-2 items-start min-w-0">
+                                <div class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 p-1.5 rounded-lg font-bold mt-0.5 shrink-0">⛽</div>
+                                <div class="min-w-0 pr-2">
+                                    <div class="font-bold text-zinc-900 dark:text-zinc-100 truncate">${(bestStation.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                                    <div class="text-zinc-500 dark:text-zinc-400 text-[10px] mt-0.5 truncate">${(bestStation.address || '').replace(/['"]/g, '')}</div>
                                 </div>
                             </div>
-                            <div class="text-right">
-                                <span class="text-emerald-400 font-bold text-xs">139.9p/L</span>
-                                <div class="text-[9px] text-zinc-500">Local Low Rate</div>
+                            <div class="text-right shrink-0">
+                                <span class="text-emerald-600 dark:text-emerald-400 font-black text-xs bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${bestPrice.toFixed(1)}p</span>
                             </div>
                         </div>
+                        <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black py-2.5 rounded-lg transition active:scale-[0.98] shadow-sm uppercase tracking-wider cursor-pointer">
+                            View Station Details
+                        </button>
                     </div>
                 `;
             }
         
-            // 5. Place optimized forecourt marker pins onto the map
-            if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-                refuelMarkersGroup.clearLayers();
-                const midpointIndex = Math.floor(plottedRouteCoordinates.length * 0.5);
-                const targetCoord = plottedRouteCoordinates[midpointIndex];
-        
-                if (targetCoord) {
-                    const customFuelIcon = L.divIcon({
-                        className: 'custom-fuel-icon',
-                        html: `<div class="bg-emerald-600 border-2 border-white text-white rounded-full shadow-lg flex items-center justify-center w-7 h-7 font-bold text-xs">⛽</div>`,
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    });
-                    
-                    L.marker([targetCoord[0], targetCoord[1]], { icon: customFuelIcon })
-                     .bindPopup(`<strong class="text-xs">Optimal Refuel Stop</strong><br><span class="text-[11px] text-zinc-500">Cheapest matched fuel option here!</span>`)
-                     .addTo(refuelMarkersGroup);
-                }
+            // Handle the live map canvas placement
+            if (typeof refuelMarkersGroup === 'undefined' || !refuelMarkersGroup) {
+                window.refuelMarkersGroup = L.layerGroup().addTo(map);
             }
+            
+            refuelMarkersGroup.clearLayers();
+        
+            const customFuelIcon = L.divIcon({
+                className: 'custom-fuel-icon',
+                html: `<div class="bg-amber-500 border-2 border-white dark:border-zinc-900 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32]
+            });
+            
+            L.marker([lat, lon], { icon: customFuelIcon })
+                .bindPopup(`<strong class="text-xs text-zinc-900 font-black block mb-0.5">Optimal Refuel Stop</strong><span class="text-[11px] text-emerald-600 font-bold block">${bestPrice.toFixed(1)}p/L</span>`)
+                .addTo(refuelMarkersGroup);
         }
 
         // Wipe out the optimiser results when clearing the route planner
@@ -1644,38 +1648,32 @@ let map = null;
                 refuelMarkersGroup.clearLayers();
             }
         
-            // 2. FOOLPROOF SWEEP: Purge any stray routing/fuel marker nodes from the map instance
+            // 2. SWEEP: Wipe *any* stray pin/marker that isn't the base map or fuel clusters
             if (typeof map !== 'undefined' && map) {
                 map.eachLayer((layer) => {
-                    // Check for custom DOM elements or popups containing fuel strategy metadata
-                    if (layer instanceof L.Marker) {
-                        const popup = layer.getPopup();
-                        const popupContent = popup ? popup.getContent() : '';
-                        
-                        if (
-                            layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
-                            layer.options.icon?.options?.className === 'custom-fuel-icon' ||
-                            (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))
-                        ) {
-                            map.removeLayer(layer);
-                        }
-                    }
-                    // Clear out remaining polyline path tracks safely
-                    if (layer instanceof L.Polyline && !(layer instanceof L.Polygon)) {
-                        if (layer !== window.baseTileLayer) { // Ensure maps tile sets aren't stripped
-                            map.removeLayer(layer);
-                        }
-                    }
+                    // Protect base map tiles and your main station cluster groups
+                    if (layer === tileLayerInstance || layer === markerClusterGroupInstance) return;
+                    // Purge everything else (routing polylines, start/end markers, waypoints)
+                    map.removeLayer(layer);
                 });
             }
         
-            // 3. Clear textual user inputs from DOM
+            // 3. Clear main text inputs from DOM
             const routeStart = document.getElementById('route-start');
             const routeEnd = document.getElementById('route-end');
+            const locationInput = document.getElementById('location-input');
             if (routeStart) routeStart.value = '';
             if (routeEnd) routeEnd.value = '';
+            if (locationInput) locationInput.value = '';
         
-            // 4. Reset fuel optimizer input parameters back to base defaults
+            // 4. FIX: Clear dynamic waypoints UI structure
+            const container = document.getElementById('dynamic-waypoints-container');
+            if (container) {
+                container.innerHTML = '';
+                addWaypointFieldInputRow(); // Reset back to a single empty field
+            }
+        
+            // 5. Reset fuel optimizer parameter fields
             const tankInput = document.getElementById('refuel-tank-size');
             const currentFuelInput = document.getElementById('refuel-current-level');
             const bufferInput = document.getElementById('refuel-safety-buffer');
@@ -1683,7 +1681,7 @@ let map = null;
             if (currentFuelInput) currentFuelInput.value = 0;
             if (bufferInput) bufferInput.value = 0;
         
-            // 5. Reset display components and toggle visibilities off
+            // 6. Hide all dashboard modules and reset badges
             const timelineContainer = document.getElementById('refuel-timeline-output');
             if (timelineContainer) {
                 timelineContainer.innerHTML = '';
@@ -1693,19 +1691,23 @@ let map = null;
             const savingBadge = document.getElementById('fuel-saving-badge');
             if (savingBadge) {
                 savingBadge.innerText = 'Saving £0.00';
+                savingBadge.classList.add('hidden'); // Ensure it hides fully
             }
         
-            const trafficDashboard = document.getElementById('traffic-summary-dashboard');
-            if (trafficDashboard) {
-                trafficDashboard.classList.add('hidden');
-            }
+            document.getElementById('traffic-summary-dashboard')?.classList.add('hidden');
+            document.getElementById('traffic-telemetry-node')?.classList.add('hidden');
+            document.getElementById('financial-card')?.classList.add('hidden');
+            document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
+            document.getElementById('route-weather-module')?.classList.add('hidden');
+        
+            // 7. Wipe background memory tracking
+            plottedRouteCoordinates = [];
+            cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
+        
+            // 8. Trigger map component refresh
+            refreshViewportViewFilter();
             
-            const telemetryNode = document.getElementById('traffic-telemetry-node');
-            if (telemetryNode) {
-                telemetryNode.classList.add('hidden');
-            }
-        
-            console.log("Telemetry dashboards hidden and map layout markers cleared successfully.");
+            console.log("Workspace completely cleared.");
         }
         
         // Ensure alias bindings match inline HTML trigger mappings
