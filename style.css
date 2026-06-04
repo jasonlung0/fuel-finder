@@ -29,6 +29,26 @@ body { font-family: 'Inter', sans-serif; }
     color: #f4f4f5 !important;
     border-bottom: 1px solid #27272a !important;
 }
+/* Leaflet Popups Glassmorphism */
+.leaflet-popup-content-wrapper {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+    border-radius: 16px !important;
+}
+.dark .leaflet-popup-content-wrapper {
+    background: rgba(9, 9, 11, 0.85) !important;
+    border: 1px solid rgba(63, 63, 70, 0.4) !important;
+    color: #f4f4f5 !important;
+}
+.leaflet-popup-tip {
+    background: rgba(255, 255, 255, 0.85) !important;
+}
+.dark .leaflet-popup-tip {
+    background: rgba(9, 9, 11, 0.85) !important;
+}
 
 /* Dynamic Visual Forecourt Pins */
 .fuel-marker-bubble {
@@ -51,6 +71,21 @@ body { font-family: 'Inter', sans-serif; }
 .bg-fuel-green { background: linear-gradient(135deg, #059669, #10b981); }
 .bg-fuel-blue { background: linear-gradient(135deg, #2563eb, #3b82f6); }
 .bg-fuel-red { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+.custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(161, 161, 170, 0.3);
+    border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(161, 161, 170, 0.5);
+}
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* 3-State Sliding Mobile Sheet Architecture */
 @media (max-width: 767px) {
