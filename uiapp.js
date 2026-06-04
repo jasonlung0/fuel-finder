@@ -25,8 +25,23 @@ let map = null;
 
         let rawGlobalStationsPool = [];
         let currentlyVisibleStations = [];
-        let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
-        let savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
+        // Replace your existing global variable declarations with this:
+        let starredStations = [];
+        let savedRoutes = [];
+        
+        // Force load them immediately
+        try {
+            const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
+            const loadedRoutes = localStorage.getItem('uk_fuel_saved_v2_routes');
+            
+            if (loadedStarred) starredStations = JSON.parse(loadedStarred);
+            if (loadedRoutes) savedRoutes = JSON.parse(loadedRoutes);
+        } catch (e) {
+            console.error("Failed to parse local storage:", e);
+            // Fallback to empty arrays if parsing fails
+            starredStations = [];
+            savedRoutes = [];
+        }
         
         let activeTabContext = 'local'; 
         let activeDirectoryTab = 'stations'; 
@@ -705,7 +720,7 @@ let map = null;
                 
                 // 14. Run Fuel Refuelling Optimizer and force reveal the saving pill
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
-                if (typeof calculateOptimalRefuelStrategy === 'function') {
+                if (typeof  === 'function') {
                     calculateOptimalRefuelStrategy();
                 }
                 
@@ -1493,6 +1508,14 @@ let map = null;
         }
         
         function calculateOptimalRefuelStrategy() {
+            // FORCE FRESH READ FROM DOM
+            const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+            const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+            const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 40;
+            
+            // Now use these variables for your logic below:
+            const remainingRange = (currentFuelLevel - safetyBuffer) * (averageMpg / 4.54609);
+            
             const timelineContainer = document.getElementById('refuel-timeline-output');
             const savingBadge = document.getElementById('fuel-saving-badge');
             
@@ -1713,46 +1736,29 @@ let map = null;
          * sweeps pricing marker pins off map containers, and resets fuel configurations.
          */
         function clearRoute() {
-            // 1. Clear ONLY the specific routing layers (Safe method)
-            if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
-                if (typeof routePolylineLayer.clearLayers === 'function') {
-                    routePolylineLayer.clearLayers();
-                } else if (map.hasLayer(routePolylineLayer)) {
-                    map.removeLayer(routePolylineLayer);
-                }
+            // 1. Wipe the route line
+            if (routePolylineLayer) {
+                routePolylineLayer.clearLayers();
             }
         
+            // 2. Wipe the refuel markers specifically
             if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
                 refuelMarkersGroup.clearLayers();
             }
         
-            // DO NOT use map.eachLayer here anymore! It destroys the base markers.
-        
-            // 2. Clear main text inputs from DOM
-            ['route-start', 'route-end', 'location-input'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-        
-            // 3. Clear dynamic waypoints UI structure
-            const container = document.getElementById('dynamic-waypoints-container');
-            if (container) {
-                container.innerHTML = '';
-                if (typeof addWaypointFieldInputRow === 'function') {
-                    addWaypointFieldInputRow(); 
+            // 3. Wipe any other temporary markers that are not base station markers
+            map.eachLayer((layer) => {
+                // Only remove layers that are explicitly identified as route/fuel related
+                // Do not remove markers that have a 'station-id' attribute (your base markers)
+                if (layer instanceof L.Marker && !layer.options.station_id) {
+                    map.removeLayer(layer);
                 }
-            }
-        
-            // 4. Hide all dashboard modules
-            ['refuel-timeline-output', 'fuel-saving-badge', 'traffic-summary-dashboard', 'traffic-telemetry-node', 'financial-card', 'cheapest-ranking-block', 'route-weather-module'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
             });
         
-            // 5. Wipe background memory tracking
-            plottedRouteCoordinates = [];
-            
-            console.log("Workspace cleared safely without affecting nearby station markers.");
+            // 4. Reset UI
+            document.getElementById('traffic-summary-dashboard')?.classList.add('hidden');
+            document.getElementById('refuel-timeline-output')?.classList.add('hidden');
+            console.log("Route and refuel markers cleared; station anchors preserved.");
         }
         
         // Ensure alias bindings match inline HTML trigger mappings
