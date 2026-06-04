@@ -46,7 +46,7 @@ let activeDirectoryTab = 'stations';
 let activeSheetStation = null;
 let mapSearchAnchorCoordinates = [51.5074, -0.1278]; 
 
-// GLOBAL ROUTING SCOPES (Fixes the Ghost Math)
+// GLOBAL ROUTING SCOPES
 let plottedRouteCoordinates = [];
 let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
@@ -59,7 +59,6 @@ let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
 let dynamicWaypointIncrementalIndex = 0;
 
-// --- SCAN AREA TRACKING VARIABLES ---
 let originalMapCenter = null;
 let scanAreaTimeout = null;
 
@@ -258,7 +257,7 @@ function initializeClusterLayerPipeline() {
 
             if(pricesExtracted.length === 0) {
                 return L.divIcon({
-                    html: `<div class="fuel-cluster-capsule"><span>Cluster</span></div>`,
+                    html: `<div class="fuel-cluster-capsule tabular-nums"><span>Cluster</span></div>`,
                     className: 'leaflet-div-icon-reset', iconSize: [95, 32]
                 });
             }
@@ -453,7 +452,6 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
-// --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
 async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
     if (!map) {
         console.warn("Spatial Map Engine is not initialized yet.");
@@ -545,7 +543,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
         const currentActiveRoute = routeData.routes[0];
 
-        // Assign to Globals to fix "Ghost Math"
         globalActiveRoute = currentActiveRoute;
         globalRouteDistanceMiles = (currentActiveRoute.summary.lengthInMeters / 1609.34);
         
@@ -585,7 +582,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             map.fitBounds(routePolylineLayer.getBounds());
         }
         
-        // 10. Update Dashboard Metrics using unified IDs
         const summaryMetrics = routeData.routes[0].summary;
         const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
         const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
@@ -619,7 +615,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             }
         }
         
-        // Target Unified Panel
         const unifiedInsightsCard = document.getElementById('route-insights-card');
         if (unifiedInsightsCard) {
             unifiedInsightsCard.classList.remove('hidden');
@@ -822,7 +817,6 @@ function clearCalculatedRouteLayers() {
         addWaypointFieldInputRow();
     }
 
-    // Hide new unified card
     document.getElementById('route-insights-card')?.classList.add('hidden');
     document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
     document.getElementById('route-weather-module')?.classList.add('hidden');
@@ -853,11 +847,6 @@ document.getElementById('radius-slider')?.addEventListener('input', (e) => {
 });
 document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
     document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
-});
-document.getElementById('fuel-type')?.addEventListener('change', () => {
-    initializeClusterLayerPipeline();
-    refreshViewportViewFilter();
-    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
 });
 
 document.addEventListener('click', (e) => {
@@ -1368,18 +1357,20 @@ function getNumericInputValue(id, fallback) {
 }
 
 // -------------------------------------------------------------
-// CORE CALCULATOR RE-WRITE: Bug Free and fully scoped
+// CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
 function calculateOptimalRefuelStrategy() {
     const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
     const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+    const tankSizeLiters = parseFloat(document.getElementById('refuel-tank-size')?.value) || 55;
     const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 40;
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     
     const timelineContainer = document.getElementById('refuel-timeline-output');
-    const savingBadge = document.getElementById('fuel-saving-badge');
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    const savingsValueText = document.getElementById('refuel-savings-value');
     
-    if (savingBadge) savingBadge.classList.add('hidden');
+    if (savingsBlock) savingsBlock.classList.add('hidden');
 
     let activeDistance = typeof globalRouteDistanceMiles !== 'undefined' ? globalRouteDistanceMiles : 0;
     
@@ -1439,14 +1430,19 @@ function calculateOptimalRefuelStrategy() {
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
     const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
     
-    const averageMotorwayPrice = 166.9; 
-    const litersToFill = (activeDistance / averageMpg) * 4.54609;
+    // Core Savings Logic Engine
+    const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType]).filter(p => p && !isNaN(p));
+    const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
+    
+    const litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
     const totalCost = (litersToFill * bestPrice) / 100;
-    const potentialSavings = litersToFill * ((averageMotorwayPrice - bestPrice) / 100);
+    
+    const savingsPence = (averagePrice - bestPrice) * litersToFill;
+    const savingsGBP = Math.max(0, savingsPence / 100);
 
-    if (potentialSavings > 0 && savingBadge) {
-        savingBadge.innerText = `Saving £${potentialSavings.toFixed(2)}`;
-        savingBadge.classList.remove('hidden');
+    if (savingsGBP > 0 && savingsValueText) {
+        savingsValueText.textContent = `£${savingsGBP.toFixed(2)}`;
+        if (savingsBlock) savingsBlock.classList.remove('hidden');
     }
     
     if (timelineContainer) {
@@ -1518,24 +1514,6 @@ function calculateOptimalRefuelStrategy() {
         .addTo(activeMarkerGroup);
 }
 
-function clearRefuelStrategy() {
-    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-        refuelMarkersGroup?.clearLayers();
-    }
-    
-    const timelineContainer = document.getElementById('refuel-timeline-output');
-    if (timelineContainer) {
-        timelineContainer.innerHTML = '';
-        timelineContainer.classList.add('hidden');
-    }
-    
-    const savingsBadge = document.getElementById('fuel-saving-badge');
-    if (savingsBadge) {
-        savingsBadge.innerHTML = '';
-        savingsBadge.classList.add('hidden');
-    }
-}
-
 function clearFuelOptimizationState() {
     const inputTank = document.getElementById('refuel-tank-size');
     const inputStarting = document.getElementById('refuel-current-level');
@@ -1555,9 +1533,9 @@ function clearFuelOptimizationState() {
         timelineContainer.classList.add('hidden');
     }
 
-    const savingBadge = document.getElementById('fuel-saving-badge');
-    if (savingBadge) {
-        savingBadge.classList.add('hidden');
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    if (savingsBlock) {
+        savingsBlock.classList.add('hidden');
     }
 
     console.log("Fuel Optimization interface states successfully defaulted.");
@@ -1580,7 +1558,7 @@ function clearRoute() {
 
     document.getElementById('route-insights-card')?.classList.add('hidden');
     document.getElementById('refuel-timeline-output')?.classList.add('hidden');
-    document.getElementById('fuel-saving-badge')?.classList.add('hidden');
+    document.getElementById('smart-refuel-savings-block')?.classList.add('hidden');
     console.log("Route and refuel markers cleared; station anchors preserved.");
 }
 
@@ -1597,21 +1575,28 @@ window.addEventListener('DOMContentLoaded', () => {
     forceReloadRemotePipelineData();
 
     // Attach Reactive Live Feedback Hooks directly to all sliders and dropdowns
-    const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
+    // BUG FIX: Added 'refuel-tank-size' and removed the route tab restriction so it updates instantly
+    const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
     refuelInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.addEventListener('input', () => {
-                if(activeTabContext === 'route') calculateOptimalRefuelStrategy();
-            });
             el.addEventListener('change', () => {
-                if(activeTabContext === 'route') calculateOptimalRefuelStrategy();
+                executeStationDataFilteringPipeline();
+                calculateOptimalRefuelStrategy();
+            });
+            el.addEventListener('input', () => {
+                // For range sliders to update in real-time
+                if (el.type === 'range') {
+                    executeStationDataFilteringPipeline();
+                    calculateOptimalRefuelStrategy();
+                }
             });
         }
     });
     
     // Explicit map update button hook
     document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', () => {
+        executeStationDataFilteringPipeline();
         calculateOptimalRefuelStrategy();
     });
 
