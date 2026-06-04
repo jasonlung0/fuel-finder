@@ -16,77 +16,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <style>
-        /* Modern Scrollbar Optimization */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { bg: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.2); border-radius: 100px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.4); }
-
-        /* Leaflet Layout Configuration Hooks */
-        .leaflet-div-icon-reset { background: transparent !important; border: none !important; }
-        
-        .fuel-cluster-capsule {
-            display: flex; align-items: center; justify-content: center;
-            background: #09090b; color: #ffffff; font-family: 'Inter', sans-serif;
-            font-size: 11px; font-weight: 800; border: 1.5px solid rgba(16, 185, 129, 0.6);
-            border-radius: 9999px; padding: 4px 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.4);
-            white-space: nowrap; text-align: center; width: 100%; height: 100%;
-        }
-        .dark .fuel-cluster-capsule {
-            background: #ffffff; color: #09090b; border-color: rgba(52, 211, 153, 0.8);
-        }
-
-        /* Fluid 3-Touch Mobile Transition Engine */
-        .mobile-bottom-drawer {
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-            will-change: transform;
-        }
-
-        @media (max-width: 767px) {
-            .drawer-peek { transform: translateY(calc(85vh - 110px)); }
-            .drawer-mid  { transform: translateY(calc(85vh - 45vh)); }
-            .drawer-full { transform: translateY(0); }
-            .drawer-hidden { transform: translateY(100%); }
-        }
-
-        /* Map Attribution Layer Controls override */
-        .leaflet-control-zoom { border: none !important; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15) !important; }
-        .leaflet-bar a { background-color: rgba(255,255,255,0.85) !important; color: #18181b !important; border-color: rgba(228,228,231,0.5) !important; backdrop-blur: 12px; }
-        .dark .leaflet-bar a { background-color: rgba(9,9,11,0.85) !important; color: #f4f4f5 !important; border-color: rgba(63,63,70,0.5) !important; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="h-full w-full overflow-hidden bg-zinc-950 font-['Inter'] antialiased text-zinc-900 dark:text-zinc-50 transition-colors duration-300 select-none">
+<body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
 
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-    <div id="scan-area-container" class="absolute top-24 md:top-28 left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
-        <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2.5 px-5 py-3 rounded-full border bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md text-zinc-900 dark:text-zinc-100 border-zinc-300/60 dark:border-zinc-700/60 shadow-2xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+    <div id="scan-area-container" class="absolute top-24 md:top-[84px] left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
+        <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2 px-4 py-2.5 rounded-full border bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 select-none focus:outline-none">
             <svg id="scan-icon-search" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4 text-emerald-600 dark:text-emerald-400">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.642 10.642z" />
             </svg>
-            <svg id="scan-icon-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 animate-spin hidden text-zinc-500">
+            <svg id="scan-icon-spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 animate-spin hidden text-zinc-400 dark:text-zinc-500">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <span>Search this map area</span>
+            <span id="scan-btn-string">Search this map area</span>
         </button>
     </div>
 
     <header class="absolute top-4 left-4 right-4 z-[4500] flex items-center justify-between pointer-events-none gap-4">
-        <div class="bg-white/85 dark:bg-zinc-950/80 backdrop-blur-2xl backdrop-saturate-150 px-4 py-2.5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl flex items-center gap-3 pointer-events-auto transition-colors duration-300">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-sm shadow-sm select-none">⛽</div>
+        <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-xl flex items-center gap-2.5 pointer-events-auto transition-colors duration-300">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-sm shadow-sm">⛽</div>
             <div>
-                <h1 class="text-xs font-black tracking-tight text-zinc-950 dark:text-white leading-none uppercase">UK Fuel Price Matrix</h1>
-                <span id="live-timestamp-label" class="text-[10px] font-bold text-zinc-500 dark:text-emerald-400 block mt-1">Live Engine Standard</span>
+                <h1 class="text-xs font-black tracking-tight text-zinc-900 dark:text-white leading-none">UK Fuel Prices</h1>
+                <span id="live-timestamp-label" class="text-[9px] font-bold text-zinc-400 dark:text-emerald-400 block mt-0.5">Prices Updated Live</span>
             </div>
         </div>
 
         <div class="flex items-center gap-2 pointer-events-auto">
-            <button onclick="toggleSystemColorModeTheme(event)" class="p-3 bg-white/85 dark:bg-zinc-950/80 backdrop-blur-md border border-zinc-200/50 dark:border-zinc-800/50 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer active:scale-95 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" title="Toggle System Palette Mode">
-                <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden text-zinc-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <button onclick="toggleSystemColorModeTheme(event)" class="p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 rounded-xl shadow-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer active:scale-95 flex items-center justify-center transition-colors duration-300" title="Toggle Light/Dark Theme">
+                <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden text-zinc-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                 </svg>
                 <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -94,247 +54,339 @@
                 </svg>
             </button>
 
-            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 px-4 py-3 rounded-xl flex items-center gap-2.5 transition cursor-pointer shadow-xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                <span>Saved Elements</span>
-                <span id="directory-total-badge" class="bg-emerald-500 dark:bg-emerald-600 text-white font-black text-[10px] px-2 py-0.5 rounded-md">0</span>
+            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xl border border-zinc-800 dark:border-zinc-200 text-xs font-bold active:scale-95">
+                <span>Saved Items</span>
+                <span id="directory-total-badge" class="bg-emerald-500 text-white font-black text-[9px] px-1.5 py-0.5 rounded-md">0</span>
             </button>
         </div>
     </header>
 
-    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-85 bg-white/90 dark:bg-zinc-950/85 backdrop-blur-2xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-all">
-        <div class="p-3 bg-zinc-100/50 dark:bg-zinc-900/50 border-b border-zinc-200/40 dark:border-zinc-800/60 flex flex-col gap-2">
-            <div class="flex items-center justify-between px-1">
-                <span class="text-[10px] font-black tracking-widest uppercase text-zinc-500 dark:text-zinc-400">Personal Directory</span>
-                <button onclick="toggleStarredDropdownDashboardPanel(event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold p-1 cursor-pointer">✕</button>
+    <div id="starred-dropdown-panel" class="absolute top-20 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-colors duration-300">
+        <div class="p-2 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
+            <div class="flex items-center justify-between px-1 pt-1">
+                <span class="text-[10px] font-black tracking-wider uppercase text-zinc-400 dark:text-zinc-500">Your Bookmarks</span>
+                <button onclick="toggleStarredDropdownDashboardPanel(event)" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
             </div>
-            <div class="grid grid-cols-2 bg-zinc-200/60 dark:bg-zinc-800/60 p-1 rounded-xl gap-1">
-                <button id="dir-tab-stations" class="py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-950 dark:text-white shadow-sm">Stations</button>
-                <button id="dir-tab-routes" class="py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white">Routes</button>
+            <div class="grid grid-cols-2 bg-zinc-200/60 dark:bg-zinc-800/60 p-1 rounded-lg gap-1">
+                <button onclick="switchDirectoryTabContext('stations')" id="dir-tab-stations" class="py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs">Stations</button>
+                <button onclick="switchDirectoryTabContext('routes')" id="dir-tab-routes" class="py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Routes</button>
             </div>
         </div>
-        <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1 custom-scrollbar text-zinc-700 dark:text-zinc-300 text-xs"></div>
+        <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1"></div>
     </div>
 
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-0 md:left-0 z-[2000] w-full md:w-[390px] lg:w-[430px] h-[85vh] md:h-full flex flex-col shrink-0 pointer-events-auto transition-transform duration-300 ease-out bg-white/85 dark:bg-zinc-950/80 backdrop-blur-2xl backdrop-saturate-150 border-t md:border-t-0 md:border-r border-zinc-200/50 dark:border-zinc-800/50 shadow-[0_-8px_32px_rgba(0,0,0,0.08)] md:shadow-[4px_0_24px_rgba(0,0,0,0.12)] rounded-t-3xl md:rounded-none">
+    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
+        <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
+            <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full"></div>
+        </div>
         
-        <div id="sidebar-drag-handle" class="w-full h-11 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-500/10 dark:active:bg-zinc-800/40 rounded-t-3xl transition-colors">
-            <div class="w-12 h-1.5 bg-zinc-400 dark:bg-zinc-600 rounded-full"></div>
-        </div>
-
-        <div class="grid grid-cols-2 bg-zinc-100/70 dark:bg-zinc-900/50 p-1.5 mx-5 mt-2 md:mt-6 rounded-xl gap-1 shrink-0 border border-zinc-200/40 dark:border-zinc-800/60">
-            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                🔎 Radius Search
+        <div class="grid grid-cols-2 bg-zinc-50 dark:bg-zinc-900/40 p-1.5 gap-1 shrink-0 border-b border-zinc-100 dark:border-zinc-800/60">
+            <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm">
+                Search Nearby
             </button>
-            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-                🛣️ Route Optimization
+            <button onclick="switchWorkflowTabContext('route')" id="tab-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white">
+                Route Planner
             </button>
         </div>
 
-        <div class="px-5 mt-4 shrink-0">
-            <label for="fuel-type" class="block text-[10px] font-black tracking-widest uppercase text-zinc-400 dark:text-zinc-500 mb-1.5">Fuel Classification Grade</label>
-            <div class="relative">
-                <select id="fuel-type" onchange="refreshViewportViewFilter()" class="w-full appearance-none bg-zinc-100/80 dark:bg-zinc-900/60 text-zinc-950 dark:text-zinc-50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 cursor-pointer transition-colors">
-                    <option value="E10" selected>Unleaded Petrol (E10)</option>
-                    <option value="B7">Standard Diesel (B7)</option>
-                    <option value="E5">Super Unleaded Premium (E5)</option>
-                    <option value="SDiesel">Premium Track Diesel</option>
-                </select>
-                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400 dark:text-zinc-500 text-[10px]">▼</div>
-            </div>
-        </div>
-
-        <div class="flex-1 overflow-y-auto no-scrollbar custom-scrollbar p-5 space-y-6">
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
             
-            <div id="panel-tab-local" class="space-y-5">
-                <div class="space-y-1.5">
-                    <label for="location-input" class="block text-[10px] font-black tracking-widest uppercase text-zinc-400 dark:text-zinc-500">Geographical Anchor Position</label>
-                    <div class="relative">
-                        <input id="location-input" type="text" placeholder="Enter UK postcode, city, or town..." class="w-full bg-zinc-100/50 dark:bg-zinc-900/40 text-zinc-950 dark:text-zinc-50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl pl-3.5 pr-20 py-3 text-xs font-medium placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all" />
-                        <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1.5 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-[10px] font-bold rounded-lg border border-zinc-200/60 dark:border-zinc-700/60 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 active:scale-95 transition-all cursor-pointer" title="Locate via device GPS">GPS</button>
-                        <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[6000] p-1 text-xs"></div>
-                    </div>
-                    <button onclick="executeAddressGeocodeLookup()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-700 rounded-xl py-3 text-xs font-black tracking-wide transition shadow-lg shadow-emerald-600/10 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
-                        Query Core Viewport
-                    </button>
-                </div>
-
-                <div class="h-px bg-zinc-200/50 dark:bg-zinc-800/50 my-2"></div>
-
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-[10px] font-black tracking-widest uppercase text-zinc-400 dark:text-zinc-500">Local Area Stations</h3>
-                        <span id="radius-count-tag" class="text-xs font-bold text-zinc-500 dark:text-zinc-400">0 visible</span>
-                    </div>
-                    <div id="local-stations-card-list" class="space-y-2 max-h-[340px] overflow-y-auto pr-1 custom-scrollbar"></div>
+            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
+                <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Fuel Type</label>
+                <div class="relative">
+                    <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none appearance-none cursor-pointer transition-colors duration-300">
+                        <option value="E10" selected>Unleaded Petrol (E10)</option>
+                        <option value="E5">Super Unleaded (E5)</option>
+                        <option value="B7">Diesel (B7)</option>
+                        <option value="PremiumDiesel">Premium Diesel</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
                 </div>
             </div>
 
-            <div id="panel-tab-route" class="hidden space-y-5">
-                <div class="bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200/40 dark:border-zinc-800/60 rounded-2xl p-4 relative space-y-3">
-                    <div class="absolute left-[25px] top-[40px] bottom-[48px] w-0.5 bg-dashed border-l border-zinc-300 dark:border-zinc-700"></div>
-                    
-                    <div class="flex items-center gap-3">
-                        <div class="w-5 h-5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-[10px] font-bold text-emerald-500 z-10 shrink-0">A</div>
+            <div id="panel-tab-local" class="space-y-6">
+                <div class="space-y-2 relative">
+                    <label class="text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Location or Postcode</label>
+                    <div class="flex gap-2">
                         <div class="relative flex-1">
-                            <input id="route-start" type="text" placeholder="Origin point address..." class="w-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl px-3 py-2.5 text-xs font-medium placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all" />
-                            <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xl hidden max-h-36 overflow-y-auto z-[5500] p-1 text-xs"></div>
+                            <input id="location-input" type="text" placeholder="Enter city, town, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none placeholder-zinc-400 font-medium" />
+                            <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-emerald-500 transition active:scale-90 flex items-center justify-center p-1" title="Use current location">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
+                            </button>
                         </div>
+                        <button onclick="executeAddressGeocodeLookup()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-4 rounded-xl transition cursor-pointer active:scale-95 shadow-md">Search</button>
                     </div>
-
-                    <div id="dynamic-waypoints-container" class="space-y-2 pl-1"></div>
-
-                    <div class="flex items-center gap-3">
-                        <div class="w-5 h-5 rounded-full bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-[10px] font-bold text-rose-500 z-10 shrink-0">B</div>
-                        <div class="relative flex-1">
-                            <input id="route-end" type="text" placeholder="Destination point address..." class="w-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl px-3 py-2.5 text-xs font-medium placeholder-zinc-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all" />
-                            <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-xl shadow-2xl hidden max-h-36 overflow-y-auto z-[5500] p-1 text-xs"></div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between pt-1.5 gap-2">
-                        <button onclick="addWaypointFieldInputRow('', event)" class="text-zinc-600 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white text-xs font-bold flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition cursor-pointer">
-                            ➕ Add Stop
-                        </button>
-                        <button onclick="swapRouteEndpoints(event)" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 p-2 text-xs font-bold" title="Swap Endpoints">
-                            ⇅ Swap Vectors
-                        </button>
-                    </div>
+                    <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
                 </div>
 
-                <div class="bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200/40 dark:border-zinc-800/60 rounded-2xl p-4 space-y-3">
-                    <span class="block text-[10px] font-black tracking-widest uppercase text-zinc-400 dark:text-zinc-500">Vehicle Optimization Profiles</span>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div>
-                            <label for="vehicle-mpg" class="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 mb-1">Avg MPG</label>
-                            <input id="vehicle-mpg" type="number" value="45" min="5" max="150" class="w-full bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl p-2 text-xs font-bold text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" />
-                        </div>
-                        <div>
-                            <label for="refuel-current-level" class="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 mb-1">Fuel % Now</label>
-                            <input id="refuel-current-level" type="number" value="25" min="0" max="100" class="w-full bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl p-2 text-xs font-bold text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" />
-                        </div>
-                        <div>
-                            <label for="refuel-safety-buffer" class="block text-[10px] font-bold text-zinc-500 dark:text-zinc-400 mb-1">Buffer %</label>
-                            <input id="refuel-safety-buffer" type="number" value="15" min="2" max="50" class="w-full bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl p-2 text-xs font-bold text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500" />
-                        </div>
+                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
+                    <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">
+                        <span>Search Radius</span>
+                        <span id="radius-val" class="text-emerald-600 dark:text-emerald-400 font-black">5 Miles</span>
                     </div>
-                </div>
-
-                <div class="flex gap-2">
-                    <button onclick="executeRouteGenerationPipeline()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-700 rounded-xl py-3.5 text-xs font-black tracking-wide transition shadow-lg shadow-emerald-600/10 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400">
-                        Map Route Vector
-                    </button>
-                    <button id="trigger-refuel-optimizer" class="px-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-zinc-800 dark:hover:bg-zinc-100 border border-zinc-800 dark:border-zinc-200 rounded-xl text-xs font-bold transition active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500" title="Optimize Fuel Stops">
-                        ⚡ Optimize
-                    </button>
-                </div>
-
-                <div id="unified-route-dashboard" class="hidden bg-zinc-950/90 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/70 rounded-2xl p-4 shadow-xl transition-all relative overflow-hidden">
-                    <div class="flex items-center justify-between mb-3.5">
-                        <h4 class="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Active Journey Scope</h4>
-                        <div class="flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse"></span>
-                            <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Navigating</span>
-                        </div>
-                    </div>
-
-                    <div class="flex justify-between items-end mb-4">
-                        <div>
-                            <div class="text-3xl font-black text-zinc-950 dark:text-white tracking-tight" id="unified-eta">-- min</div>
-                            <div class="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-0.5" id="unified-arrival">Arrival Time: --:--</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight" id="unified-distance">-- mi</div>
-                            <span class="text-[10px] font-medium text-zinc-400 block">Total Vector Span</span>
-                        </div>
-                    </div>
-                    
-                    <div class="h-px w-full bg-gradient-to-r from-transparent via-zinc-200 dark:via-zinc-800 to-transparent my-3.5"></div>
-                    
-                    <div class="grid grid-cols-2 gap-2.5 mb-4">
-                        <div class="bg-zinc-100/50 dark:bg-zinc-950/40 rounded-xl p-3 border border-zinc-200/40 dark:border-zinc-800/60">
-                            <span class="block text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-0.5">TomTom Traffic Delay</span>
-                            <span class="block text-sm font-black text-amber-600 dark:text-amber-400" id="unified-delay">--</span>
-                        </div>
-                        <div class="bg-zinc-100/50 dark:bg-zinc-950/40 rounded-xl p-3 border border-zinc-200/40 dark:border-zinc-800/60">
-                            <span class="block text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-0.5">Calculated Stop Cost</span>
-                            <span class="block text-sm font-black text-zinc-950 dark:text-zinc-100" id="unified-financial">--</span>
-                        </div>
-                    </div>
-                    
-                    <div id="cheapest-ranking-block" class="hidden mb-4 p-3 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-                        <span class="block text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 mb-0.5">Recommended Cost Optimizer</span>
-                        <p id="cheapest-ranking-text" class="text-xs font-medium text-zinc-700 dark:text-zinc-300 leading-relaxed"></p>
-                    </div>
-                    
-                    <button onclick="clearRoute()" class="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-rose-500/10 text-zinc-800 dark:text-zinc-200 hover:text-rose-500 border border-zinc-200 dark:border-zinc-700/60 rounded-xl py-3 text-xs font-black transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500">
-                        End Active Navigation Route
-                    </button>
-                </div>
-
-                <div id="route-weather-module" class="hidden bg-zinc-100/50 dark:bg-zinc-900/40 border border-zinc-200/40 dark:border-zinc-800/60 rounded-2xl p-4 space-y-2">
-                    <span class="block text-[10px] font-black tracking-widest uppercase text-zinc-400 dark:text-zinc-500">Waypoint Weather Conditions</span>
-                    <div id="weather-timeline" class="grid grid-cols-2 gap-2 text-xs"></div>
+                    <input id="radius-slider" type="range" min="1" max="30" value="5" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 my-2" />
                 </div>
             </div>
 
+            <div id="panel-tab-route" class="space-y-6 hidden">
+                <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
+                    <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[26px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer" title="Swap start and finish">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                    </button>
+
+                    <div class="absolute left-[-5px] top-[14px] w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></div>
+                    <div class="space-y-1 relative">
+                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Start Location</label>
+                        <input id="route-start" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                        <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Stops Along the Way (Optional)</label>
+                            <button onclick="addWaypointFieldInputRow()" class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">+ Add Stop</button>
+                        </div>
+                        <div id="dynamic-waypoints-container" class="space-y-2.5"></div>
+                    </div>
+
+                    <div class="relative pt-1">
+                        <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
+                        <div class="space-y-1 relative">
+                            <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">End Location</label>
+                            <input id="route-end" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none" />
+                            <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block">Fuel Efficiency (MPG)</label>
+                        <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none text-zinc-800 dark:text-zinc-100" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase block flex justify-between">Max Detour Distance <span id="route-radius-val" class="text-emerald-500 font-black">2 Mi</span></label>
+                        <input id="route-radius-slider" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-3" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="executeRouteGenerationPipeline()" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Get Route</button>
+                    <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1">Save</button>
+                    <button onclick="clearRoute()" class="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1">Clear</button>
+                </div>
+
+                <div id="traffic-summary-dashboard" class="hidden mt-4 p-3.5 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl shadow-xs transition-opacity duration-300">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="relative flex h-1.5 w-1.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span id="traffic-pulse-dot" class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-[10px] font-black uppercase text-zinc-400 dark:text-zinc-500 tracking-widest">Live Telemetry</span>
+                        </div>
+                        <div id="traffic-status-badge" class="px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase">
+                            CLEAR
+                        </div>
+                    </div>
+                
+                    <div class="grid grid-cols-3 gap-2 border-t border-zinc-100 dark:border-zinc-800/50 pt-2">
+                        <div class="space-y-0.5">
+                            <span class="block text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-tight">Distance</span>
+                            <span id="dash-metric-distance" class="block text-sm font-black text-zinc-900 dark:text-white leading-none tracking-tight">--</span>
+                        </div>
+                        <div class="space-y-0.5 border-x border-zinc-100 dark:border-zinc-800/50 px-2">
+                            <span class="block text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-tight">Traffic Impact</span>
+                            <span id="dash-metric-delay" class="block text-sm font-black text-zinc-800 dark:text-zinc-200 leading-none tracking-tight">--</span>
+                        </div>
+                        <div class="space-y-0.5 pl-1">
+                            <span class="block text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-tight">Jams Found</span>
+                            <span id="dash-metric-jams" class="block text-sm font-black text-zinc-800 dark:text-zinc-200 leading-none tracking-tight">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+
+                <div class="mt-4 bg-zinc-900 border border-emerald-500/30 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
+                
+                    <div class="flex items-center justify-between mb-4 relative z-10">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-[10px] font-black uppercase tracking-wider">✨ AI</span>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-100">Smart Refuel</h4>
+                        </div>
+                        
+                        <div class="flex items-center gap-2.5">
+                            <span id="fuel-saving-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase shadow-sm">
+                                Saving £0.00
+                            </span>
+                            <button type="button" onclick="clearFuelOptimizationState()" class="text-[10px] font-bold text-zinc-400 hover:text-white transition-colors duration-150 cursor-pointer tracking-tight bg-zinc-800 hover:bg-zinc-700 px-2 py-1 rounded-md">
+                                Reset
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2.5 mb-5 relative z-10">
+                        
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Tank Capacity</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Maximum fuel your vehicle holds.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-tank-size" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="35">35 L (Small)</option>
+                                    <option value="45">45 L (Hatch)</option>
+                                    <option value="55" selected>55 L (Sedan)</option>
+                                    <option value="65">65 L (SUV)</option>
+                                    <option value="80">80 L (Van)</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                            </div>
+                        </div>
+                
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Current Fuel</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Roughly how much fuel you have now.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-current-level" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="10">10% (Empty)</option>
+                                    <option value="25" selected>25% (Quarter)</option>
+                                    <option value="50">50% (Half)</option>
+                                    <option value="75">75% (3/4 Tank)</option>
+                                    <option value="100">100% (Full)</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                            </div>
+                        </div>
+                
+                        <div class="flex items-center justify-between bg-zinc-800/50 border border-zinc-700/50 p-2.5 rounded-xl hover:border-emerald-500/40 transition-colors">
+                            <div class="pr-3">
+                                <label class="block text-[10px] font-bold text-zinc-200">Safety Buffer</label>
+                                <p class="text-[8px] text-zinc-400 leading-tight mt-0.5">Extra miles to keep in reserve.</p>
+                            </div>
+                            <div class="relative shrink-0">
+                                <select id="refuel-safety-buffer" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm">
+                                    <option value="0">0 mi</option>
+                                    <option value="10" selected>10 mi</option>
+                                    <option value="20">20 mi</option>
+                                    <option value="30">30 mi</option>
+                                    <option value="50">50 mi</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                            </div>
+                        </div>
+                    </div>
+                
+                    <button id="trigger-refuel-optimizer" class="w-full bg-emerald-500 hover:bg-emerald-400 transition-colors text-zinc-950 font-black text-xs py-3 rounded-xl active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.2)] relative z-10 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 0 1-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004ZM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 0 1-.921.42Z" /><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v.816a3.836 3.836 0 0 0-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 0 1-.921-.421l-.879-.66a.75.75 0 0 0-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 0 0 1.5 0v-.81a4.124 4.124 0 0 0 1.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 0 0-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 0 0 .933-1.175l-.415-.33a3.836 3.836 0 0 0-1.719-.755V6Z" clip-rule="evenodd" /></svg>
+                        Find Cheapest Fuel Stop
+                    </button>
+                
+                    <div id="refuel-timeline-output" class="mt-4 space-y-3 hidden border-t border-zinc-700 pt-3 relative z-10">
+                    </div>
+                </div>
+            </div>
+
+            <div id="financial-card" class="bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl p-4 hidden flex-col transition duration-300 space-y-3">
+                <div class="flex items-center justify-between border-b border-zinc-200/40 dark:border-zinc-800/60 pb-2">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="text-xs">📊</span>
+                        <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight truncate">Trip Summary</h3>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="dismissFinancialDashboardBox(event)" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-xs font-bold px-1.5 py-0.5 rounded-md cursor-pointer">✕</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl p-2.5">
+                        <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Distance</span>
+                        <span id="summary-distance" class="text-xs font-black text-zinc-800 dark:text-zinc-200 mt-0.5 block truncate">Local Area</span>
+                    </div>
+                    <div class="bg-emerald-50/10 border border-emerald-500/20 rounded-xl p-2.5">
+                        <span class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Lowest Price</span>
+                        <span id="summary-cost" class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">0.0p</span>
+                    </div>
+                </div>
+                
+                <div id="traffic-telemetry-node" class="hidden p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800/80 rounded-xl items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                        <div class="min-w-0">
+                            <span class="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Live Traffic Flow</span>
+                            <span id="traffic-status-label" class="text-xs font-black text-amber-600 dark:text-amber-400 block truncate">Moderate Delays</span>
+                        </div>
+                    </div>
+                    <span id="traffic-delay-badge" class="bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0">+4 mins delay</span>
+                </div>
+            </div>
+
+            <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs">🏆</span>
+                    <h3 id="ranking-block-title" class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">Cheapest Stations Nearby</h3>
+                </div>
+                <div id="cheapest-cards-stack" class="space-y-3"></div>
+            </div>
+
+            <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-900">
+                <div class="flex items-center gap-1">
+                    <span class="text-xs">🌤️</span>
+                    <h3 class="text-[9px] font-black tracking-wider text-zinc-400 dark:text-zinc-500 uppercase">5-Day Weather Forecast</h3>
+                </div>
+                <div id="weather-nodes-stack" class="space-y-3"></div>
+            </div>
         </div>
 
-        <div class="p-4 md:p-5 bg-zinc-100/60 dark:bg-zinc-900/60 border-t border-zinc-200/50 dark:border-zinc-800/50 flex items-center justify-between text-[10px] font-black text-zinc-500 dark:text-zinc-400 tracking-widest uppercase shrink-0 pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
-            <span>Aggregated Data Matrix</span>
-            <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black tracking-normal">Syncing datasets...</span>
+        <div class="p-4 md:p-3 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase shrink-0 transition-colors duration-300 pb-[calc(14px+env(safe-area-inset-bottom,16px))] md:pb-3">
+            <span>Stations Found</span>
+            <span id="station-counter" class="text-emerald-600 dark:text-emerald-400 font-black">Updating maps...</span>
         </div>
     </aside>
 
-    <div id="forecourt-detail-sheet" class="fixed bottom-0 left-0 right-0 md:left-auto md:right-4 md:bottom-4 z-[5000] w-full md:w-96 bg-white/90 dark:bg-zinc-950/85 backdrop-blur-2xl border-t md:border border-zinc-200/60 dark:border-zinc-800/80 rounded-t-3xl md:rounded-2xl shadow-2xl transform translate-y-full transition-transform duration-300 ease-out flex flex-col max-h-[75vh] md:max-h-[580px] overflow-hidden">
-        
-        <div class="w-full h-8 flex items-center justify-center shrink-0 md:hidden cursor-pointer active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl" onclick="closeForecourtDetailSheet()">
-            <div class="w-10 h-1.5 bg-zinc-300 dark:bg-zinc-800 rounded-full"></div>
+    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-2xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
+        <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 -mt-5 -mx-5 rounded-t-3xl">
+            <div class="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
         </div>
 
-        <div class="p-5 space-y-4 overflow-y-auto no-scrollbar flex-1 custom-scrollbar">
-            <div class="flex justify-between items-start gap-3">
-                <div>
-                    <span id="sheet-brand-badge" class="inline-block bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 text-[10px] font-black tracking-widest uppercase px-2.5 py-0.5 rounded-md mb-1.5 shadow-sm">BRAND</span>
-                    <h2 id="sheet-station-name" class="text-base font-black tracking-tight text-zinc-950 dark:text-white leading-tight">Station Core Name</h2>
-                    <p id="sheet-station-address" class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5"></p>
-                </div>
-                <button onclick="toggleStationStarStateFromSheet(event)" id="sheet-star-btn" class="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 border border-zinc-200/40 dark:border-zinc-800 shadow-sm transition active:scale-90 cursor-pointer">
-                    ✕
-                </button>
+        <div class="flex items-start justify-between gap-3 relative">
+            <div class="min-w-0 flex-1">
+                <h2 id="sheet-brand-title" class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase leading-none">Fuel Station Hub</h2>
+                <p id="sheet-address-details" class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-1.5 leading-normal truncate">Station Information Available</p>
             </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <div id="card-wrap-e10" class="border p-3 rounded-xl text-center transition-all bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800/80">
-                    <span class="text-[10px] font-black uppercase tracking-wider block text-zinc-500 dark:text-zinc-400">Standard E10</span>
-                    <span id="sheet-price-e10" class="text-sm font-black block text-zinc-950 dark:text-white mt-1">--</span>
-                </div>
-                <div id="card-wrap-e5" class="border p-3 rounded-xl text-center transition-all bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800/80">
-                    <span class="text-[10px] font-black uppercase tracking-wider block text-zinc-500 dark:text-zinc-400">Premium E5</span>
-                    <span id="sheet-price-e5" class="text-sm font-black block text-zinc-950 dark:text-white mt-1">--</span>
-                </div>
-                <div id="card-wrap-b7" class="border p-3 rounded-xl text-center transition-all bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800/80">
-                    <span class="text-[10px] font-black uppercase tracking-wider block text-zinc-500 dark:text-zinc-400">Diesel B7</span>
-                    <span id="sheet-price-b7" class="text-sm font-black block text-zinc-950 dark:text-white mt-1">--</span>
-                </div>
-                <div id="card-wrap-premiumdiesel" class="border p-3 rounded-xl text-center transition-all bg-zinc-50/50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800/80">
-                    <span class="text-[10px] font-black uppercase tracking-wider block text-zinc-500 dark:text-zinc-400">Premium Diesel</span>
-                    <span id="sheet-price-premiumdiesel" class="text-sm font-black block text-zinc-950 dark:text-white mt-1">--</span>
-                </div>
-            </div>
-
-            <div class="bg-zinc-100/60 dark:bg-zinc-900/40 rounded-xl p-3 border border-zinc-200/40 dark:border-zinc-800/80 flex items-center justify-between text-xs font-bold text-zinc-600 dark:text-zinc-300 transition-colors">
-                <span class="flex items-center gap-1.5">🧭 Mapping Routing Actions</span>
-                <button onclick="triggerExternalMappingVectorRoute(event)" class="text-emerald-600 dark:text-emerald-400 hover:underline font-black uppercase tracking-wide text-[10px]">Open Maps ↗</button>
+            <div class="flex items-center gap-1 shrink-0">
+                <button id="sheet-star-btn" onclick="toggleCurrentStationStar(event)" class="p-2 border rounded-xl shadow-xs transition duration-200 cursor-pointer flex items-center justify-center w-8 h-8"></button>
+                <button onclick="closeForecourtDetailSheet(event)" class="p-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800/80 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition cursor-pointer flex items-center justify-center w-8 h-8">✕</button>
             </div>
         </div>
 
-        <div class="p-4 bg-zinc-100/60 dark:bg-zinc-900/60 border-t border-zinc-200/40 dark:border-zinc-800/60 shrink-0 pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-4">
-            <button onclick="closeForecourtDetailSheet()" class="w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 py-3 rounded-xl text-xs font-black tracking-wide transition shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500">
-                Dismiss Core Context
-            </button>
+        <div class="grid grid-cols-2 gap-2">
+            <div id="card-wrap-e10" class="border p-2.5 rounded-xl text-center transition-all duration-200">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Unleaded E10</span>
+                <span id="sheet-price-e10" class="text-xs font-black block mt-0.5">N/A</span>
+            </div>
+            <div id="card-wrap-e5" class="border p-2.5 rounded-xl text-center transition-all duration-200">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Super Unleaded E5</span>
+                <span id="sheet-price-e5" class="text-xs font-black block mt-0.5">N/A</span>
+            </div>
+            <div id="card-wrap-b7" class="border p-2.5 rounded-xl text-center transition-all duration-200">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Diesel B7</span>
+                <span id="sheet-price-b7" class="text-xs font-black block mt-0.5">N/A</span>
+            </div>
+            <div id="card-wrap-premiumdiesel" class="border p-2.5 rounded-xl text-center transition-all duration-200">
+                <span class="text-[8px] font-black uppercase tracking-wider block opacity-75">Premium Diesel</span>
+                <span id="sheet-price-premiumdiesel" class="text-xs font-black block mt-0.5">N/A</span>
+            </div>
+        </div>
+
+        <div class="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-2.5 border border-zinc-200/60 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-500 transition-colors duration-300">
+            <span class="flex items-center gap-1">🧭 Route & Navigation</span>
+            <button onclick="triggerExternalMappingVectorRoute(event)" class="text-emerald-600 dark:text-emerald-400 font-black tracking-tight hover:underline cursor-pointer">Open in Maps ↗</button>
         </div>
     </div>
 
-    <script src="uiapp.js"></script>
+    <script src="uiapp.js" defer></script>
 </body>
 </html>
