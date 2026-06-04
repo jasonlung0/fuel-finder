@@ -95,18 +95,31 @@ let map = null;
             initializeClusterLayerPipeline();
             map.on('click', () => { closeForecourtDetailSheet(); });
             
-            // Set initial Map Center Snapshot for the "Scan the Area" feature
+            // 1. FORCE HIDE THE BUTTON ON INITIAL LOAD
+            const scanContainer = document.getElementById('scan-area-container');
+            if (scanContainer) {
+                scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+            }
+        
+            // Set initial Map Center Snapshot
             originalMapCenter = map.getCenter();
-
-            // Setup Context-Aware Visibility for "Scan the Area" 
+        
+            // 2. STRICT MOVEMENT TRACKING
             map.on('moveend', () => {
                 if (!originalMapCenter) return;
                 const currentCenter = map.getCenter();
-                const distanceMoved = currentCenter.distanceTo(originalMapCenter); // Distance in meters
-
-                const scanContainer = document.getElementById('scan-area-container');
+                const distanceMoved = currentCenter.distanceTo(originalMapCenter); 
+        
                 if (!scanContainer) return;
-
+        
+                // Never show the button if the user is in the route planner tab
+                if (activeTabContext === 'route') {
+                    scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
+                    scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+                    return;
+                }
+        
                 // Reveal button if viewport moved more than ~500 meters
                 if (distanceMoved > 500) {
                     scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
@@ -167,8 +180,10 @@ let map = null;
                         const userLat = position.coords.latitude;
                         const userLng = position.coords.longitude;
                         mapSearchAnchorCoordinates = [userLat, userLng];
+                        
+                        // FIX: Sync the anchor BEFORE moving the map so it doesn't trigger the button
+                        originalMapCenter = L.latLng(userLat, userLng); 
                         map.setView(mapSearchAnchorCoordinates, 12);
-                        originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
                         
                         L.circle(mapSearchAnchorCoordinates, {
                             radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
@@ -420,11 +435,14 @@ let map = null;
                 const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
                 const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                 const matchingNodes = await res.json();
-
+        
                 if (matchingNodes?.length > 0) {
                     mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
+                    
+                    // FIX: Sync the anchor BEFORE moving the map
+                    originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); 
                     map.setView(mapSearchAnchorCoordinates, 12);
-                    originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); // Sync anchor
+                    
                     refreshViewportViewFilter();
                     
                     if (window.innerWidth < 768) setMobileSidebarState('peek');
