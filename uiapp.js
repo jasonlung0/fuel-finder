@@ -25,12 +25,10 @@ let routePolylineLayer = null;
 
 let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
-
-// Clean global variable initialization
 let starredStations = [];
 let savedRoutes = [];
 
-// Force load them immediately
+// Force load local storage immediately
 try {
     const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
     const loadedRoutes = localStorage.getItem('uk_fuel_saved_v2_routes');
@@ -39,7 +37,6 @@ try {
     if (loadedRoutes) savedRoutes = JSON.parse(loadedRoutes);
 } catch (e) {
     console.error("Failed to parse local storage:", e);
-    // Fallback to empty arrays if parsing fails
     starredStations = [];
     savedRoutes = [];
 }
@@ -49,7 +46,7 @@ let activeDirectoryTab = 'stations';
 let activeSheetStation = null;
 let mapSearchAnchorCoordinates = [51.5074, -0.1278]; 
 
-// --- FIXED GLOBAL DISTANCE ROUTE SCOPES ---
+// GLOBAL ROUTING SCOPES (Fixes the Ghost Math)
 let plottedRouteCoordinates = [];
 let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
@@ -115,17 +112,14 @@ function initializeSpatialMapEngine() {
     initializeClusterLayerPipeline();
     map.on('click', () => { closeForecourtDetailSheet(); });
     
-    // 1. FORCE HIDE THE BUTTON ON INITIAL LOAD
     const scanContainer = document.getElementById('scan-area-container');
     if (scanContainer) {
         scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
         scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
     }
 
-    // Set initial Map Center Snapshot
     originalMapCenter = map.getCenter();
 
-    // 2. STRICT MOVEMENT TRACKING
     map.on('moveend', () => {
         if (!originalMapCenter) return;
         const currentCenter = map.getCenter();
@@ -133,14 +127,12 @@ function initializeSpatialMapEngine() {
 
         if (!scanContainer) return;
 
-        // Never show the button if the user is in the route planner tab
         if (activeTabContext === 'route') {
             scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
             scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
             return;
         }
 
-        // Reveal button if viewport moved more than ~500 meters
         if (distanceMoved > 500) {
             scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
             scanContainer.classList.add('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
@@ -153,7 +145,6 @@ function initializeSpatialMapEngine() {
     triggerActiveDeviceLocationLookup();
 }
 
-// --- DYNAMIC "SCAN THE AREA" PIPELINE ---
 window.executeContextualAreaScanPipeline = function(event) {
     if (event) event.stopPropagation();
     
@@ -163,23 +154,19 @@ window.executeContextualAreaScanPipeline = function(event) {
     const iconSpinner = document.getElementById('scan-icon-spinner');
     const btnText = document.getElementById('scan-btn-string');
 
-    // 1. Enter Loading State Feedback
     btn.disabled = true;
     iconSearch.classList.add('hidden');
     iconSpinner.classList.remove('hidden');
     btnText.textContent = "Updating viewport matrix...";
 
-    // 2. Synchronize new location bounds
     const newCenter = map.getCenter();
     mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
     originalMapCenter = newCenter;
 
-    // 3. Trigger standard system pipeline refresh
     if (typeof forceReloadRemotePipelineData === 'function') {
         forceReloadRemotePipelineData();
     }
 
-    // 4. Fade away cleanly and reset internal state
     setTimeout(() => {
         container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
         container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
@@ -201,7 +188,6 @@ function triggerActiveDeviceLocationLookup() {
                 const userLng = position.coords.longitude;
                 mapSearchAnchorCoordinates = [userLat, userLng];
                 
-                // FIX: Sync the anchor BEFORE moving the map so it doesn't trigger the button
                 originalMapCenter = L.latLng(userLat, userLng); 
                 map.setView(mapSearchAnchorCoordinates, 12);
                 
@@ -234,7 +220,7 @@ async function triggerManualDeviceLocationSearch(event) {
         const userLng = position.coords.longitude;
         mapSearchAnchorCoordinates = [userLat, userLng];
         map.setView(mapSearchAnchorCoordinates, 13);
-        originalMapCenter = L.latLng(userLat, userLng); // Sync anchor
+        originalMapCenter = L.latLng(userLat, userLng);
 
         try {
             const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
@@ -282,7 +268,7 @@ function initializeClusterLayerPipeline() {
             const labelString = (min === max) ? `${min.toFixed(1)}p` : `${min.toFixed(1)}p - ${max.toFixed(1)}p`;
 
             return L.divIcon({
-                html: `<div class="fuel-cluster-capsule"><span>${labelString}</span></div>`,
+                html: `<div class="fuel-cluster-capsule tabular-nums"><span>${labelString}</span></div>`,
                 className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16]
             });
         }
@@ -299,19 +285,18 @@ function switchWorkflowTabContext(contextType) {
     const weatherModule = document.getElementById('route-weather-module');
 
     if (contextType === 'local') {
-        btnLocal.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-        btnRoute.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
+        btnLocal.className = "py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
+        btnRoute.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600";
         panelLocal.classList.remove('hidden');
         panelRoute.classList.add('hidden');
         weatherModule.classList.add('hidden');
         clearCalculatedRouteLayers();
     } else {
-        btnRoute.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm";
-        btnLocal.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-white";
+        btnRoute.className = "py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
+        btnLocal.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600";
         panelRoute.classList.remove('hidden');
         panelLocal.classList.add('hidden');
         
-        // Hide "Scan this Area" button if we are in route routing mode
         const scanContainer = document.getElementById('scan-area-container');
         if (scanContainer) {
             scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
@@ -331,11 +316,11 @@ function switchDirectoryTabContext(dirType) {
     const tabRoutes = document.getElementById('dir-tab-routes');
     
     if (dirType === 'stations') {
-        tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-        tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+        tabStations.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-600";
+        tabRoutes.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600";
     } else {
-        tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs";
-        tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white";
+        tabRoutes.className = "py-1 rounded text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-600";
+        tabStations.className = "py-1 rounded text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600";
     }
     renderDirectoryDropdown();
 }
@@ -371,10 +356,10 @@ function addWaypointFieldInputRow(initialValue = '') {
     rowNode.innerHTML = `
         <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
         <div class="relative flex-1">
-            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none waypoint-dynamic-input-field" />
-            <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer">Clear</button>
+            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field" />
+            <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-600">Clear</button>
         </div>
-        <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold" title="Delete stop">✕</button>
+        <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" title="Delete stop">✕</button>
         <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
     `;
 
@@ -458,8 +443,6 @@ async function executeAddressGeocodeLookup() {
 
         if (matchingNodes?.length > 0) {
             mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
-            
-            // FIX: Sync the anchor BEFORE moving the map
             originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); 
             map.setView(mapSearchAnchorCoordinates, 12);
             
@@ -472,14 +455,12 @@ async function executeAddressGeocodeLookup() {
 
 // --- TOMTOM PRODUCTION ROUTING & LIVE TRAFFIC FLOW ENGINE ---
 async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
-    // 0. Defensive Map Guard
     if (!map) {
         console.warn("Spatial Map Engine is not initialized yet.");
         return;
     }
 
     try {
-        // 1. Smart Element Discovery
         const startElement = document.getElementById('route-start-point') || 
                              document.getElementById('start-point') || 
                              document.getElementById('route-start');
@@ -496,7 +477,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             return;
         }
         
-        // 3. Geocode start location
         const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
         const startNodes = await startRes.json();
         if (!startNodes.length) {
@@ -504,7 +484,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             return;
         }
         
-        // 4. Geocode end location
         const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
         const endNodes = await endRes.json();
         if (!endNodes.length) {
@@ -512,7 +491,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             return;
         }
         
-        // 5. Build waypoints list dynamically
         let waypointInputs = document.querySelectorAll('.waypoint-dynamic-input-field');
         let waypointStrings = [];
         if (waypointInputs) {
@@ -523,14 +501,12 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             });
         }
         
-        // Cache coordinates safely
         if (typeof cachedGeocodedWaypoints === 'undefined') {
             window.cachedGeocodedWaypoints = { start: {}, end: {}, vids: {} };
         }
         cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
         cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
-        // 6. Construct payload string format (lat,lon:lat,lon)
         let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
         
         if (waypointStrings.length > 0) {
@@ -542,7 +518,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                         return { wIndex, name: wpStr, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
                     }
                 } catch (e) {
-                    console.error(`Failed to resolve midpoint geocode sequence: ${wpStr}`, e);
+                    console.error(`Failed to resolve midpoint sequence: ${wpStr}`, e);
                 }
                 return null;
             });
@@ -552,31 +528,27 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                 if (wp) {
                     coordinatesPayloadString += `:${wp.lat},${wp.lon}`;
                     cachedGeocodedWaypoints.vids[`wp_${wp.wIndex}`] = { 
-                        name: wp.name, 
-                        lat: parseFloat(wp.lat), 
-                        lon: parseFloat(wp.lon) 
+                        name: wp.name, lat: parseFloat(wp.lat), lon: parseFloat(wp.lon) 
                     };
                 }
             });
         }
         coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-        // 7. Connect to Routing API
         const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
         
         const routeRes = await fetch(tomtomUrl);
         if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
         
         const routeData = await routeRes.json();
-        if (!routeData.routes || !routeData.routes.length) throw new Error("No routes found from server coordinates.");
+        if (!routeData.routes || !routeData.routes.length) throw new Error("No routes found.");
         
         const currentActiveRoute = routeData.routes[0];
 
-        // FIX: Hook data into the global distance trackers so Smart Refuel engine can see it!
+        // Assign to Globals to fix "Ghost Math"
         globalActiveRoute = currentActiveRoute;
         globalRouteDistanceMiles = (currentActiveRoute.summary.lengthInMeters / 1609.34);
         
-        // 8. Flatten leg segments
         plottedRouteCoordinates = [];
         currentActiveRoute.legs.forEach(leg => {
             leg.points.forEach(pt => {
@@ -584,18 +556,13 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             });
         });
         
-        // 9. Reinitialize Map Layer Group safely
         if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
             map.removeLayer(routePolylineLayer);
         }
         routePolylineLayer = L.featureGroup().addTo(map);
         
         L.polyline(plottedRouteCoordinates, {
-            color: '#10b981', 
-            weight: 4.5,
-            opacity: 0.85,
-            lineCap: 'round',
-            lineJoin: 'round'
+            color: '#10b981', weight: 4.5, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
         }).addTo(routePolylineLayer);
         
         if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
@@ -605,13 +572,10 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                     if (sliceCoords.length < 2) return;
                     
                     const isJam = section.simpleCategory === 'JAM' || (section.magnitudeOfDelay && section.magnitudeOfDelay >= 3);
-                    
                     L.polyline(sliceCoords, {
                         color: isJam ? '#ef4444' : '#f59e0b', 
                         weight: isJam ? 6.5 : 5.0, 
-                        opacity: 1.0,
-                        lineCap: 'round',
-                        lineJoin: 'round'
+                        opacity: 1.0, lineCap: 'round', lineJoin: 'round'
                     }).addTo(routePolylineLayer);
                 }
             });
@@ -621,85 +585,48 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             map.fitBounds(routePolylineLayer.getBounds());
         }
         
-        // 10. Update live Dashboard metrics cards
-        const summary = currentActiveRoute.summary;
-        let finalDistanceMiles = globalRouteDistanceMiles; 
-        const travelTimeMinutes = (summary.travelTimeInSeconds / 60);
-        const trafficDelayMinutes = (summary.trafficDelayInSeconds / 60);
+        // 10. Update Dashboard Metrics using unified IDs
+        const summaryMetrics = routeData.routes[0].summary;
+        const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
+        const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
         
-        const distCard = document.getElementById('dashboard-total-distance');
-        const durCard = document.getElementById('dashboard-travel-duration');
-        if (distCard) distCard.innerText = `${finalDistanceMiles.toFixed(1)} mi`;
-        if (durCard) durCard.innerText = `${Math.round(travelTimeMinutes)} min`;
+        const jamsCount = routeData.routes[0].sections 
+            ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
+            : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
         
-        const txtDelay = document.getElementById('dashboard-traffic-delay');
-        if (txtDelay) {
-            txtDelay.innerText = trafficDelayMinutes > 0 ? `+${Math.round(trafficDelayMinutes)} min delay` : 'No delays';
-            txtDelay.className = trafficDelayMinutes > 5 ? 'text-red-500 font-bold text-xs' : 'text-zinc-400 text-xs';
-        }
+        const distanceMetric = document.getElementById('dash-metric-distance');
+        const delayMetric = document.getElementById('dash-metric-delay');
+        const jamsMetric = document.getElementById('dash-metric-jams');
+        const statusBadge = document.getElementById('traffic-status-badge');
         
-        // 11. Reveal Dashboard Panels
-        const trafficDashboard = document.getElementById('traffic-summary-dashboard');
-        if (trafficDashboard) {
-            trafficDashboard.classList.remove('hidden');
-            trafficDashboard.style.setProperty('display', 'block', 'important');
-        }
+        if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
+        if (jamsMetric) jamsMetric.innerText = jamsCount;
         
-        if (typeof routeData !== 'undefined' && routeData.routes && routeData.routes[0]) {
-            const summaryMetrics = routeData.routes[0].summary;
-            const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
-            const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
-            
-            const jamsCount = routeData.routes[0].sections 
-                ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
-                : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
-            
-            const distanceMetric = document.getElementById('dash-metric-distance');
-            const delayMetric = document.getElementById('dash-metric-delay');
-            const jamsMetric = document.getElementById('dash-metric-jams');
-            const statusBadge = document.getElementById('traffic-status-badge');
-            
-            if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
-            if (jamsMetric) jamsMetric.innerText = jamsCount;
-            
-            if (delayMetric) {
-                delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
-                if (delayMinutes > 5) {
-                    delayMetric.className = 'block text-sm font-black text-rose-500 leading-none tracking-tight';
-                    if (statusBadge) {
-                        statusBadge.innerText = 'CONGESTED';
-                        statusBadge.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
-                    }
-                } else {
-                    delayMetric.className = 'block text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none tracking-tight';
-                    if (statusBadge) {
-                        statusBadge.innerText = 'CLEAR';
-                        statusBadge.className = 'px-2 py-0.5 rounded text-[9px] font-black tracking-tight bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 uppercase';
-                    }
+        if (delayMetric) {
+            delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
+            if (delayMinutes > 5) {
+                delayMetric.className = 'block text-base font-black text-rose-600 dark:text-rose-500 tracking-tight';
+                if (statusBadge) {
+                    statusBadge.innerText = 'CONGESTED';
+                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
+                }
+            } else {
+                delayMetric.className = 'block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight';
+                if (statusBadge) {
+                    statusBadge.innerText = 'CLEAR';
+                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase';
                 }
             }
-            
-            const telemetryNode = document.getElementById('traffic-telemetry-node');
-            const telemetryLabel = document.getElementById('traffic-status-label');
-            const telemetryBadge = document.getElementById('traffic-delay-badge');
-            
-            if (telemetryNode) {
-                telemetryNode.classList.remove('hidden');
-                telemetryNode.style.setProperty('display', 'flex', 'important');
-            }
-            if (telemetryLabel) {
-                telemetryLabel.innerText = delayMinutes > 5 ? 'Heavy Congestion' : (delayMinutes > 0 ? 'Moderate Delays' : 'Fluid Traffic Flow');
-            }
-            if (telemetryBadge) {
-                telemetryBadge.innerText = delayMinutes > 0 ? `+${delayMinutes} mins delay` : 'On Time';
-                telemetryBadge.className = delayMinutes > 5 
-                    ? 'bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'
-                    : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-black text-[10px] px-2 py-0.5 rounded-md shrink-0'; 
-            }
+        }
+        
+        // Target Unified Panel
+        const unifiedInsightsCard = document.getElementById('route-insights-card');
+        if (unifiedInsightsCard) {
+            unifiedInsightsCard.classList.remove('hidden');
         }
         
         if (typeof refreshViewportViewFilter === 'function') {
-            refreshViewportViewFilter(finalDistanceMiles);
+            refreshViewportViewFilter(globalRouteDistanceMiles);
         }
         
         try {
@@ -707,19 +634,12 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                 await triggerRouteWeatherFetchPipeline();
             }
         } catch (weatherErr) {
-            console.warn("Weather API unreachable. Bypassing safely...", weatherErr);
+            console.warn("Weather API unreachable.", weatherErr);
             document.getElementById('route-weather-module')?.classList.add('hidden');
         }
         
-        console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
-        
         if (typeof calculateOptimalRefuelStrategy === 'function') {
             calculateOptimalRefuelStrategy();
-        }
-        
-        const savingBadge = document.getElementById('fuel-saving-badge') || document.getElementById('refuel-savings-badge');
-        if (savingBadge) {
-            savingBadge.classList.remove('hidden');
         }
         
     } catch (err) {
@@ -779,7 +699,7 @@ async function triggerRouteWeatherFetchPipeline() {
                     const lowTemp = Math.round(weatherData.daily.temperature_2m_min[d]);
 
                     horizontalForecastHTML += `
-                        <div class="flex flex-col items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg text-center min-w-[50px]">
+                        <div class="flex flex-col items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg text-center min-w-[50px] tabular-nums">
                             <span class="text-[8px] font-black uppercase text-zinc-400 tracking-wider">${weekdayLabel}</span>
                             <span class="text-sm my-0.5">${conditionEmoji}</span>
                             <span class="text-[9px] font-black text-zinc-800 dark:text-zinc-200">${highTemp}° / <span class="text-zinc-400">${lowTemp}°</span></span>
@@ -789,7 +709,7 @@ async function triggerRouteWeatherFetchPipeline() {
 
                 cardElement.innerHTML = `
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${loc.label}</span>
+                        <span class="text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${loc.label}</span>
                         <span class="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[200px] text-right">${headerTitleClean}</span>
                     </div>
                     <div class="grid grid-cols-5 gap-1.5 overflow-x-auto no-scrollbar">
@@ -798,9 +718,7 @@ async function triggerRouteWeatherFetchPipeline() {
                 `;
                 container.appendChild(cardElement);
             }
-        } catch (weatherErr) {
-            console.error(weatherErr);
-        }
+        } catch (weatherErr) { console.error(weatherErr); }
     }
 }
 
@@ -832,7 +750,7 @@ function saveActiveRouteCorridor() {
     if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
     
     if (window.innerWidth < 768) setMobileSidebarState('peek');
-    alert("Corridor routing pipeline configuration securely saved to local workspace repository.");
+    alert("Corridor routing configuration securely saved.");
 }
 
 function deleteSavedRouteCorridor(routeId, event) {
@@ -871,32 +789,19 @@ function loadSavedRouteCorridorDataIntoWorkspace(routeId) {
 }
 
 function clearCalculatedRouteLayers() {
-    if (routePolylineLayer) { 
-        map.removeLayer(routePolylineLayer); 
-        routePolylineLayer = null; 
-    }
-    
-    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-        refuelMarkersGroup?.clearLayers();
-    }
+    if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
+    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) { refuelMarkersGroup?.clearLayers(); }
 
     if (typeof map !== 'undefined' && map) {
         map.eachLayer((layer) => {
             if (layer instanceof L.Marker) {
                 const popup = layer.getPopup();
                 const popupContent = popup ? popup.getContent() : '';
-                
                 if (
-                    layer.options.title === 'Start' || 
-                    layer.options.title === 'End' ||
+                    layer.options.title === 'Start' || layer.options.title === 'End' ||
                     layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
                     layer.options.icon?.options?.className === 'custom-fuel-icon' ||
-                    (typeof popupContent === 'string' && (
-                        popupContent.includes('Optimal') || 
-                        popupContent.includes('Refuel') || 
-                        popupContent.includes('Start Point') || 
-                        popupContent.includes('Destination')
-                    ))
+                    (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))
                 ) {
                     map.removeLayer(layer);
                 }
@@ -917,13 +822,10 @@ function clearCalculatedRouteLayers() {
         addWaypointFieldInputRow();
     }
 
-    const dashboard = document.getElementById('traffic-summary-dashboard');
-    if (dashboard) dashboard.classList.add('hidden');
-
-    document.getElementById('financial-card').classList.add('hidden');
-    document.getElementById('traffic-telemetry-node').classList.add('hidden');
-    document.getElementById('cheapest-ranking-block').classList.add('hidden');
-    document.getElementById('route-weather-module').classList.add('hidden');
+    // Hide new unified card
+    document.getElementById('route-insights-card')?.classList.add('hidden');
+    document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
+    document.getElementById('route-weather-module')?.classList.add('hidden');
 
     clearFuelOptimizationState();
     refreshViewportViewFilter();
@@ -1072,13 +974,13 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
                     card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
                     card.innerHTML = `
                         <div class="flex items-center gap-2 min-w-0">
-                            <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
+                            <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
                             <div class="min-w-0">
                                 <div class="text-xs font-bold text-zinc-900 dark:text-white truncate">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                                <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-600">${item.distanceToNode.toFixed(1)} mi away</span></div>
+                                <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-700 dark:text-emerald-500">${item.distanceToNode.toFixed(1)} mi away</span></div>
                             </div>
                         </div>
-                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
+                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
                     `;
                     subGroupWrapper.appendChild(card);
                 });
@@ -1099,13 +1001,13 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
             card.innerHTML = `
                 <div class="flex items-center gap-2 min-w-0">
-                    <div class="w-5 h-5 rounded-md bg-emerald-500/10 text-[9px] flex items-center justify-center shrink-0 font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">#${idx + 1}</div>
+                    <div class="w-5 h-5 rounded-md bg-emerald-500/10 text-[9px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
                     <div class="min-w-0">
                         <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
                         <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
                     </div>
                 </div>
-                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md">${val}p</div></div>
+                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
             `;
             container.appendChild(card);
         });
@@ -1127,7 +1029,7 @@ function assignPricingTierColorStyles(valueRaw, variantKey) {
     if (delta <= 0) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-600";
 
     const step = delta / 3;
-    if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold";
+    if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
     if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
     return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
 }
@@ -1139,17 +1041,8 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     const pricesArray = stationsList.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
     const minPrice = Math.min(...pricesArray) || 0;
 
-    const finCard = document.getElementById('financial-card');
-    if (finCard && pricesArray.length > 0) {
-        finCard.classList.remove('hidden');
-        if (activeTabContext === 'route' && routeDistanceContext) {
-            const totalTripPriceCostPounds = ((routeDistanceContext / parseFloat(document.getElementById('vehicle-mpg').value || 45)) * 4.54609 * minPrice) / 100;
-            document.getElementById('summary-distance').textContent = `${routeDistanceContext.toFixed(1)} miles`;
-            document.getElementById('summary-cost').textContent = `£${totalTripPriceCostPounds.toFixed(2)}`;
-        } else {
-            document.getElementById('summary-distance').textContent = `Low`;
-            document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
-        }
+    if (activeTabContext === 'route' && routeDistanceContext && pricesArray.length > 0) {
+        document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
     }
 
     stationsList.forEach((station) => {
@@ -1171,7 +1064,7 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
             stationRawData: station,
             icon: L.divIcon({
-                html: `<div class="fuel-marker-bubble ${tierBgClassColor}"><span>${numericPrice.toFixed(1)}p</span></div>`,
+                html: `<div class="fuel-marker-bubble tabular-nums ${tierBgClassColor}"><span>${numericPrice.toFixed(1)}p</span></div>`,
                 className: 'leaflet-div-icon-reset', iconSize: [75, 28], iconAnchor: [37, 14]
             })
         });
@@ -1184,11 +1077,6 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     });
 
     if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Stations: ${fallbackTotalCount}`;
-}
-
-function dismissFinancialDashboardBox(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    document.getElementById('financial-card').classList.add('hidden');
 }
 
 function toggleCurrentStationStar(event) {
@@ -1262,8 +1150,8 @@ function renderDirectoryDropdown() {
                     <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
                 </div>
                 <div class="grid grid-cols-2 gap-1 pt-0.5">
-                    <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
-                    <div class="border p-1 rounded-lg text-center ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
+                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
+                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
                 </div>`;
             container.appendChild(cardRow);
         });
@@ -1285,9 +1173,9 @@ function renderDirectoryDropdown() {
             cardRow.innerHTML = `
                 <div class="min-w-0 flex-1">
                     <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
-                    <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
+                    <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1 tabular-nums">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
                 </div>
-                <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition" title="Delete Saved Corridor">
+                <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition focus:outline-none focus:ring-1 focus:ring-rose-500" title="Delete Saved Corridor">
                     ✕
                 </button>
             `;
@@ -1306,10 +1194,10 @@ function openForecourtDetailSheet(stationData) {
     document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
     document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
 
-    document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
-    document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
-    document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
-    document.getElementById('card-wrap-premiumdiesel').className = `border p-2.5 rounded-xl text-center transition-all ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
+    document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+    document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+    document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+    document.getElementById('card-wrap-premiumdiesel').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
 
     document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
     document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
@@ -1349,7 +1237,7 @@ function triggerExternalMappingVectorRoute(event) {
     if (!activeSheetStation) return;
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+    window.open(`https://www.google.com/maps/search/?api=1&query=$${lat},${lon}`, '_blank');
 }
 
 function setMobileSidebarState(stateStr) {
@@ -1456,7 +1344,6 @@ function initializeGestureTrackEngine() {
 
 let refuelMarkersGroup = null;
 
-// Helper to calculate distance between two lat/lon pairs in miles
 function getDistanceInMiles(lat1, lon1, lat2, lon2) {
     const R = 3958.8; 
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1466,7 +1353,6 @@ function getDistanceInMiles(lat1, lon1, lat2, lon2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// Helper function to robustly read value -> placeholder -> hardcoded fallback
 function getNumericInputValue(id, fallback) {
     const el = document.getElementById(id);
     if (!el) return fallback;
@@ -1481,9 +1367,10 @@ function getNumericInputValue(id, fallback) {
     return fallback;
 }
 
-// --- FIX: Completely Rewritten to eliminate double variable errors and use proper scope
+// -------------------------------------------------------------
+// CORE CALCULATOR RE-WRITE: Bug Free and fully scoped
+// -------------------------------------------------------------
 function calculateOptimalRefuelStrategy() {
-    // 1. Safe Fresh Read from DOM inputs
     const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
     const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
     const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 40;
@@ -1492,32 +1379,28 @@ function calculateOptimalRefuelStrategy() {
     const timelineContainer = document.getElementById('refuel-timeline-output');
     const savingBadge = document.getElementById('fuel-saving-badge');
     
-    // Default hide the badge
     if (savingBadge) savingBadge.classList.add('hidden');
 
-    // 2. Safely read global distance variables (Fixing Ghost Math)
     let activeDistance = typeof globalRouteDistanceMiles !== 'undefined' ? globalRouteDistanceMiles : 0;
     
     if (!activeDistance || activeDistance === 0 || typeof plottedRouteCoordinates === 'undefined' || plottedRouteCoordinates.length === 0) {
         if (timelineContainer) {
             timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2">Please map a route first.</p>';
+            timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2 font-medium">Please map a route first.</p>';
         }
         return; 
     }
 
-    // 3. Range Math
-    const remainingRange = (currentFuelLevel - safetyBuffer) * (averageMpg / 4.54609); // Approx range in miles
+    const remainingRange = (currentFuelLevel - safetyBuffer) * (averageMpg / 4.54609); 
     const totalTripDistance = activeDistance; 
     
-    // Logic: Sufficient fuel
     if (remainingRange >= totalTripDistance) {
         if (timelineContainer) {
             timelineContainer.classList.remove('hidden');
             timelineContainer.innerHTML = `
-                <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
+                <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
                     <div class="font-bold flex items-center gap-1">🎉 Fuel Tank Sufficient!</div>
-                    <p class="text-zinc-500 dark:text-zinc-400 font-medium leading-normal">Your current range is sufficient to cover this ${totalTripDistance.toFixed(1)} mi trip without additional stops.</p>
+                    <p class="text-zinc-600 dark:text-zinc-400 font-medium leading-normal">Your current range is sufficient to cover this ${totalTripDistance.toFixed(1)} mi trip without additional stops.</p>
                 </div>
             `;
         }
@@ -1525,9 +1408,7 @@ function calculateOptimalRefuelStrategy() {
         return;
     }
 
-    // Optimization Logic
     let validStations = currentlyVisibleStations.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
-    
     if (validStations.length === 0 && rawGlobalStationsPool) {
         validStations = rawGlobalStationsPool.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
     }
@@ -1535,12 +1416,11 @@ function calculateOptimalRefuelStrategy() {
     if (validStations.length === 0) {
         if (timelineContainer) {
             timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2">No active fuel stations found.</p>';
+            timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2 font-medium">No active fuel stations found in range.</p>';
         }
         return;
     }
 
-    // Sorting/Selection
     validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
     const bestStation = validStations[0];
     
@@ -1548,19 +1428,17 @@ function calculateOptimalRefuelStrategy() {
         if (timelineContainer) {
             timelineContainer.classList.remove('hidden');
             timelineContainer.innerHTML = `
-                <div class="p-4 text-center text-zinc-500 text-xs bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div class="p-4 text-center text-zinc-500 text-xs bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 font-medium">
                     No optimal refueling options found within range along this corridor.
                 </div>`;
         }
         return;
     }
 
-    // Now it's 100% safe to parse coordinates and amounts
     const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
     const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
     
-    // Precise calculations matching your screenshot layout
     const averageMotorwayPrice = 166.9; 
     const litersToFill = (activeDistance / averageMpg) * 4.54609;
     const totalCost = (litersToFill * bestPrice) / 100;
@@ -1571,18 +1449,17 @@ function calculateOptimalRefuelStrategy() {
         savingBadge.classList.remove('hidden');
     }
     
-    // Update Sidebar
     if (timelineContainer) {
         timelineContainer.classList.remove('hidden');
         timelineContainer.innerHTML = `
-            <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm">
+            <div class="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
                 
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
                     <span class="text-zinc-500 font-medium">Start to Destination</span>
                     <span class="font-bold text-zinc-900 dark:text-white">${totalTripDistance.toFixed(1)} miles</span>
                 </div>
                 
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
                     <span class="text-zinc-500 font-medium pt-1">Stop at</span>
                     <div class="text-right">
                         <span class="font-bold text-zinc-900 dark:text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
@@ -1590,13 +1467,13 @@ function calculateOptimalRefuelStrategy() {
                     </div>
                 </div>
                 
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2">
+                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
                     <span class="text-zinc-500 font-medium">Vehicle Mileage</span>
                     <span class="font-bold text-zinc-900 dark:text-white">${averageMpg} MPG</span>
                 </div>
                 
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800 pb-2 bg-emerald-50 dark:bg-emerald-500/10 -mx-4 px-4 py-2">
-                    <span class="text-emerald-700 dark:text-emerald-400 font-bold">Action</span>
+                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2 bg-emerald-50/50 dark:bg-emerald-950/20 -mx-4 px-4 py-2">
+                    <span class="text-emerald-700 dark:text-emerald-500 font-bold">Action</span>
                     <span class="font-black text-emerald-700 dark:text-emerald-400">Fill ${litersToFill.toFixed(1)} Litres</span>
                 </div>
                 
@@ -1608,14 +1485,13 @@ function calculateOptimalRefuelStrategy() {
                     </div>
                 </div>
 
-                <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 text-[11px] font-bold py-3 rounded-lg transition active:scale-[0.98] shadow-sm tracking-wide cursor-pointer">
+                <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white text-[11px] font-bold py-3 rounded-lg transition active:scale-[0.98] shadow-sm tracking-wide cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 dark:focus:ring-white">
                     View Station on Map
                 </button>
             </div>
         `;
     }
 
-    // 1. Bulletproof Initialization: Safely resolve or create the layer group
     let activeMarkerGroup = null;
     
     if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
@@ -1623,17 +1499,13 @@ function calculateOptimalRefuelStrategy() {
     } else if (typeof window.refuelMarkersGroup !== 'undefined' && window.refuelMarkersGroup !== null) {
         activeMarkerGroup = window.refuelMarkersGroup;
     } else {
-        // Create it fresh and attach to map
         activeMarkerGroup = L.layerGroup().addTo(map);
-        // Safely update both local and global scopes
         try { refuelMarkersGroup = activeMarkerGroup; } catch(e) {}
         window.refuelMarkersGroup = activeMarkerGroup;
     }
 
-    // 2. Now 100% safe to clear previous markers
     activeMarkerGroup.clearLayers();
 
-    // 3. Define the UI Icon
     const customFuelIcon = L.divIcon({
         className: 'custom-fuel-icon',
         html: `<div class="bg-amber-500 border-2 border-white dark:border-zinc-900 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
@@ -1641,12 +1513,10 @@ function calculateOptimalRefuelStrategy() {
         iconAnchor: [16, 32]
     });
     
-    // 4. Attach to the guaranteed active group
     L.marker([lat, lon], { icon: customFuelIcon, station_id: bestStation.id || 'refuel-node' })
-        .bindPopup(`<strong class="text-xs text-zinc-900 font-black block mb-0.5">Optimal Refuel Stop</strong><span class="text-[11px] text-emerald-600 font-bold block">${bestPrice.toFixed(1)}p/L</span>`)
+        .bindPopup(`<strong class="text-xs text-zinc-900 dark:text-white font-black block mb-0.5">Optimal Refuel Stop</strong><span class="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold block tabular-nums">${bestPrice.toFixed(1)}p/L</span>`)
         .addTo(activeMarkerGroup);
 }
-
 
 function clearRefuelStrategy() {
     if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
@@ -1659,15 +1529,10 @@ function clearRefuelStrategy() {
         timelineContainer.classList.add('hidden');
     }
     
-    const savingsBadge = document.getElementById('refuel-savings-badge');
+    const savingsBadge = document.getElementById('fuel-saving-badge');
     if (savingsBadge) {
         savingsBadge.innerHTML = '';
         savingsBadge.classList.add('hidden');
-    }
-
-    const localCardBadge = document.getElementById('fuel-saving-badge');
-    if (localCardBadge) {
-        localCardBadge.classList.add('hidden');
     }
 }
 
@@ -1713,8 +1578,9 @@ function clearRoute() {
         }
     });
 
-    document.getElementById('traffic-summary-dashboard')?.classList.add('hidden');
+    document.getElementById('route-insights-card')?.classList.add('hidden');
     document.getElementById('refuel-timeline-output')?.classList.add('hidden');
+    document.getElementById('fuel-saving-badge')?.classList.add('hidden');
     console.log("Route and refuel markers cleared; station anchors preserved.");
 }
 
@@ -1730,19 +1596,25 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeGestureTrackEngine();
     forceReloadRemotePipelineData();
 
-    const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'vehicle-mpg', 'fuel-type'];
+    // Attach Reactive Live Feedback Hooks directly to all sliders and dropdowns
+    const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
     refuelInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            el.addEventListener('input', calculateOptimalRefuelStrategy);
-            el.addEventListener('change', calculateOptimalRefuelStrategy);
+            el.addEventListener('input', () => {
+                if(activeTabContext === 'route') calculateOptimalRefuelStrategy();
+            });
+            el.addEventListener('change', () => {
+                if(activeTabContext === 'route') calculateOptimalRefuelStrategy();
+            });
         }
     });
     
-    // Clean, error-free event listener binding for the engine
-    document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', calculateOptimalRefuelStrategy);
+    // Explicit map update button hook
+    document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', () => {
+        calculateOptimalRefuelStrategy();
+    });
 
-    // FIX: Actual valid directory tab IDs connected to the panel hooks
     const tabStationsBtn = document.getElementById('dir-tab-stations');
     const tabRoutesBtn = document.getElementById('dir-tab-routes');
 
