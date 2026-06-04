@@ -15,69 +15,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
     
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(161, 161, 170, 0.3);
-            border-radius: 9999px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(161, 161, 170, 0.5);
-        }
-        .tabular-nums { font-variant-numeric: tabular-nums; }
-        
-        /* Mobile Slide Drawer Positions */
-        @media (max-width: 767px) {
-            .mobile-bottom-drawer {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                transform: translateY(calc(100% - 64px));
-                will-change: transform;
-            }
-            .mobile-bottom-drawer.drawer-peek {
-                transform: translateY(calc(100% - 150px));
-            }
-            .mobile-bottom-drawer.drawer-half {
-                transform: translateY(40%);
-            }
-            .mobile-bottom-drawer.drawer-full {
-                transform: translateY(0);
-            }
-        }
-        
-        /* Leaflet Popups Glassmorphism */
-        .leaflet-popup-content-wrapper {
-            background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
-            border-radius: 16px !important;
-        }
-        .dark .leaflet-popup-content-wrapper {
-            background: rgba(9, 9, 11, 0.85) !important;
-            border: 1px solid rgba(63, 63, 70, 0.4) !important;
-            color: #f4f4f5 !important;
-        }
-        .leaflet-popup-tip {
-            background: rgba(255, 255, 255, 0.85) !important;
-        }
-        .dark .leaflet-popup-tip {
-            background: rgba(9, 9, 11, 0.85) !important;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
 
@@ -136,7 +75,7 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1 tabular-nums"></div>
     </div>
 
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/75 dark:bg-zinc-950/75 backdrop-blur-lg border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
+    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/75 dark:bg-zinc-950/75 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
         <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
         </div>
@@ -152,7 +91,7 @@
 
         <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
             
-            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
+            <div class="space-y-2 bg-white/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                 <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Fuel Type</label>
                 <div class="relative">
                     <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent appearance-none cursor-pointer transition-colors duration-300">
@@ -170,7 +109,7 @@
                     <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Location or Postcode</label>
                     <div class="flex gap-2">
                         <div class="relative flex-1">
-                            <input id="location-input" type="text" placeholder="Enter city, town, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent placeholder-zinc-400 font-medium" />
+                            <input id="location-input" type="text" placeholder="Enter city, town, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent placeholder-zinc-400 font-medium shadow-sm" />
                             <button onclick="triggerManualDeviceLocationSearch(event)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-emerald-600 transition active:scale-90 flex items-center justify-center p-1 focus:outline-none focus:ring-2 focus:ring-emerald-600 rounded" title="Use current location">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
                             </button>
@@ -180,7 +119,7 @@
                     <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
                 </div>
 
-                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
+                <div class="space-y-2 bg-white/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                     <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
                         <span>Search Radius</span>
                         <span id="radius-val" class="text-emerald-700 dark:text-emerald-400 font-black tabular-nums">5 Miles</span>
@@ -198,7 +137,7 @@
                     <div class="absolute left-[-5px] top-[14px] w-2.5 h-2.5 rounded-full bg-emerald-600 shadow-sm"></div>
                     <div class="space-y-1 relative">
                         <label class="text-[9px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Start Location</label>
-                        <input id="route-start" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent" />
+                        <input id="route-start" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent shadow-sm" />
                         <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                     </div>
 
@@ -214,13 +153,13 @@
                         <div class="absolute left-[-37px] top-[24px] w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></div>
                         <div class="space-y-1 relative">
                             <label class="text-[9px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">End Location</label>
-                            <input id="route-end" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent" />
+                            <input id="route-end" type="text" placeholder="Town, city, or postcode..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2.5 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent shadow-sm" />
                             <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
+                <div class="grid grid-cols-2 gap-4 bg-white/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                     <div class="space-y-1">
                         <label class="text-[9px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase block">Efficiency (MPG)</label>
                         <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent tabular-nums text-zinc-800 dark:text-zinc-100" />
