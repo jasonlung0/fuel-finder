@@ -498,7 +498,7 @@ let map = null;
                 }
                 
                 // 5. Build waypoints list dynamically
-                let waypointInputs = document.querySelectorAll('.dynamic-waypoint-input');
+                let waypointInputs = document.querySelectorAll('.waypoint-dynamic-input-field');
                 let waypointStrings = [];
                 if (waypointInputs) {
                     waypointInputs.forEach(input => {
@@ -1760,7 +1760,10 @@ let map = null;
             clearRoute();
         }
 
-
+        // This guarantees your inline HTML onclick="" buttons can find the functions
+        window.addWaypointFieldInputRow = addWaypointFieldInputRow;
+        window.removeWaypointFieldInputRow = removeWaypointFieldInputRow;
+        window.clearSingleWaypointRowInputValue = clearSingleWaypointRowInputValue;
 
         window.addEventListener('DOMContentLoaded', () => {
         initializeSpatialMapEngine();
