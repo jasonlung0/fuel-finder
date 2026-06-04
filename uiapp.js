@@ -92,7 +92,11 @@ function applyThemeChangesToDOM() {
         
         tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     }
-    refreshViewportViewFilter();
+    
+    // Safety check before filtering
+    if (typeof executeStationDataFilteringPipeline === 'function') {
+        executeStationDataFilteringPipeline();
+    }
     updateDirectoryTotalBadge();
     if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
     updateAllStarUIStates();
@@ -194,16 +198,16 @@ function triggerActiveDeviceLocationLookup() {
                     radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
                 }).addTo(map);
                 
-                refreshViewportViewFilter();
+                executeStationDataFilteringPipeline();
             },
             (error) => {
                 console.warn("Device location rejected. Defaulting coordinates.");
-                refreshViewportViewFilter();
+                executeStationDataFilteringPipeline();
             },
             { enableHighAccuracy: true, timeout: 6000 }
         );
     } else {
-        refreshViewportViewFilter();
+        executeStationDataFilteringPipeline();
     }
 }
 
@@ -232,7 +236,7 @@ async function triggerManualDeviceLocationSearch(event) {
         } catch {
             if(inputField) inputField.value = "Current Location Vector";
         }
-        refreshViewportViewFilter();
+        executeStationDataFilteringPipeline();
     }, () => {
         if(inputField) inputField.value = "Access Denied by Host Device";
     }, { enableHighAccuracy: true, timeout: 8000 });
@@ -306,7 +310,7 @@ function switchWorkflowTabContext(contextType) {
             weatherModule.classList.remove('hidden');
         }
     }
-    refreshViewportViewFilter();
+    executeStationDataFilteringPipeline();
 }
 
 function switchDirectoryTabContext(dirType) {
@@ -355,7 +359,7 @@ function addWaypointFieldInputRow(initialValue = '') {
     rowNode.innerHTML = `
         <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
         <div class="relative flex-1">
-            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field" />
+            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field shadow-sm" />
             <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-600">Clear</button>
         </div>
         <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" title="Delete stop">✕</button>
@@ -445,7 +449,7 @@ async function executeAddressGeocodeLookup() {
             originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); 
             map.setView(mapSearchAnchorCoordinates, 12);
             
-            refreshViewportViewFilter();
+            executeStationDataFilteringPipeline();
             
             if (window.innerWidth < 768) setMobileSidebarState('peek');
         }
@@ -620,9 +624,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             unifiedInsightsCard.classList.remove('hidden');
         }
         
-        if (typeof refreshViewportViewFilter === 'function') {
-            refreshViewportViewFilter(globalRouteDistanceMiles);
-        }
+        executeStationDataFilteringPipeline();
         
         try {
             if (typeof triggerRouteWeatherFetchPipeline === 'function') {
@@ -822,7 +824,7 @@ function clearCalculatedRouteLayers() {
     document.getElementById('route-weather-module')?.classList.add('hidden');
 
     clearFuelOptimizationState();
-    refreshViewportViewFilter();
+    executeStationDataFilteringPipeline();
 }
 
 function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
@@ -843,7 +845,7 @@ function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
 
 document.getElementById('radius-slider')?.addEventListener('input', (e) => {
     document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
-    refreshViewportViewFilter();
+    executeStationDataFilteringPipeline();
 });
 document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
     document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
@@ -872,7 +874,7 @@ async function forceReloadRemotePipelineData() {
         const liveClock = new Date();
         document.getElementById('live-timestamp-label').innerHTML = `Prices Updated At ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         
-        refreshViewportViewFilter();
+        executeStationDataFilteringPipeline();
     } catch (error) {
         console.error(error);
         document.getElementById('live-timestamp-label').textContent = "Offline Data Buffer Frame";
@@ -891,23 +893,42 @@ function focusAndHighlightMapMarker(lat, lon) {
     }
 }
 
-function refreshViewportViewFilter(routeDistanceContext = null) {
+// -------------------------------------------------------------
+// NEW: Master Filtering Pipeline (Resolves the ReferenceError)
+// -------------------------------------------------------------
+function executeStationDataFilteringPipeline() {
     if (!rawGlobalStationsPool?.length) return;
-    const chosenFuelVariant = document.getElementById('fuel-type')?.value || 'E10';
+    
+    const targetFuelType = document.getElementById('fuel-type')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
     const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
     
     let dynamicBoundedStations = [];
 
-    if (activeTabContext === 'local' || plottedRouteCoordinates.length === 0) {
-        dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetLocalRadiusThreshold);
+    // Filter based on context: radius around origin OR proximity to the route corridor
+    if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
+        dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
+            if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
+            const dist = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+            return dist <= targetLocalRadiusThreshold;
+        });
     } else {
-        dynamicBoundedStations = rawGlobalStationsPool.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetCorridorRadiusThreshold);
+        dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
+            if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
+            const dist = computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+            return dist <= targetCorridorRadiusThreshold;
+        });
     }
 
     currentlyVisibleStations = dynamicBoundedStations;
-    paintMarkerCanvasLayersToMap(dynamicBoundedStations.slice(0, 250), chosenFuelVariant, dynamicBoundedStations.length, routeDistanceContext);
-    generateCheapestRankingListDeck(dynamicBoundedStations, chosenFuelVariant);
+    
+    let distanceContext = null;
+    if (activeTabContext === 'route' && typeof globalRouteDistanceMiles !== 'undefined') {
+        distanceContext = globalRouteDistanceMiles;
+    }
+    
+    paintMarkerCanvasLayersToMap(currentlyVisibleStations.slice(0, 250), targetFuelType, currentlyVisibleStations.length, distanceContext);
+    generateCheapestRankingListDeck(currentlyVisibleStations, targetFuelType);
 }
 
 function generateCheapestRankingListDeck(pool, fuelVariant) {
@@ -1430,7 +1451,6 @@ function calculateOptimalRefuelStrategy() {
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
     const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
     
-    // Core Savings Logic Engine
     const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType]).filter(p => p && !isNaN(p));
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
@@ -1574,27 +1594,23 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeGestureTrackEngine();
     forceReloadRemotePipelineData();
 
-    // Attach Reactive Live Feedback Hooks directly to all sliders and dropdowns
-    // BUG FIX: Added 'refuel-tank-size' and removed the route tab restriction so it updates instantly
     const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
     refuelInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
                 executeStationDataFilteringPipeline();
-                calculateOptimalRefuelStrategy();
+                if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
             });
             el.addEventListener('input', () => {
-                // For range sliders to update in real-time
                 if (el.type === 'range') {
                     executeStationDataFilteringPipeline();
-                    calculateOptimalRefuelStrategy();
+                    if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
                 }
             });
         }
     });
     
-    // Explicit map update button hook
     document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', () => {
         executeStationDataFilteringPipeline();
         calculateOptimalRefuelStrategy();
