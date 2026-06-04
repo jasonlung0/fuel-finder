@@ -1510,6 +1510,25 @@ let map = null;
         }
         
         function calculateOptimalRefuelStrategy() {
+            // --- ADD THIS GUARD BLOCK AT THE VERY TOP ---
+    
+            // 1. Safe Fresh Read from DOM inputs
+            const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+            const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+            const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 40;
+            const fuelType = document.getElementById('fuel-type')?.value || 'E10';
+        
+            // 2. CRITICAL GUARD: If no route coordinates or distance variables exist yet, exit cleanly
+            const timelineContainer = document.getElementById('refuel-timeline-output');
+            
+            // Check if a global distance variable exists or if coordinates are empty
+            let activeDistance = typeof totalTripDistance !== 'undefined' ? totalTripDistance : (typeof routeDistanceMiles !== 'undefined' ? routeDistanceMiles : 0);
+            
+            if (!activeDistance || activeDistance === 0 || (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length === 0)) {
+                if (timelineContainer) timelineContainer.classList.add('hidden');
+                return; // Exits safely before hitting any math that causes errors
+            }
+            
             // FORCE FRESH READ FROM DOM
             const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
             const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
@@ -1587,7 +1606,30 @@ let map = null;
         
             const lat = parseFloat(bestStation.latitude || bestStation.lat);
             const lon = parseFloat(bestStation.longitude || bestStation.lng);
+
+            // --- ADD THIS RIGHT BEFORE INJECTING THE HTML SIDEBAR ---
+            if (!bestStation) {
+                if (timelineContainer) {
+                    timelineContainer.classList.remove('hidden');
+                    timelineContainer.innerHTML = `
+                        <div class="p-4 text-center text-zinc-500 text-xs bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                            No optimal refueling options found within range along this corridor.
+                        </div>`;
+                }
+                return;
+            }
         
+            // Now it's 100% safe to parse coordinates and amounts
+            const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
+            const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
+            const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
+            
+            // Precise calculations matching your screenshot layout
+            const averageMotorwayPrice = 166.9; 
+            const litersToFill = (activeDistance / averageMpg) * 4.54609;
+            const totalCost = (litersToFill * bestPrice) / 100;
+            
+            
             // Update Sidebar
             if (timelineContainer) {
                 timelineContainer.classList.remove('hidden');
@@ -1792,7 +1834,16 @@ let map = null;
         
         // Clean, error-free event listener binding
         document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', calculateOptimalRefuelStrategy);
-        
+
+        // Locate your tab navigation event handlers and ensure it hooks up like this:
+        const bookmarksTabButton = document.getElementById('bookmarks-tab-id'); // Swap with your actual Bookmark Tab ID
+        if (bookmarksTabButton) {
+            bookmarksTabButton.addEventListener('click', () => {
+                activeDirectoryTab = 'stations'; // or 'routes' depending on state
+                renderDirectoryDropdown();      // <-- THIS FORCE RE-RENDERS THE ITEMS IMAGES/CARDS
+            });
+        }
+            
         if (window.innerWidth < 768) {
             setMobileSidebarState('peek');
         }
