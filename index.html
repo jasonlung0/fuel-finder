@@ -16,10 +16,66 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.css">
     <style>
-        /* Optimize numbers for vertical alignment scanning */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(161, 161, 170, 0.3);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(161, 161, 170, 0.5);
+        }
         .tabular-nums { font-variant-numeric: tabular-nums; }
+        
+        /* Mobile Slide Drawer Positions */
+        @media (max-width: 767px) {
+            .mobile-bottom-drawer {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                transform: translateY(calc(100% - 64px));
+                will-change: transform;
+            }
+            .mobile-bottom-drawer.drawer-peek {
+                transform: translateY(calc(100% - 150px));
+            }
+            .mobile-bottom-drawer.drawer-half {
+                transform: translateY(40%);
+            }
+            .mobile-bottom-drawer.drawer-full {
+                transform: translateY(0);
+            }
+        }
+        
+        /* Leaflet Popups Glassmorphism */
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+            border-radius: 16px !important;
+        }
+        .dark .leaflet-popup-content-wrapper {
+            background: rgba(9, 9, 11, 0.85) !important;
+            border: 1px solid rgba(63, 63, 70, 0.4) !important;
+            color: #f4f4f5 !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(255, 255, 255, 0.85) !important;
+        }
+        .dark .leaflet-popup-tip {
+            background: rgba(9, 9, 11, 0.85) !important;
+        }
     </style>
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
@@ -79,12 +135,12 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1 tabular-nums"></div>
     </div>
 
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/85 dark:bg-zinc-950/85 backdrop-blur-2xl border border-white/40 dark:border-zinc-800/60 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
+    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/75 dark:bg-zinc-950/75 backdrop-blur-lg border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
         <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
         </div>
         
-        <div class="grid grid-cols-2 bg-zinc-50/50 dark:bg-zinc-900/40 p-1.5 gap-1 shrink-0 border-b border-zinc-100 dark:border-zinc-800/60">
+        <div class="grid grid-cols-2 bg-zinc-50/50 dark:bg-zinc-900/40 p-1.5 gap-1 shrink-0 border-b border-zinc-100/50 dark:border-zinc-800/40">
             <button onclick="switchWorkflowTabContext('local')" id="tab-btn-local" class="py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600">
                 Search Nearby
             </button>
@@ -93,9 +149,9 @@
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 space-y-6 no-scrollbar">
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
             
-            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
+            <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
                 <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Fuel Type</label>
                 <div class="relative">
                     <select id="fuel-type" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent appearance-none cursor-pointer transition-colors duration-300">
@@ -123,7 +179,7 @@
                     <div id="location-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-xl shadow-2xl hidden max-h-48 overflow-y-auto z-[2500] p-1 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
                 </div>
 
-                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800/40">
+                <div class="space-y-2 bg-zinc-50/50 dark:bg-zinc-900/20 p-3 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
                     <div class="flex justify-between items-center text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
                         <span>Search Radius</span>
                         <span id="radius-val" class="text-emerald-700 dark:text-emerald-400 font-black tabular-nums">5 Miles</span>
@@ -163,7 +219,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100 dark:border-zinc-800/60">
+                <div class="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-100/50 dark:border-zinc-800/30">
                     <div class="space-y-1">
                         <label class="text-[9px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase block">Efficiency (MPG)</label>
                         <input id="vehicle-mpg" type="number" value="45" min="1" max="150" class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1.5 text-xs font-black text-center focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent tabular-nums text-zinc-800 dark:text-zinc-100" />
@@ -187,9 +243,6 @@
                             <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Route Insights</h3>
                         </div>
                         <div class="flex items-center gap-2.5">
-                            <div id="fuel-saving-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 uppercase shadow-sm tabular-nums">
-                                Saving £0.00
-                            </div>
                             <div id="traffic-status-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase">
                                 CLEAR
                             </div>
@@ -258,7 +311,8 @@
                             </div>
                             <div class="relative shrink-0">
                                 <select id="refuel-current-level" class="bg-zinc-900 border border-zinc-600 rounded-lg pl-2 pr-6 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold w-28 cursor-pointer appearance-none text-right shadow-sm tabular-nums">
-                                    <option value="10">10% (Empty)</option>
+                                    <option value="0">0% (Empty)</option>
+                                    <option value="10">10%</option>
                                     <option value="25" selected>25% (Quarter)</option>
                                     <option value="50">50% (Half)</option>
                                     <option value="75">75% (3/4 Tank)</option>
@@ -290,6 +344,14 @@
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 0 1-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004ZM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 0 1-.921.42Z" /><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v.816a3.836 3.836 0 0 0-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 0 1-.921-.421l-.879-.66a.75.75 0 0 0-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 0 0 1.5 0v-.81a4.124 4.124 0 0 0 1.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 0 0-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 0 0 .933-1.175l-.415-.33a3.836 3.836 0 0 0-1.719-.755V6Z" clip-rule="evenodd" /></svg>
                         Find Cheapest Fuel Stop
                     </button>
+                    
+                    <div id="smart-refuel-savings-block" class="hidden mt-4 bg-emerald-50/10 dark:bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between transition-all duration-300">
+                        <div>
+                            <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">Estimated Saving</span>
+                            <span id="refuel-savings-value" class="text-base font-black text-emerald-400 mt-0.5 block tabular-nums">£0.00</span>
+                        </div>
+                        <div class="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-sm border border-emerald-500/30 shadow-inner">🎉</div>
+                    </div>
                 
                     <div id="refuel-timeline-output" class="mt-4 space-y-3 hidden border-t border-zinc-700 pt-3 relative z-10 tabular-nums">
                     </div>
