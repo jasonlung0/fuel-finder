@@ -720,7 +720,9 @@ let map = null;
                 
                 // 14. Run Fuel Refuelling Optimizer and force reveal the saving pill
                 console.log("Route layout successful. Synchronizing Fuel Optimization Engine...");
-                if (typeof  === 'function') {
+                
+                // FIX: Added 'calculateOptimalRefuelStrategy' so the typeof check has something to check!
+                if (typeof calculateOptimalRefuelStrategy === 'function') {
                     calculateOptimalRefuelStrategy();
                 }
                 
