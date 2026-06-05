@@ -1700,10 +1700,6 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    document.getElementById('trigger-refuel-optimizer')?.addEventListener('click', () => {
-        executeStationDataFilteringPipeline();
-        calculateOptimalRefuelStrategy();
-    });
 
     const tabStationsBtn = document.getElementById('dir-tab-stations');
     const tabRoutesBtn = document.getElementById('dir-tab-routes');
