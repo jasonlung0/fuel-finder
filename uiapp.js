@@ -1,7 +1,8 @@
 // --- GLOBAL CONFIGURATION CREDENTIALS ---
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 
-// Tailwind Design Tokens Custom Configuration Layer
+// Tailwind Design Tokens & Safelist Configuration Layer
+// THIS FIXES THE MARKER COLORS BEING PURGED
 if (window.tailwind) {
     window.tailwind.config = {
         darkMode: 'class',
@@ -11,10 +12,20 @@ if (window.tailwind) {
                     zinc: {
                         950: '#040405',
                         1000: '#000000'
+                    },
+                    fuel: {
+                        green: '#10b981', // Emerald 500 equivalent
+                        blue: '#3b82f6',  // Blue 500 equivalent
+                        red: '#ef4444'    // Red 500 equivalent
                     }
                 }
             }
-        }
+        },
+        safelist: [
+            'bg-fuel-green',
+            'bg-fuel-blue',
+            'bg-fuel-red'
+        ]
     };
 }
 
@@ -28,11 +39,9 @@ let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
 
-// Force load local storage immediately
 try {
     const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
     const loadedRoutes = localStorage.getItem('uk_fuel_saved_v2_routes');
-    
     if (loadedStarred) starredStations = JSON.parse(loadedStarred);
     if (loadedRoutes) savedRoutes = JSON.parse(loadedRoutes);
 } catch (e) {
@@ -46,7 +55,6 @@ let activeDirectoryTab = 'stations';
 let activeSheetStation = null;
 let mapSearchAnchorCoordinates = [51.5074, -0.1278]; 
 
-// GLOBAL ROUTING SCOPES
 let plottedRouteCoordinates = [];
 let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
@@ -93,7 +101,6 @@ function applyThemeChangesToDOM() {
         tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     }
     
-    // Safety check before filtering
     if (typeof executeStationDataFilteringPipeline === 'function') {
         executeStationDataFilteringPipeline();
     }
@@ -456,6 +463,98 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
+// -------------------------------------------------------------
+// Live Traffic Incident Polling & Stacking Pipeline
+// -------------------------------------------------------------
+async function streamLiveTrafficIncidents(routeBounds) {
+    const statusBadge = document.getElementById('traffic-status-badge');
+    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
+    
+    if (statusBadge) {
+        statusBadge.textContent = "SCANNING...";
+        statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
+    }
+
+    try {
+        const minLon = routeBounds.getWest().toFixed(5);
+        const minLat = routeBounds.getSouth().toFixed(5);
+        const maxLon = routeBounds.getEast().toFixed(5);
+        const maxLat = routeBounds.getNorth().toFixed(5);
+        const boundingBox = `${minLon},${minLat},${maxLon},${maxLat}`;
+
+        const incidentsUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${boundingBox}&fields={incidents{properties{iconCategory,events{description,delay}}}}&language=en-GB`;
+        
+        const response = await fetch(incidentsUrl);
+        if (!response.ok) throw new Error("Traffic API unreachable");
+        
+        const data = await response.json();
+        const incidents = data.incidents || [];
+
+        const criticalAlerts = incidents.filter(incident => {
+            const delay = incident.properties.events[0]?.delay || 0;
+            return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
+        });
+
+        if (tickerContainer) tickerContainer.innerHTML = '';
+
+        if (criticalAlerts.length > 0) {
+            let badgeState = "ALERTS";
+            let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+            
+            if (criticalAlerts.length >= 3) {
+                badgeState = "CONGESTED";
+                badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = badgeState;
+                statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
+            }
+
+            criticalAlerts.forEach(alert => {
+                const description = alert.properties.events[0]?.description || 'Traffic disruption';
+                const delaySeconds = alert.properties.events[0]?.delay || 0;
+                const delayMin = Math.round(delaySeconds / 60);
+                
+                const alertItem = document.createElement('div');
+                alertItem.className = "flex items-center justify-between p-3 bg-white/40 dark:bg-black/20 backdrop-blur-md border border-amber-500/30 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 shadow-sm";
+                
+                alertItem.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true"></span>
+                        <span class="font-medium capitalize">${description.toLowerCase()}</span>
+                    </div>
+                    ${delayMin > 0 ? `<span class="font-bold tabular-nums text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-md tracking-tight">+${delayMin}m</span>` : ''}
+                `;
+                if(tickerContainer) tickerContainer.appendChild(alertItem);
+            });
+
+        } else {
+            if (statusBadge) {
+                statusBadge.textContent = "CLEAR";
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
+            }
+            if(tickerContainer) {
+                tickerContainer.innerHTML = `
+                    <div class="flex items-center gap-3 p-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-800/30 backdrop-blur-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Fluid Traffic Flow
+                    </div>
+                `;
+            }
+        }
+    } catch (err) {
+        console.warn("Traffic incident streaming failed:", err);
+        if (statusBadge) {
+            statusBadge.textContent = "OFFLINE";
+            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// CORE ROUTING ENGINE & TomTom Fuel Consumption Integration
+// -------------------------------------------------------------
 async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
     if (!map) {
         console.warn("Spatial Map Engine is not initialized yet.");
@@ -537,7 +636,12 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }
         coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
+        // Convert MPG to Liters/100km for exact TomTom engine consumption
+        const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
+        const litersPer100km = (282.48 / userMpg).toFixed(2);
+        const consumptionCurve = `50,${litersPer100km}:120,${litersPer100km}`;
+        
+        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic&vehicleEngineType=combustion&constantSpeedConsumptionInLitersPerHundredkm=${consumptionCurve}`;
         
         const routeRes = await fetch(tomtomUrl);
         if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
@@ -549,6 +653,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
 
         globalActiveRoute = currentActiveRoute;
         globalRouteDistanceMiles = (currentActiveRoute.summary.lengthInMeters / 1609.34);
+        window.globalCalculatedFuelLiters = currentActiveRoute.summary.fuelConsumptionInLiters;
         
         plottedRouteCoordinates = [];
         currentActiveRoute.legs.forEach(leg => {
@@ -584,40 +689,13 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
         if (plottedRouteCoordinates.length > 0) {
             map.fitBounds(routePolylineLayer.getBounds());
+            // Fetch live incidents using the bounds
+            streamLiveTrafficIncidents(routePolylineLayer.getBounds());
         }
         
-        const summaryMetrics = routeData.routes[0].summary;
-        const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
-        const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
-        
-        const jamsCount = routeData.routes[0].sections 
-            ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
-            : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
-        
+        const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
         const distanceMetric = document.getElementById('dash-metric-distance');
-        const delayMetric = document.getElementById('dash-metric-delay');
-        const jamsMetric = document.getElementById('dash-metric-jams');
-        const statusBadge = document.getElementById('traffic-status-badge');
-        
         if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
-        if (jamsMetric) jamsMetric.innerText = jamsCount;
-        
-        if (delayMetric) {
-            delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
-            if (delayMinutes > 5) {
-                delayMetric.className = 'block text-base font-black text-rose-600 dark:text-rose-500 tracking-tight';
-                if (statusBadge) {
-                    statusBadge.innerText = 'CONGESTED';
-                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
-                }
-            } else {
-                delayMetric.className = 'block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight';
-                if (statusBadge) {
-                    statusBadge.innerText = 'CLEAR';
-                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase';
-                }
-            }
-        }
         
         const unifiedInsightsCard = document.getElementById('route-insights-card');
         if (unifiedInsightsCard) {
@@ -808,6 +886,7 @@ function clearCalculatedRouteLayers() {
 
     plottedRouteCoordinates = [];
     cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
+    window.globalCalculatedFuelLiters = null;
     
     document.getElementById('route-start').value = '';
     document.getElementById('route-end').value = '';
@@ -894,7 +973,7 @@ function focusAndHighlightMapMarker(lat, lon) {
 }
 
 // -------------------------------------------------------------
-// NEW: Master Filtering Pipeline (Resolves the ReferenceError)
+// MAIN PIPELINE: Filter Stations & Draw Map (Fixes Ref Error)
 // -------------------------------------------------------------
 function executeStationDataFilteringPipeline() {
     if (!rawGlobalStationsPool?.length) return;
@@ -905,7 +984,6 @@ function executeStationDataFilteringPipeline() {
     
     let dynamicBoundedStations = [];
 
-    // Filter based on context: radius around origin OR proximity to the route corridor
     if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
         dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
             if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
@@ -1454,9 +1532,14 @@ function calculateOptimalRefuelStrategy() {
     const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType]).filter(p => p && !isNaN(p));
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
-    const litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
-    const totalCost = (litersToFill * bestPrice) / 100;
+    // Utilize TomTom's calculated exact fuel usage if available
+    let litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
+    if (window.globalCalculatedFuelLiters && window.globalCalculatedFuelLiters > 0) {
+        // Just fill enough to make the trip if we don't need a full tank, else fill tank
+        litersToFill = Math.min(window.globalCalculatedFuelLiters, tankSizeLiters * ((100 - currentFuelLevel) / 100));
+    }
     
+    const totalCost = (litersToFill * bestPrice) / 100;
     const savingsPence = (averagePrice - bestPrice) * litersToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
 
@@ -1561,31 +1644,9 @@ function clearFuelOptimizationState() {
     console.log("Fuel Optimization interface states successfully defaulted.");
 }
 
-function clearRoute() {
-    if (routePolylineLayer) {
-        routePolylineLayer.clearLayers();
-    }
-
-    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-        refuelMarkersGroup.clearLayers();
-    }
-
-    map.eachLayer((layer) => {
-        if (layer instanceof L.Marker && !layer.options.station_id) {
-            map.removeLayer(layer);
-        }
-    });
-
-    document.getElementById('route-insights-card')?.classList.add('hidden');
-    document.getElementById('refuel-timeline-output')?.classList.add('hidden');
-    document.getElementById('smart-refuel-savings-block')?.classList.add('hidden');
-    console.log("Route and refuel markers cleared; station anchors preserved.");
-}
-
-window.addWaypointFieldInputRow = addWaypointFieldInputRow;
-window.removeWaypointFieldInputRow = removeWaypointFieldInputRow;
-window.clearSingleWaypointRowInputValue = clearSingleWaypointRowInputValue;
-
+// -------------------------------------------------------------
+// LAUNCH PROTOCOLS & EVENT BINDINGS
+// -------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
     initializeSpatialMapEngine();
     applyThemeChangesToDOM();
@@ -1594,6 +1655,7 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeGestureTrackEngine();
     forceReloadRemotePipelineData();
 
+    // Hook inputs to dynamic reactive rendering engines
     const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
     refuelInputs.forEach(id => {
         const el = document.getElementById(id);
