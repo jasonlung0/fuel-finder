@@ -1459,8 +1459,8 @@ function getNumericInputValue(id, fallback) {
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
 function calculateOptimalRefuelStrategy() {
-    const currentFuelLevel = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
-    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+    const currentFuelPercentage = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+    const safetyBufferMiles = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
     const tankSizeLiters = parseFloat(document.getElementById('refuel-tank-size')?.value) || 55;
     const averageMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 40;
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
@@ -1481,7 +1481,21 @@ function calculateOptimalRefuelStrategy() {
         return; 
     }
 
-    const remainingRange = (currentFuelLevel - safetyBuffer) * (averageMpg / 4.54609); 
+    // --- 1. MATH FIX: Calculate true remaining range based on tank capacity ---
+    // MPG to Miles Per Liter (MPL)
+    const milesPerLiter = averageMpg / 4.54609; 
+    
+    // How many actual liters are in the tank right now?
+    const currentLitersInTank = tankSizeLiters * (currentFuelPercentage / 100);
+    
+    // How many liters do we need to hold in reserve for the safety buffer?
+    const bufferLitersNeeded = safetyBufferMiles / milesPerLiter;
+    
+    // Usable liters = Current liters minus the safety buffer
+    const usableLiters = Math.max(0, currentLitersInTank - bufferLitersNeeded);
+    
+    // True remaining range in miles
+    const remainingRange = usableLiters * milesPerLiter;
     const totalTripDistance = activeDistance; 
     
     if (remainingRange >= totalTripDistance) {
@@ -1511,8 +1525,33 @@ function calculateOptimalRefuelStrategy() {
         return;
     }
 
-    validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
-    const bestStation = validStations[0];
+    let bestStation = null;
+    let isEmergencyMode = false;
+
+    // --- 2. EMERGENCY MODE FIX: Catch 0%-5% or negative usable liters ---
+    if (currentFuelPercentage <= 5 || usableLiters <= 0) {
+        isEmergencyMode = true;
+        // Find the absolute closest station to the START of the route
+        const startLat = plottedRouteCoordinates[0][0];
+        const startLon = plottedRouteCoordinates[0][1];
+        
+        // Sort by distance to the start node
+        validStations.sort((a, b) => {
+            const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
+            const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
+            return distA - distB;
+        });
+        
+        bestStation = validStations[0];
+        
+        // Optional: Trigger Toast Notification if you added the Toast object
+        if (typeof Toast !== 'undefined') Toast.show('Critical fuel level: Showing nearest station from start.', 'warning');
+        
+    } else {
+        // NORMAL MODE: Find the cheapest station along the route
+        validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
+        bestStation = validStations[0];
+    }
     
     if (!bestStation) {
         if (timelineContainer) {
@@ -1529,17 +1568,14 @@ function calculateOptimalRefuelStrategy() {
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
     const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
     
-    const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType]).filter(p => p && !isNaN(p));
+    // --- 3. CORE SAVINGS LOGIC ENGINE ---
+    const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType] || s[fuelType]).map(parseFloat).filter(p => p && !isNaN(p) && p > 0);
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
-    // Utilize TomTom's calculated exact fuel usage if available
-    let litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
-    if (window.globalCalculatedFuelLiters && window.globalCalculatedFuelLiters > 0) {
-        // Just fill enough to make the trip if we don't need a full tank, else fill tank
-        litersToFill = Math.min(window.globalCalculatedFuelLiters, tankSizeLiters * ((100 - currentFuelLevel) / 100));
-    }
-    
+    // How much fuel to buy? If we are empty, fill the tank. Otherwise, fill what's missing.
+    const litersToFill = Math.max(0, tankSizeLiters - currentLitersInTank);
     const totalCost = (litersToFill * bestPrice) / 100;
+    
     const savingsPence = (averagePrice - bestPrice) * litersToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
 
@@ -1548,6 +1584,9 @@ function calculateOptimalRefuelStrategy() {
         if (savingsBlock) savingsBlock.classList.remove('hidden');
     }
     
+    const contextLabel = isEmergencyMode ? 'Nearest Emergency Stop' : 'Optimal Stop';
+    const markerContext = isEmergencyMode ? '⚠️ Emergency Refuel' : 'Optimal Refuel Stop';
+
     if (timelineContainer) {
         timelineContainer.classList.remove('hidden');
         timelineContainer.innerHTML = `
@@ -1559,7 +1598,7 @@ function calculateOptimalRefuelStrategy() {
                 </div>
                 
                 <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
-                    <span class="text-zinc-500 font-medium pt-1">Stop at</span>
+                    <span class="text-zinc-500 font-medium pt-1">${contextLabel}</span>
                     <div class="text-right">
                         <span class="font-bold text-zinc-900 dark:text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
                         <span class="text-[10px] text-zinc-400 block">${(bestStation.address || '').replace(/['"]/g, '')}</span>
@@ -1605,15 +1644,16 @@ function calculateOptimalRefuelStrategy() {
 
     activeMarkerGroup.clearLayers();
 
+    // Pulse animation for the optimal/emergency station
     const customFuelIcon = L.divIcon({
         className: 'custom-fuel-icon',
-        html: `<div class="bg-amber-500 border-2 border-white dark:border-zinc-900 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
+        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-amber-500 border-white dark:border-zinc-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
         iconSize: [32, 32],
         iconAnchor: [16, 32]
     });
     
     L.marker([lat, lon], { icon: customFuelIcon, station_id: bestStation.id || 'refuel-node' })
-        .bindPopup(`<strong class="text-xs text-zinc-900 dark:text-white font-black block mb-0.5">Optimal Refuel Stop</strong><span class="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold block tabular-nums">${bestPrice.toFixed(1)}p/L</span>`)
+        .bindPopup(`<strong class="text-xs text-zinc-900 dark:text-white font-black block mb-0.5">${markerContext}</strong><span class="text-[11px] ${isEmergencyMode ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'} font-bold block tabular-nums">${bestPrice.toFixed(1)}p/L</span>`)
         .addTo(activeMarkerGroup);
 }
 
