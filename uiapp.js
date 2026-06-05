@@ -466,89 +466,48 @@ async function executeAddressGeocodeLookup() {
 // -------------------------------------------------------------
 // Live Traffic Incident Polling & Stacking Pipeline
 // -------------------------------------------------------------
-async function streamLiveTrafficIncidents(routeBounds) {
-    const statusBadge = document.getElementById('traffic-status-badge');
-    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
-    
-    if (statusBadge) {
-        statusBadge.textContent = "SCANNING...";
-        statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
-    }
-
+async function streamLiveTrafficIncidents(bbox) {
     try {
-        const minLon = routeBounds.getWest().toFixed(5);
-        const minLat = routeBounds.getSouth().toFixed(5);
-        const maxLon = routeBounds.getEast().toFixed(5);
-        const maxLat = routeBounds.getNorth().toFixed(5);
-        const boundingBox = `${minLon},${minLat},${maxLon},${maxLat}`;
+        // Ensure the bbox array contains valid numeric data: [minLon, minLat, maxLon, maxLat]
+        if (!bbox || bbox.length !== 4) {
+            console.warn("Traffic tracking skipped: invalid bounding box dimension coordinates.");
+            return [];
+        }
 
-        const incidentsUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${boundingBox}&fields={incidents{properties{iconCategory,events{description,delay}}}}&language=en-GB`;
+        const bboxString = `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`;
         
-        const response = await fetch(incidentsUrl);
-        if (!response.ok) throw new Error("Traffic API unreachable");
+        // Define fields block structure required by TomTom v5
+        const fieldsTemplate = "{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}";
         
-        const data = await response.json();
-        const incidents = data.incidents || [];
-
-        const criticalAlerts = incidents.filter(incident => {
-            const delay = incident.properties.events[0]?.delay || 0;
-            return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
+        // Use URLSearchParams to ensure every parameter (especially the curly braces) is perfectly URL-encoded
+        const queryParams = new URLSearchParams({
+            key: TOMTOM_API_KEY,
+            bbox: bboxString,
+            fields: fieldsTemplate,
+            language: "en-GB"
         });
 
-        if (tickerContainer) tickerContainer.innerHTML = '';
+        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?${queryParams.toString()}`;
 
-        if (criticalAlerts.length > 0) {
-            let badgeState = "ALERTS";
-            let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-            
-            if (criticalAlerts.length >= 3) {
-                badgeState = "CONGESTED";
-                badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
-            }
+        console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
 
-            if (statusBadge) {
-                statusBadge.textContent = badgeState;
-                statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
-            }
-
-            criticalAlerts.forEach(alert => {
-                const description = alert.properties.events[0]?.description || 'Traffic disruption';
-                const delaySeconds = alert.properties.events[0]?.delay || 0;
-                const delayMin = Math.round(delaySeconds / 60);
-                
-                const alertItem = document.createElement('div');
-                alertItem.className = "flex items-center justify-between p-3 bg-white/40 dark:bg-black/20 backdrop-blur-md border border-amber-500/30 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 shadow-sm";
-                
-                alertItem.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true"></span>
-                        <span class="font-medium capitalize">${description.toLowerCase()}</span>
-                    </div>
-                    ${delayMin > 0 ? `<span class="font-bold tabular-nums text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-md tracking-tight">+${delayMin}m</span>` : ''}
-                `;
-                if(tickerContainer) tickerContainer.appendChild(alertItem);
-            });
-
-        } else {
-            if (statusBadge) {
-                statusBadge.textContent = "CLEAR";
-                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
-            }
-            if(tickerContainer) {
-                tickerContainer.innerHTML = `
-                    <div class="flex items-center gap-3 p-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-800/30 backdrop-blur-md">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Fluid Traffic Flow
-                    </div>
-                `;
-            }
+        const networkResponse = await fetch(targetApiEndpoint);
+        
+        if (!networkResponse.ok) {
+            throw new Error(`Traffic API unreachable with status code: ${networkResponse.status}`);
         }
-    } catch (err) {
-        console.warn("Traffic incident streaming failed:", err);
-        if (statusBadge) {
-            statusBadge.textContent = "OFFLINE";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
+
+        const payload = await networkResponse.json();
+        
+        // Safely extract the incidents array out of the nested JSON payload response structure
+        if (payload && payload.incidents) {
+            return payload.incidents;
         }
+
+        return [];
+    } catch (apiError) {
+        console.error("Traffic incident streaming failed:", apiError);
+        throw apiError;
     }
 }
 
