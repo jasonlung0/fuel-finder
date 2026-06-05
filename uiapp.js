@@ -676,9 +676,52 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }
         
         if (plottedRouteCoordinates.length > 0) {
-            map.fitBounds(routePolylineLayer.getBounds());
-            // Fetch live incidents using the bounds
-            streamLiveTrafficIncidents(routePolylineLayer.getBounds());
+            const routeBounds = routePolylineLayer.getBounds();
+            map.fitBounds(routeBounds);
+            
+            // 1. Await the traffic data and capture the result
+            const liveIncidents = await streamLiveTrafficIncidents(routeBounds);
+
+            // 2. Locate your UI container
+            const trafficViewport = document.getElementById('traffic-alerts-viewport'); 
+
+            if (trafficViewport) {
+                // 3. Handle the "No Traffic" state (Empty Array)
+                if (!liveIncidents || liveIncidents.length === 0) {
+                    trafficViewport.innerHTML = `
+                        <div class="flex items-center justify-center p-4 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
+                            <span class="text-lg mr-2">✅</span>
+                            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported.</span>
+                        </div>
+                    `;
+                } 
+                // 4. Handle the "Traffic Found" state
+                else {
+                    const incidentsHTML = liveIncidents.map(incident => {
+                        const props = incident.properties;
+                        
+                        const delayInSeconds = props.delay || 0;
+                        const delayMinutes = Math.round(delayInSeconds / 60);
+                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Slow traffic';
+                        
+                        const description = (props.events && props.events.length > 0 && props.events[0].description) 
+                            ? props.events[0].description 
+                            : 'Traffic incident reported';
+
+                        return `
+                            <div class="p-3 mb-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-lg flex items-start gap-3 shadow-sm">
+                                <span class="text-red-500 mt-0.5">⚠️</span>
+                                <div class="flex flex-col">
+                                    <span class="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">${delayString}</span>
+                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-0.5">${description}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join(''); 
+
+                    trafficViewport.innerHTML = `<div class="flex flex-col gap-1">${incidentsHTML}</div>`;
+                }
+            }
         }
         
         const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
