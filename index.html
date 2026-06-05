@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>UK Fuel Price Finder</title>
+    <title>UK Fuel Price Finder & Route Planner</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -16,7 +16,75 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(161, 161, 170, 0.3);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(161, 161, 170, 0.5);
+        }
+        
+        /* Hidden scrollbar for the live traffic ticker */
+        #traffic-alerts-viewport::-webkit-scrollbar {
+            display: none;
+        }
+        #traffic-alerts-viewport {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        
+        @media (max-width: 767px) {
+            .mobile-bottom-drawer {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                transform: translateY(calc(100% - 64px));
+                will-change: transform;
+            }
+            .mobile-bottom-drawer.drawer-peek {
+                transform: translateY(calc(100% - 150px));
+            }
+            .mobile-bottom-drawer.drawer-half {
+                transform: translateY(40%);
+            }
+            .mobile-bottom-drawer.drawer-full {
+                transform: translateY(0);
+            }
+        }
+        
+        .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+            border-radius: 16px !important;
+        }
+        .dark .leaflet-popup-content-wrapper {
+            background: rgba(9, 9, 11, 0.85) !important;
+            border: 1px solid rgba(63, 63, 70, 0.4) !important;
+            color: #f4f4f5 !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(255, 255, 255, 0.85) !important;
+        }
+        .dark .leaflet-popup-tip {
+            background: rgba(9, 9, 11, 0.85) !important;
+        }
+    </style>
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300">
 
@@ -182,29 +250,31 @@
                             <span class="text-xs">📊</span>
                             <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Route Insights</h3>
                         </div>
-                        <div class="flex items-center gap-2.5">
-                            <div id="traffic-status-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase">
-                                CLEAR
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="grid grid-cols-2 divide-x divide-y divide-zinc-200/50 dark:divide-zinc-800/60 tabular-nums">
+                    <div class="grid grid-cols-2 divide-x divide-y divide-zinc-200/50 dark:divide-zinc-800/60 tabular-nums border-b border-zinc-200/50 dark:border-zinc-800/60">
                         <div class="p-3 space-y-1">
                             <span class="block text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Distance</span>
                             <span id="dash-metric-distance" class="block text-base font-black text-zinc-900 dark:text-white tracking-tight">--</span>
                         </div>
-                        <div class="p-3 space-y-1">
-                            <span class="block text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Traffic Impact</span>
-                            <span id="dash-metric-delay" class="block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight">--</span>
-                        </div>
-                        <div class="p-3 space-y-1">
-                            <span class="block text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Jams Detected</span>
-                            <span id="dash-metric-jams" class="block text-base font-black text-zinc-900 dark:text-white tracking-tight">0</span>
-                        </div>
                         <div class="p-3 space-y-1 bg-emerald-50/30 dark:bg-emerald-950/10">
-                            <span class="block text-[9px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-wider">Lowest Price</span>
+                            <span class="block text-[9px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-wider">Lowest Route Price</span>
                             <span id="summary-cost" class="block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 bg-white/40 dark:bg-black/20">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Live Incidents</h4>
+                            <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                        </div>
+                        
+                        <div id="traffic-alerts-viewport" class="relative w-full max-h-32 overflow-y-auto overscroll-contain scroll-smooth rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" tabindex="0" aria-live="polite" aria-atomic="true">
+                            <div id="dash-metric-delay-ticker" class="flex flex-col gap-2">
+                                <div class="p-3 text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-white/5 rounded-lg border border-zinc-200/50 dark:border-white/10 backdrop-blur-md">
+                                    Awaiting route calculation...
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
