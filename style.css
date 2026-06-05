@@ -45,6 +45,8 @@ body {
     font-weight: 600;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     font-size: 0.875rem;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+    transform-origin: bottom center;
 }
 
 .fuel-cluster-capsule {
@@ -66,6 +68,24 @@ body {
     background: #18181b;
     border-color: #3f3f46;
     color: white;
+}
+
+/* Ensure the parent marker container allows for overflowing transform effects */
+.leaflet-marker-icon {
+    transition: z-index 0.2s;
+}
+
+/* Scale up and add a deeper shadow on hover */
+.leaflet-marker-icon:hover .fuel-marker-bubble,
+.fuel-marker-bubble:hover {
+    transform: scale(1.15) translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    z-index: 1000 !important; /* Forces it above other markers */
+}
+
+/* Optional: Slight pulse for the inner dot if you have one */
+.leaflet-marker-icon:hover .fuel-marker-bubble::after {
+    transform: scale(1.2);
 }
 
 /* Mobile Drawers */
