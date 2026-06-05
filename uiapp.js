@@ -1513,19 +1513,12 @@ function calculateOptimalRefuelStrategy() {
     }
 
     // --- 1. MATH FIX: Calculate true remaining range based on tank capacity ---
-    // MPG to Miles Per Liter (MPL)
     const milesPerLiter = averageMpg / 4.54609; 
-    
-    // How many actual liters are in the tank right now?
     const currentLitersInTank = tankSizeLiters * (currentFuelPercentage / 100);
-    
-    // How many liters do we need to hold in reserve for the safety buffer?
     const bufferLitersNeeded = safetyBufferMiles / milesPerLiter;
-    
-    // Usable liters = Current liters minus the safety buffer
     const usableLiters = Math.max(0, currentLitersInTank - bufferLitersNeeded);
     
-    // True remaining range in miles
+    // True remaining range in miles (Factoring in the safety buffer)
     const remainingRange = usableLiters * milesPerLiter;
     const totalTripDistance = activeDistance; 
     
@@ -1559,29 +1552,53 @@ function calculateOptimalRefuelStrategy() {
     let bestStation = null;
     let isEmergencyMode = false;
 
-    // --- 2. EMERGENCY MODE FIX: Catch 0%-5% or negative usable liters ---
+    // We need the start coordinates to calculate distance to stations
+    const startLat = plottedRouteCoordinates[0][0];
+    const startLon = plottedRouteCoordinates[0][1];
+
+    // --- 2. EMERGENCY MODE & REACHABILITY FIX ---
     if (currentFuelPercentage <= 5 || usableLiters <= 0) {
         isEmergencyMode = true;
         // Find the absolute closest station to the START of the route
-        const startLat = plottedRouteCoordinates[0][0];
-        const startLon = plottedRouteCoordinates[0][1];
-        
-        // Sort by distance to the start node
         validStations.sort((a, b) => {
             const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
             const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
             return distA - distB;
         });
-        
         bestStation = validStations[0];
-        
-        // Optional: Trigger Toast Notification if you added the Toast object
-        if (typeof Toast !== 'undefined') Toast.show('Critical fuel level: Showing nearest station from start.', 'warning');
         
     } else {
-        // NORMAL MODE: Find the cheapest station along the route
-        validStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
-        bestStation = validStations[0];
+        // NORMAL MODE: Filter by REACHABILITY first, THEN by price
+        let reachableStations = validStations.filter(station => {
+            const distFromStart = computeDistanceVectorMiles(
+                startLat, startLon, 
+                parseFloat(station.latitude || station.lat), 
+                parseFloat(station.longitude || station.lng)
+            );
+            
+            // Multiply straight-line distance by 1.2 to safely estimate winding road distance
+            const estimatedRoadDistance = distFromStart * 1.2; 
+            
+            // The station MUST be closer than our usable range (which factors in the Safety Buffer)
+            return estimatedRoadDistance <= remainingRange;
+        });
+
+        if (reachableStations.length === 0) {
+            // We have fuel, but NO stations are within our remaining range!
+            // Fallback: Force Emergency Mode and just find the absolute closest station.
+            isEmergencyMode = true;
+            validStations.sort((a, b) => {
+                const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
+                const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
+                return distA - distB;
+            });
+            bestStation = validStations[0];
+            console.warn("No stations within safe range. Defaulting to absolute closest.");
+        } else {
+            // We have reachable stations! Now pick the absolute cheapest one.
+            reachableStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
+            bestStation = reachableStations[0];
+        }
     }
     
     if (!bestStation) {
@@ -1675,7 +1692,6 @@ function calculateOptimalRefuelStrategy() {
 
     activeMarkerGroup.clearLayers();
 
-    // Pulse animation for the optimal/emergency station
     const customFuelIcon = L.divIcon({
         className: 'custom-fuel-icon',
         html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-amber-500 border-white dark:border-zinc-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">⛽</div>`,
