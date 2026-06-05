@@ -28,9 +28,11 @@ let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
 
+// Force load local storage immediately
 try {
     const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
     const loadedRoutes = localStorage.getItem('uk_fuel_saved_v2_routes');
+    
     if (loadedStarred) starredStations = JSON.parse(loadedStarred);
     if (loadedRoutes) savedRoutes = JSON.parse(loadedRoutes);
 } catch (e) {
@@ -44,6 +46,7 @@ let activeDirectoryTab = 'stations';
 let activeSheetStation = null;
 let mapSearchAnchorCoordinates = [51.5074, -0.1278]; 
 
+// GLOBAL ROUTING SCOPES
 let plottedRouteCoordinates = [];
 let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
@@ -90,6 +93,7 @@ function applyThemeChangesToDOM() {
         tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     }
     
+    // Safety check before filtering
     if (typeof executeStationDataFilteringPipeline === 'function') {
         executeStationDataFilteringPipeline();
     }
@@ -452,98 +456,6 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
-// -------------------------------------------------------------
-// Live Traffic Incident Polling & Stacking Pipeline
-// -------------------------------------------------------------
-async function streamLiveTrafficIncidents(routeBounds) {
-    const statusBadge = document.getElementById('traffic-status-badge');
-    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
-    
-    if (statusBadge) {
-        statusBadge.textContent = "SCANNING...";
-        statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
-    }
-
-    try {
-        const minLon = routeBounds.getWest().toFixed(5);
-        const minLat = routeBounds.getSouth().toFixed(5);
-        const maxLon = routeBounds.getEast().toFixed(5);
-        const maxLat = routeBounds.getNorth().toFixed(5);
-        const boundingBox = `${minLon},${minLat},${maxLon},${maxLat}`;
-
-        const incidentsUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${boundingBox}&fields={incidents{properties{iconCategory,events{description,delay}}}}&language=en-GB`;
-        
-        const response = await fetch(incidentsUrl);
-        if (!response.ok) throw new Error("Traffic API unreachable");
-        
-        const data = await response.json();
-        const incidents = data.incidents || [];
-
-        const criticalAlerts = incidents.filter(incident => {
-            const delay = incident.properties.events[0]?.delay || 0;
-            return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
-        });
-
-        if (tickerContainer) tickerContainer.innerHTML = '';
-
-        if (criticalAlerts.length > 0) {
-            let badgeState = "ALERTS";
-            let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-            
-            if (criticalAlerts.length >= 3) {
-                badgeState = "CONGESTED";
-                badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
-            }
-
-            if (statusBadge) {
-                statusBadge.textContent = badgeState;
-                statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
-            }
-
-            criticalAlerts.forEach(alert => {
-                const description = alert.properties.events[0]?.description || 'Traffic disruption';
-                const delaySeconds = alert.properties.events[0]?.delay || 0;
-                const delayMin = Math.round(delaySeconds / 60);
-                
-                const alertItem = document.createElement('div');
-                alertItem.className = "flex items-center justify-between p-3 bg-white/40 dark:bg-black/20 backdrop-blur-md border border-amber-500/30 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 shadow-sm";
-                
-                alertItem.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true"></span>
-                        <span class="font-medium capitalize">${description.toLowerCase()}</span>
-                    </div>
-                    ${delayMin > 0 ? `<span class="font-bold tabular-nums text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-md tracking-tight">+${delayMin}m</span>` : ''}
-                `;
-                if(tickerContainer) tickerContainer.appendChild(alertItem);
-            });
-
-        } else {
-            if (statusBadge) {
-                statusBadge.textContent = "CLEAR";
-                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
-            }
-            if(tickerContainer) {
-                tickerContainer.innerHTML = `
-                    <div class="flex items-center gap-3 p-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-800/30 backdrop-blur-md">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Fluid Traffic Flow
-                    </div>
-                `;
-            }
-        }
-    } catch (err) {
-        console.warn("Traffic incident streaming failed:", err);
-        if (statusBadge) {
-            statusBadge.textContent = "OFFLINE";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// CORE ROUTING ENGINE & TomTom Fuel Consumption Integration
-// -------------------------------------------------------------
 async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
     if (!map) {
         console.warn("Spatial Map Engine is not initialized yet.");
@@ -625,12 +537,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }
         coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-        // Convert MPG to Liters/100km for exact TomTom engine consumption
-        const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
-        const litersPer100km = (282.48 / userMpg).toFixed(2);
-        const consumptionCurve = `50,${litersPer100km}:120,${litersPer100km}`;
-        
-        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic&vehicleEngineType=combustion&constantSpeedConsumptionInLitersPerHundredkm=${consumptionCurve}`;
+        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic`;
         
         const routeRes = await fetch(tomtomUrl);
         if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
@@ -642,7 +549,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
 
         globalActiveRoute = currentActiveRoute;
         globalRouteDistanceMiles = (currentActiveRoute.summary.lengthInMeters / 1609.34);
-        window.globalCalculatedFuelLiters = currentActiveRoute.summary.fuelConsumptionInLiters;
         
         plottedRouteCoordinates = [];
         currentActiveRoute.legs.forEach(leg => {
@@ -678,13 +584,40 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
         if (plottedRouteCoordinates.length > 0) {
             map.fitBounds(routePolylineLayer.getBounds());
-            // Fetch live incidents using the bounds
-            streamLiveTrafficIncidents(routePolylineLayer.getBounds());
         }
         
-        const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
+        const summaryMetrics = routeData.routes[0].summary;
+        const distanceStringFormatted = (summaryMetrics.lengthInMeters / 1609.34).toFixed(1);
+        const delayMinutes = Math.round(summaryMetrics.trafficDelayInSeconds / 60);
+        
+        const jamsCount = routeData.routes[0].sections 
+            ? routeData.routes[0].sections.filter(s => s.sectionType === 'TRAFFIC' || s.delayInSeconds > 0).length 
+            : (delayMinutes > 0 ? Math.ceil(delayMinutes / 2) : 0);
+        
         const distanceMetric = document.getElementById('dash-metric-distance');
+        const delayMetric = document.getElementById('dash-metric-delay');
+        const jamsMetric = document.getElementById('dash-metric-jams');
+        const statusBadge = document.getElementById('traffic-status-badge');
+        
         if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
+        if (jamsMetric) jamsMetric.innerText = jamsCount;
+        
+        if (delayMetric) {
+            delayMetric.innerText = delayMinutes > 0 ? `+${delayMinutes} min` : 'No Delay';
+            if (delayMinutes > 5) {
+                delayMetric.className = 'block text-base font-black text-rose-600 dark:text-rose-500 tracking-tight';
+                if (statusBadge) {
+                    statusBadge.innerText = 'CONGESTED';
+                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 uppercase';
+                }
+            } else {
+                delayMetric.className = 'block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight';
+                if (statusBadge) {
+                    statusBadge.innerText = 'CLEAR';
+                    statusBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase';
+                }
+            }
+        }
         
         const unifiedInsightsCard = document.getElementById('route-insights-card');
         if (unifiedInsightsCard) {
@@ -875,7 +808,6 @@ function clearCalculatedRouteLayers() {
 
     plottedRouteCoordinates = [];
     cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
-    window.globalCalculatedFuelLiters = null;
     
     document.getElementById('route-start').value = '';
     document.getElementById('route-end').value = '';
@@ -962,7 +894,7 @@ function focusAndHighlightMapMarker(lat, lon) {
 }
 
 // -------------------------------------------------------------
-// MAIN PIPELINE: Filter Stations & Draw Map (Fixes Ref Error)
+// NEW: Master Filtering Pipeline (Resolves the ReferenceError)
 // -------------------------------------------------------------
 function executeStationDataFilteringPipeline() {
     if (!rawGlobalStationsPool?.length) return;
@@ -973,6 +905,7 @@ function executeStationDataFilteringPipeline() {
     
     let dynamicBoundedStations = [];
 
+    // Filter based on context: radius around origin OR proximity to the route corridor
     if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
         dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
             if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
@@ -1156,6 +1089,294 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Stations: ${fallbackTotalCount}`;
 }
 
+function toggleCurrentStationStar(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    if (!activeSheetStation) return;
+    const stationKey = getStationUniqueSignature(activeSheetStation);
+    const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
+
+    if (matchingIndex > -1) starredStations.splice(matchingIndex, 1);
+    else starredStations.push(activeSheetStation);
+
+    localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
+    updateDirectoryTotalBadge();
+    updateAllStarUIStates();
+}
+
+function updateAllStarUIStates() {
+    if (!activeSheetStation) return;
+    const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
+    
+    const sheetBtn = document.getElementById('sheet-star-btn');
+    if (sheetBtn) {
+        sheetBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
+        sheetBtn.className = isStarred 
+            ? "p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8"
+            : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
+    }
+
+    if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
+}
+
+function toggleStarredDropdownDashboardPanel(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const panel = document.getElementById('starred-dropdown-panel');
+    if (!panel) return;
+    
+    if (panel.classList.contains('hidden')) { 
+        closeForecourtDetailSheet();
+        panel.classList.remove('hidden'); 
+        renderDirectoryDropdown(); 
+    } else { 
+        panel.classList.add('hidden'); 
+    }
+}
+
+function renderDirectoryDropdown() {
+    const container = document.getElementById('starred-list-container');
+    if (!container) return;
+
+    starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
+    savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
+
+    if (activeDirectoryTab === 'stations') {
+        if (starredStations.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
+            return;
+        }
+        container.innerHTML = '';
+        starredStations.forEach(station => {
+            const cardRow = document.createElement('div');
+            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
+            cardRow.onclick = (event) => {
+                event.stopPropagation();
+                focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
+                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+            };
+
+            cardRow.innerHTML = `
+                <div class="min-w-0">
+                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                    <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
+                </div>
+                <div class="grid grid-cols-2 gap-1 pt-0.5">
+                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
+                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
+                </div>`;
+            container.appendChild(cardRow);
+        });
+    } else {
+        if (savedRoutes.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No custom routes found.</div>`;
+            return;
+        }
+        container.innerHTML = '';
+        savedRoutes.forEach(route => {
+            const cardRow = document.createElement('div');
+            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-blue-500 transition cursor-pointer active:scale-[0.99] shadow-sm flex items-center justify-between gap-2";
+            cardRow.onclick = (event) => {
+                event.stopPropagation();
+                loadSavedRouteCorridorDataIntoWorkspace(route.id);
+                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+            };
+
+            cardRow.innerHTML = `
+                <div class="min-w-0 flex-1">
+                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
+                    <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1 tabular-nums">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
+                </div>
+                <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition focus:outline-none focus:ring-1 focus:ring-rose-500" title="Delete Saved Corridor">
+                    ✕
+                </button>
+            `;
+            container.appendChild(cardRow);
+        });
+    }
+}
+
+function openForecourtDetailSheet(stationData) {
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+
+    document.getElementById('starred-dropdown-panel').classList.add('hidden');
+    activeSheetStation = stationData;
+
+    document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
+    document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
+
+    document.getElementById('card-wrap-e10').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+    document.getElementById('card-wrap-e5').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+    document.getElementById('card-wrap-b7').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+    document.getElementById('card-wrap-premiumdiesel').className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
+
+    document.getElementById('sheet-price-e10').textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
+    document.getElementById('sheet-price-e5').textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
+    document.getElementById('sheet-price-b7').textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
+    document.getElementById('sheet-price-premiumdiesel').textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
+
+    updateAllStarUIStates();
+    sheet.classList.remove('hidden');
+
+    if (window.innerWidth < 768) {
+        setMobileSheetUIState('full'); 
+    } else {
+        sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
+    }
+}
+
+function closeForecourtDetailSheet(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+    
+    if (window.innerWidth < 768) {
+        setMobileSheetUIState('hidden');
+    } else {
+        sheet.classList.add('hidden');
+    }
+    activeSheetStation = null;
+}
+
+function getStationUniqueSignature(s) {
+    if (!s) return '';
+    return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
+}
+
+function triggerExternalMappingVectorRoute(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    if (!activeSheetStation) return;
+    const lat = activeSheetStation.latitude || activeSheetStation.lat;
+    const lon = activeSheetStation.longitude || activeSheetStation.lng;
+    window.open(`https://www.google.com/maps/search/?api=1&query=$${lat},${lon}`, '_blank');
+}
+
+function setMobileSidebarState(stateStr) {
+    currentMobileSidebarUIState = stateStr;
+    const sidebar = document.getElementById('primary-control-sidebar');
+    if (!sidebar) return;
+    
+    sidebar.className = sidebar.className.replace(/\bdrawer-\w+/g, '');
+    sidebar.classList.add(`drawer-${stateStr}`);
+}
+
+function setMobileSheetUIState(stateStr) {
+    currentMobileSheetUIState = stateStr;
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+    
+    sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
+    if (stateStr === 'hidden') {
+        sheet.classList.add('hidden');
+    } else {
+        sheet.classList.remove('hidden');
+        sheet.classList.add(`drawer-${stateStr}`);
+    }
+}
+
+function initializeClickIsolationBubbling() {
+    const structuralIDs = ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar'];
+    structuralIDs.forEach(id => {
+        const node = document.getElementById(id);
+        if (node) {
+            node.addEventListener('click', (e) => { e.stopPropagation(); });
+            node.addEventListener('dblclick', (e) => { e.stopPropagation(); });
+        }
+    });
+}
+
+function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModificationCallback) {
+    const targetHandle = document.getElementById(handleId);
+    if (!targetHandle) return;
+
+    let touchBaseY = 0;
+    let touchCurrentY = 0;
+    let touchStartTime = 0;
+
+    targetHandle.addEventListener('touchstart', (e) => {
+        touchBaseY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+    }, { passive: true });
+
+    targetHandle.addEventListener('touchmove', (e) => {
+        touchCurrentY = e.touches[0].clientY;
+    }, { passive: true });
+
+    targetHandle.addEventListener('touchend', () => {
+        const trackDeltaY = touchBaseY - touchCurrentY;
+        const timeframeDuration = Date.now() - touchStartTime;
+        
+        if (Math.abs(trackDeltaY) < 35) return; 
+
+        const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
+        let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
+
+        if (trackDeltaY > 35) {
+            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
+                stateModificationCallback('full');
+            } else {
+                if (currentActiveState === 'peek') stateModificationCallback('mid');
+                else if (currentActiveState === 'mid') stateModificationCallback('full');
+            }
+        } else if (trackDeltaY < -35) {
+            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
+                if (elementId === 'sidebar') stateModificationCallback('peek');
+                else stateModificationCallback('hidden');
+            } else {
+                if (currentActiveState === 'full') stateModificationCallback('mid');
+                else if (currentActiveState === 'mid') {
+                    if (elementId === 'sidebar') stateModificationCallback('peek');
+                    else stateModificationCallback('hidden');
+                }
+            }
+        }
+    });
+}
+
+function initializeGestureTrackEngine() {
+    document.getElementById('sidebar-drag-handle')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
+        else if (currentMobileSidebarUIState === 'mid') setMobileSidebarState('full');
+        else if (currentMobileSidebarUIState === 'full') setMobileSidebarState('peek');
+    });
+
+    document.getElementById('detail-sheet-drag-handle')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentMobileSheetUIState === 'peek') setMobileSheetUIState('mid');
+        else if (currentMobileSheetUIState === 'mid') setMobileSheetUIState('full');
+        else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('peek');
+    });
+
+    bindSwipeGestureDetectionToMobileSheets('sidebar-drag-handle', 'sidebar', setMobileSidebarState);
+    bindSwipeGestureDetectionToMobileSheets('detail-sheet-drag-handle', 'sheet', setMobileSheetUIState);
+}
+
+
+let refuelMarkersGroup = null;
+
+function getDistanceInMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8; 
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getNumericInputValue(id, fallback) {
+    const el = document.getElementById(id);
+    if (!el) return fallback;
+    if (el.value && el.value.trim() !== "") {
+        const val = parseFloat(el.value);
+        return isNaN(val) ? fallback : val;
+    }
+    if (el.placeholder && el.placeholder.trim() !== "") {
+        const val = parseFloat(el.placeholder);
+        return isNaN(val) ? fallback : val;
+    }
+    return fallback;
+}
+
 // -------------------------------------------------------------
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
@@ -1233,14 +1454,9 @@ function calculateOptimalRefuelStrategy() {
     const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType]).filter(p => p && !isNaN(p));
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
-    // Utilize TomTom's calculated exact fuel usage if available
-    let litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
-    if (window.globalCalculatedFuelLiters && window.globalCalculatedFuelLiters > 0) {
-        // Just fill enough to make the trip if we don't need a full tank, else fill tank
-        litersToFill = Math.min(window.globalCalculatedFuelLiters, tankSizeLiters * ((100 - currentFuelLevel) / 100));
-    }
-    
+    const litersToFill = tankSizeLiters * ((100 - currentFuelLevel) / 100);
     const totalCost = (litersToFill * bestPrice) / 100;
+    
     const savingsPence = (averagePrice - bestPrice) * litersToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
 
@@ -1345,9 +1561,31 @@ function clearFuelOptimizationState() {
     console.log("Fuel Optimization interface states successfully defaulted.");
 }
 
-// -------------------------------------------------------------
-// LAUNCH PROTOCOLS & EVENT BINDINGS
-// -------------------------------------------------------------
+function clearRoute() {
+    if (routePolylineLayer) {
+        routePolylineLayer.clearLayers();
+    }
+
+    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
+        refuelMarkersGroup.clearLayers();
+    }
+
+    map.eachLayer((layer) => {
+        if (layer instanceof L.Marker && !layer.options.station_id) {
+            map.removeLayer(layer);
+        }
+    });
+
+    document.getElementById('route-insights-card')?.classList.add('hidden');
+    document.getElementById('refuel-timeline-output')?.classList.add('hidden');
+    document.getElementById('smart-refuel-savings-block')?.classList.add('hidden');
+    console.log("Route and refuel markers cleared; station anchors preserved.");
+}
+
+window.addWaypointFieldInputRow = addWaypointFieldInputRow;
+window.removeWaypointFieldInputRow = removeWaypointFieldInputRow;
+window.clearSingleWaypointRowInputValue = clearSingleWaypointRowInputValue;
+
 window.addEventListener('DOMContentLoaded', () => {
     initializeSpatialMapEngine();
     applyThemeChangesToDOM();
@@ -1356,7 +1594,6 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeGestureTrackEngine();
     forceReloadRemotePipelineData();
 
-    // Hook inputs to dynamic reactive rendering engines
     const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
     refuelInputs.forEach(id => {
         const el = document.getElementById(id);
