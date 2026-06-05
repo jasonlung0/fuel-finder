@@ -468,18 +468,42 @@ async function executeAddressGeocodeLookup() {
 // -------------------------------------------------------------
 async function streamLiveTrafficIncidents(bbox) {
     try {
-        // Ensure the bbox array contains valid numeric data: [minLon, minLat, maxLon, maxLat]
-        if (!bbox || bbox.length !== 4) {
-            console.warn("Traffic tracking skipped: invalid bounding box dimension coordinates.");
+        let minLon, minLat, maxLon, maxLat;
+
+        // 1. Handle case where bbox is a Leaflet LatLngBounds object (e.g., from layer.getBounds())
+        if (bbox && typeof bbox.getWest === 'function') {
+            minLon = bbox.getWest();
+            minLat = bbox.getSouth();
+            maxLon = bbox.getEast();
+            maxLat = bbox.getNorth();
+        } 
+        // 2. Handle case where bbox is already a flat array [minLon, minLat, maxLon, maxLat]
+        else if (Array.isArray(bbox) && bbox.length === 4) {
+            minLon = bbox[0];
+            minLat = bbox[1];
+            maxLon = bbox[2];
+            maxLat = bbox[3];
+        } 
+        // 3. Fallback: If incoming data is invalid but the Leaflet map exists, use current screen viewport
+        else if (map) {
+            console.log("Traffic pipeline received invalid bbox. Falling back to active map viewport bounds.");
+            const currentBounds = map.getBounds();
+            minLon = currentBounds.getWest();
+            minLat = currentBounds.getSouth();
+            maxLon = currentBounds.getEast();
+            maxLat = currentBounds.getNorth();
+        } 
+        // 4. Absolute failure safety escape
+        else {
+            console.warn("Traffic tracking skipped: No valid bounding box context or map instance available.");
             return [];
         }
 
-        const bboxString = `${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}`;
+        // Format the string specifically for TomTom API specifications
+        const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
         
-        // Define fields block structure required by TomTom v5
         const fieldsTemplate = "{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}";
         
-        // Use URLSearchParams to ensure every parameter (especially the curly braces) is perfectly URL-encoded
         const queryParams = new URLSearchParams({
             key: TOMTOM_API_KEY,
             bbox: bboxString,
@@ -488,7 +512,6 @@ async function streamLiveTrafficIncidents(bbox) {
         });
 
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?${queryParams.toString()}`;
-
         console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
 
         const networkResponse = await fetch(targetApiEndpoint);
@@ -499,7 +522,6 @@ async function streamLiveTrafficIncidents(bbox) {
 
         const payload = await networkResponse.json();
         
-        // Safely extract the incidents array out of the nested JSON payload response structure
         if (payload && payload.incidents) {
             return payload.incidents;
         }
