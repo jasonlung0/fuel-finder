@@ -470,49 +470,50 @@ async function streamLiveTrafficIncidents(bbox) {
     try {
         let minLon, minLat, maxLon, maxLat;
 
-        // 1. Handle case where bbox is a Leaflet LatLngBounds object (e.g., from layer.getBounds())
+        // 1. Extract coordinates depending on the incoming bbox format
         if (bbox && typeof bbox.getWest === 'function') {
             minLon = bbox.getWest();
             minLat = bbox.getSouth();
             maxLon = bbox.getEast();
             maxLat = bbox.getNorth();
-        } 
-        // 2. Handle case where bbox is already a flat array [minLon, minLat, maxLon, maxLat]
-        else if (Array.isArray(bbox) && bbox.length === 4) {
+        } else if (Array.isArray(bbox) && bbox.length === 4) {
             minLon = bbox[0];
             minLat = bbox[1];
             maxLon = bbox[2];
             maxLat = bbox[3];
-        } 
-        // 3. Fallback: If incoming data is invalid but the Leaflet map exists, use current screen viewport
-        else if (map) {
-            console.log("Traffic pipeline received invalid bbox. Falling back to active map viewport bounds.");
+        } else if (typeof map !== 'undefined' && map) {
             const currentBounds = map.getBounds();
             minLon = currentBounds.getWest();
             minLat = currentBounds.getSouth();
             maxLon = currentBounds.getEast();
             maxLat = currentBounds.getNorth();
-        } 
-        // 4. Absolute failure safety escape
-        else {
-            console.warn("Traffic tracking skipped: No valid bounding box context or map instance available.");
+        } else {
             return [];
         }
 
-        // Format the string specifically for TomTom API specifications
-        const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+        // --- THE FIX: Geofence Area Calculation ---
+        // TomTom's V5 API strictly rejects any request where the bounding box exceeds 10,000 km²
+        const R = 6371; // Earth's radius in km
+        const dLat = (maxLat - minLat) * (Math.PI / 180);
+        const dLon = (maxLon - minLon) * (Math.PI / 180);
+        const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
         
-        const fieldsTemplate = "{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}";
-        
-        const queryParams = new URLSearchParams({
-            key: TOMTOM_API_KEY,
-            bbox: bboxString,
-            fields: fieldsTemplate,
-            language: "en-GB"
-        });
+        const width = R * Math.abs(dLon) * Math.cos(meanLat);
+        const height = R * Math.abs(dLat);
+        const area = width * height;
 
-        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?${queryParams.toString()}`;
-        console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
+        // If the route is too long, bypass the API call to prevent a 400 Bad Request server crash
+        if (area > 9500) {
+            console.warn(`🚦 Traffic skipped: Route area (${Math.round(area)} km²) exceeds TomTom's 10,000 km² limit. Zoom in for local traffic.`);
+            return []; 
+        }
+        // ------------------------------------------
+
+        // Manually format to prevent URLSearchParams from encoding the commas, which can also trigger 400s
+        const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}");
+        
+        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB`;
 
         const networkResponse = await fetch(targetApiEndpoint);
         
@@ -529,7 +530,7 @@ async function streamLiveTrafficIncidents(bbox) {
         return [];
     } catch (apiError) {
         console.error("Traffic incident streaming failed:", apiError);
-        throw apiError;
+        throw apiError; 
     }
 }
 
