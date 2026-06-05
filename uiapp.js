@@ -1312,7 +1312,7 @@ function triggerExternalMappingVectorRoute(event) {
     if (!activeSheetStation) return;
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    window.open(`https://www.google.com/maps/search/?api=1&query=$${lat},${lon}`, '_blank');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
 }
 
 function setMobileSidebarState(stateStr) {
