@@ -1683,19 +1683,26 @@ window.addEventListener('DOMContentLoaded', () => {
     forceReloadRemotePipelineData();
 
     // Hook inputs to dynamic reactive rendering engines
-    const refuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg', 'fuel-type', 'radius-slider', 'route-radius-slider'];
-    refuelInputs.forEach(id => {
+    // 1. Inputs that should ONLY trigger the general station filtering (Radius, Fuel Type)
+    const mapFilteringInputs = ['fuel-type', 'radius-slider', 'route-radius-slider'];
+    mapFilteringInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
+            el.addEventListener('change', () => executeStationDataFilteringPipeline());
+            el.addEventListener('input', () => { if (el.type === 'range') executeStationDataFilteringPipeline(); });
+        }
+    });
+
+    // 2. Inputs that should ONLY trigger the Smart Refuel math (Tank Size, Current Fuel, Buffer, MPG)
+    const smartRefuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg'];
+    smartRefuelInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // Only fire the math, don't redraw the whole station map!
             el.addEventListener('change', () => {
-                executeStationDataFilteringPipeline();
-                if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
-            });
-            el.addEventListener('input', () => {
-                if (el.type === 'range') {
-                    executeStationDataFilteringPipeline();
-                    if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
-                }
+                 if (activeTabContext === 'route') {
+                     calculateOptimalRefuelStrategy();
+                 }
             });
         }
     });
