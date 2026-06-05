@@ -470,7 +470,7 @@ async function streamLiveTrafficIncidents(bbox) {
     try {
         let minLon, minLat, maxLon, maxLat;
 
-        // 1. Extract coordinates depending on the incoming bbox format
+        // 1. Extract coordinates based on incoming types
         if (bbox && typeof bbox.getWest === 'function') {
             minLon = bbox.getWest();
             minLat = bbox.getSouth();
@@ -491,29 +491,34 @@ async function streamLiveTrafficIncidents(bbox) {
             return [];
         }
 
-        // --- THE FIX: Geofence Area Calculation ---
-        // TomTom's V5 API strictly rejects any request where the bounding box exceeds 10,000 km²
-        const R = 6371; // Earth's radius in km
+        // 2. Geofence Check (Pre-calculated area verification)
+        const R = 6371; 
         const dLat = (maxLat - minLat) * (Math.PI / 180);
         const dLon = (maxLon - minLon) * (Math.PI / 180);
         const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
-        
         const width = R * Math.abs(dLon) * Math.cos(meanLat);
         const height = R * Math.abs(dLat);
         const area = width * height;
 
-        // If the route is too long, bypass the API call to prevent a 400 Bad Request server crash
         if (area > 9500) {
-            console.warn(`🚦 Traffic skipped: Route area (${Math.round(area)} km²) exceeds TomTom's 10,000 km² limit. Zoom in for local traffic.`);
+            console.warn(`🚦 Traffic skipped: Route area (${Math.round(area)} km²) exceeds TomTom limit.`);
             return []; 
         }
-        // ------------------------------------------
 
-        // Manually format to prevent URLSearchParams from encoding the commas, which can also trigger 400s
-        const bboxString = `${minLon},${minLat},${maxLon},${maxLat}`;
+        // 3. FIX: Cleanly format and truncate coordinates to exactly 6 decimal places 
+        const formattedMinLon = Number(minLon).toFixed(6);
+        const formattedMinLat = Number(minLat).toFixed(6);
+        const formattedMaxLon = Number(maxLon).toFixed(6);
+        const formattedMaxLat = Number(maxLat).toFixed(6);
+
+        const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
+        
+        // Use clean string encoding for the fields token structure
         const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}");
         
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB`;
+
+        console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
 
         const networkResponse = await fetch(targetApiEndpoint);
         
@@ -530,7 +535,7 @@ async function streamLiveTrafficIncidents(bbox) {
         return [];
     } catch (apiError) {
         console.error("Traffic incident streaming failed:", apiError);
-        throw apiError; 
+        return []; // Return empty array instead of crashing downstream application pipelines
     }
 }
 
