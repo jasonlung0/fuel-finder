@@ -505,7 +505,7 @@ async function streamLiveTrafficIncidents(bbox) {
             return []; 
         }
 
-        // 3. FIX: Cleanly format and truncate coordinates to exactly 6 decimal places 
+        // 3. Cleanly format and truncate coordinates to exactly 6 decimal places 
         const formattedMinLon = Number(minLon).toFixed(6);
         const formattedMinLat = Number(minLat).toFixed(6);
         const formattedMaxLon = Number(maxLon).toFixed(6);
@@ -513,10 +513,11 @@ async function streamLiveTrafficIncidents(bbox) {
 
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
         
-        // Use clean string encoding for the fields token structure
-        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitude,events{description,delay}}}}");
+        // 4. FIX: Correct the schema fields to match TomTom V5 exact parameter requirements
+        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,events{description}}}}");
         
-        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB`;
+        // 5. FIX: Added t=-1 to explicitly request the latest real-time traffic model 
+        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
         console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
 
@@ -535,7 +536,7 @@ async function streamLiveTrafficIncidents(bbox) {
         return [];
     } catch (apiError) {
         console.error("Traffic incident streaming failed:", apiError);
-        return []; // Return empty array instead of crashing downstream application pipelines
+        return []; 
     }
 }
 
