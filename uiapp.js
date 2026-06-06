@@ -1309,19 +1309,23 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
     }
 
+    // --- FIX: Anchor color thresholds globally ONCE to prevent shifting ---
+    // This evaluates "cheap vs expensive" against the entire dataset, not just the local radius.
+    const globalPricesArray = rawGlobalStationsPool.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
+    const globalMin = Math.min(...globalPricesArray);
+    const globalSpread = Math.max(...globalPricesArray) - globalMin;
+    const globalStep = globalSpread / 3;
+
     stationsList.forEach((station) => {
         const numericPrice = parseFloat(station[variant]);
         if (!numericPrice) return;
         
         let tierBgClassColor = 'bg-fuel-blue';
-        const pricesArrayZone = currentlyVisibleStations.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
-        const zoneMin = Math.min(...pricesArrayZone);
-        const zoneSpread = Math.max(...pricesArrayZone) - zoneMin;
 
-        if (zoneSpread > 0) {
-            const step = zoneSpread / 3;
-            if (numericPrice <= (zoneMin + step)) tierBgClassColor = 'bg-fuel-green';
-            else if (numericPrice <= (zoneMin + (step * 2))) tierBgClassColor = 'bg-fuel-blue';
+        // Apply the global threshold bounds to the current marker
+        if (globalSpread > 0) {
+            if (numericPrice <= (globalMin + globalStep)) tierBgClassColor = 'bg-fuel-green';
+            else if (numericPrice <= (globalMin + (globalStep * 2))) tierBgClassColor = 'bg-fuel-blue';
             else tierBgClassColor = 'bg-fuel-red';
         }
 
