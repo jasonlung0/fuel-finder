@@ -1956,6 +1956,26 @@ function clearFuelOptimizationState() {
     }
 }
 
+window.toggleTrafficDashboard = function() {
+    const area = document.getElementById('dashboard-collapsible-area');
+    const chevron = document.getElementById('dashboard-chevron');
+    if (area && chevron) {
+        if (area.style.maxHeight === '0px' || area.classList.contains('max-h-0')) {
+            // Expand
+            area.style.maxHeight = '500px';
+            area.style.marginTop = '0.75rem';
+            area.style.opacity = '1';
+            chevron.style.transform = 'rotate(0deg)';
+        } else {
+            // Collapse
+            area.style.maxHeight = '0px';
+            area.style.marginTop = '0px';
+            area.style.opacity = '0';
+            chevron.style.transform = 'rotate(180deg)';
+        }
+    }
+};
+
 window.addEventListener('DOMContentLoaded', () => {
     initializeSpatialMapEngine();
     applyThemeChangesToDOM();
