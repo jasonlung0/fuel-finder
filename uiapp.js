@@ -1309,12 +1309,23 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
     }
 
-    // --- FIX: Anchor color thresholds globally ONCE to prevent shifting ---
-    // This evaluates "cheap vs expensive" against the entire dataset, not just the local radius.
-    const globalPricesArray = rawGlobalStationsPool.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
-    const globalMin = Math.min(...globalPricesArray);
-    const globalSpread = Math.max(...globalPricesArray) - globalMin;
-    const globalStep = globalSpread / 3;
+    // --- FIX: Statistical Tertiles to ignore extreme Motorway Outliers ---
+    const globalPricesArray = rawGlobalStationsPool
+        .map(s => parseFloat(s[variant]))
+        .filter(p => !isNaN(p) && p > 0)
+        .sort((a, b) => a - b);
+        
+    let greenThreshold = 0;
+    let blueThreshold = 0;
+
+    if (globalPricesArray.length > 0) {
+        // Split the UK distribution into three equal buckets
+        const oneThirdIndex = Math.floor(globalPricesArray.length * 0.333);
+        const twoThirdsIndex = Math.floor(globalPricesArray.length * 0.666);
+        
+        greenThreshold = globalPricesArray[oneThirdIndex];
+        blueThreshold = globalPricesArray[twoThirdsIndex];
+    }
 
     stationsList.forEach((station) => {
         const numericPrice = parseFloat(station[variant]);
@@ -1322,10 +1333,10 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         
         let tierBgClassColor = 'bg-fuel-blue';
 
-        // Apply the global threshold bounds to the current marker
-        if (globalSpread > 0) {
-            if (numericPrice <= (globalMin + globalStep)) tierBgClassColor = 'bg-fuel-green';
-            else if (numericPrice <= (globalMin + (globalStep * 2))) tierBgClassColor = 'bg-fuel-blue';
+        if (globalPricesArray.length > 0) {
+            // Apply the tertile thresholds
+            if (numericPrice <= greenThreshold) tierBgClassColor = 'bg-fuel-green';
+            else if (numericPrice <= blueThreshold) tierBgClassColor = 'bg-fuel-blue';
             else tierBgClassColor = 'bg-fuel-red';
         }
 
