@@ -679,91 +679,98 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             const routeBounds = routePolylineLayer.getBounds();
             map.fitBounds(routeBounds);
             
-            // 1. Target ONE single UI container to prevent stacking 
-            // (Ensure this ID matches the empty div in your HTML where you want this widget)
-            const trafficUI = document.getElementById('traffic-alerts-viewport');
+            // 1. Explicitly target BOTH containers
+            const statusContainer = document.getElementById('traffic-status-container');
+            const alertsViewport = document.getElementById('traffic-alerts-viewport');
             
-            // 2. Mount the loading state directly into that single container, overwriting anything inside
-            if (trafficUI) {
-                trafficUI.innerHTML = `
+            // 2. Mount the loading state to the status container and clear the old list
+            if (statusContainer) {
+                statusContainer.style.display = 'block';
+                statusContainer.innerHTML = `
                     <div class="flex items-center gap-2 px-3 py-1.5 mb-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                         Analyzing Telemetry Bounding Box...
                     </div>
                 `;
             }
+            if (alertsViewport) alertsViewport.innerHTML = ''; // Clear previous results while loading
 
             // 3. Fetch the real-time incidents
             const liveIncidents = await streamLiveTrafficIncidents(routeBounds);
 
-            // 4. Process and render the results into that EXACT same container
-            if (trafficUI) {
+            // 4. DESTROY the loading state so it cannot stack
+            if (statusContainer) {
+                statusContainer.innerHTML = ''; 
+                statusContainer.style.display = 'none'; // Completely collapse the element
+            }
+
+            // --- THE TRANSLATOR: Converts TomTom machine-speak to human English ---
+            const humanizeTrafficDescription = (rawDesc) => {
+                if (!rawDesc) return 'Traffic incident reported';
+                const lowerDesc = rawDesc.toLowerCase();
+                
+                // Prioritize the most critical information first
+                if (lowerDesc.includes('closed')) return 'Road is currently closed';
+                if (lowerDesc.includes('stationary')) return 'Traffic is at a complete standstill';
+                if (lowerDesc.includes('queueing') || lowerDesc.includes('queuing')) return 'Heavy queuing traffic';
+                if (lowerDesc.includes('accident') || lowerDesc.includes('crash')) return 'Accident reported ahead';
+                if (lowerDesc.includes('roadworks') || lowerDesc.includes('construction')) return 'Active roadworks causing delays';
+                if (lowerDesc.includes('slow')) return 'Traffic is moving slowly';
+                
+                // Fallback: capitalize the first letter of whatever TomTom sent
+                return rawDesc.charAt(0).toUpperCase() + rawDesc.slice(1);
+            };
+
+            // 5. Render results into the viewport
+            if (alertsViewport) {
                 const R = 6371; 
                 const dLat = (routeBounds.getNorth() - routeBounds.getSouth()) * (Math.PI / 180);
                 const dLon = (routeBounds.getEast() - routeBounds.getWest()) * (Math.PI / 180);
                 const meanLat = ((routeBounds.getSouth() + routeBounds.getNorth()) / 2) * (Math.PI / 180);
                 const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
 
-                // STATE A: Corridor Too Large
                 if (area > 9500) {
-                    trafficUI.innerHTML = `
+                    alertsViewport.innerHTML = `
                         <div class="w-full p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-start gap-2.5">
                             <span class="text-xs">🗺️</span>
                             <div class="flex flex-col">
-                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide">Corridor Too Large</span>
-                                <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">Live traffic tracking skipped. Zoom in closer to view local delays.</span>
+                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide">Zoom in for live traffic</span>
+                                <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">This area is too wide to scan all at once. Zoom in on the map to load real-time local delays.</span>
                             </div>
                         </div>
                     `;
                 }
-                // STATE B: Clear Roads
                 else if (!liveIncidents || liveIncidents.length === 0) {
-                    trafficUI.innerHTML = `
+                    alertsViewport.innerHTML = `
                         <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
                             <span class="text-xs text-emerald-600">✅</span>
                             <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported on this corridor.</span>
                         </div>
                     `;
                 } 
-                // STATE C: Traffic Incidents Found
                 else {
-                    
-                    // --- SMART FILTERING ALGORITHM ---
-                    
-                    // Step 1: Filter out minor noise (less than 1 min delay unless it's a critical severity)
-                    let significantIncidents = liveIncidents.filter(inc => {
-                        const delay = inc.properties.delay || 0;
-                        const mag = inc.properties.magnitudeOfDelay || 0;
-                        return delay >= 60 || mag >= 2; 
-                    });
-
-                    // Step 2: Sort by the worst delays first
+                    // Filter and sort the top impacts
+                    let significantIncidents = liveIncidents.filter(inc => (inc.properties.delay || 0) >= 60 || (inc.properties.magnitudeOfDelay || 0) >= 2);
                     significantIncidents.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
 
-                    // Step 3: Deduplicate API fragmentation spam
                     let uniqueIncidents = [];
                     let seenDescriptions = new Set();
                     
                     for (let inc of significantIncidents) {
-                        const desc = (inc.properties.events && inc.properties.events.length > 0 && inc.properties.events[0].description) 
+                        const rawDesc = (inc.properties.events && inc.properties.events.length > 0 && inc.properties.events[0].description) 
                             ? inc.properties.events[0].description 
                             : 'Traffic';
                             
-                        // If we haven't seen this description yet, add it. (Since it's sorted, we inherently keep the worst one)
-                        if (!seenDescriptions.has(desc)) {
+                        if (!seenDescriptions.has(rawDesc)) {
                             uniqueIncidents.push(inc);
-                            seenDescriptions.add(desc);
+                            seenDescriptions.add(rawDesc);
                         }
                     }
 
-                    // Step 4: Cap the UI to the Top 4 worst impacts
                     const topIncidents = uniqueIncidents.slice(0, 4);
 
-                    // --- END ALGORITHM ---
-
-                    // Fallback to Clear Roads if the filter stripped out all the noise
                     if (topIncidents.length === 0) {
-                        trafficUI.innerHTML = `
+                        alertsViewport.innerHTML = `
                             <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
                                 <span class="text-xs text-emerald-600">✅</span>
                                 <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Minor delays only. Corridor is mostly clear!</span>
@@ -772,7 +779,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                         return;
                     }
 
-                    // Build the clean HTML cards
+                    // Build the cards using the new Human Translator
                     const incidentsHTML = topIncidents.map(incident => {
                         const props = incident.properties;
                         
@@ -781,11 +788,13 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
 
                         const delayInSeconds = props.delay || 0;
                         const delayMinutes = Math.round(delayInSeconds / 60);
-                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Slow Moving';
+                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
                         
-                        const description = (props.events && props.events.length > 0 && props.events[0].description) 
+                        // Extract raw description and pass it through our translator
+                        const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) 
                             ? props.events[0].description 
-                            : 'Incident reported';
+                            : '';
+                        const humanDescription = humanizeTrafficDescription(rawDesc);
 
                         return `
                             <div class="p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
@@ -794,14 +803,13 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                                 </div>
                                 <div class="flex flex-col flex-1">
                                     <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
-                                    <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">${description}</span>
+                                    <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">${humanDescription}</span>
                                 </div>
                             </div>
                         `;
                     }).join('');
 
-                    // Overwrite the loading state with the final list
-                    trafficUI.innerHTML = `
+                    alertsViewport.innerHTML = `
                         <div class="flex flex-col gap-2 w-full">
                             <div class="flex items-center justify-between px-1 mb-1">
                                 <div class="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
