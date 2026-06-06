@@ -623,18 +623,52 @@ async function fetchAllRouteTraffic(routeCoords) {
 }
 
 // --- 4. FLOATING DASHBOARD UI RENDERER ---
+// --- SMART TRAFFIC HELPERS ---
+function humanizeTrafficDescription(rawDesc) {
+    if (!rawDesc) return "Traffic disruption";
+    const lower = rawDesc.toLowerCase();
+    
+    if (lower.includes('closed') || lower.includes('closure')) return "Road is currently closed";
+    if (lower.includes('stationary') || lower.includes('standstill')) return "Standstill traffic";
+    if (lower.includes('roadworks') || lower.includes('construction')) return "Active roadworks";
+    if (lower.includes('accident') || lower.includes('crash') || lower.includes('collision')) return "Reported accident";
+    
+    return rawDesc.charAt(0).toUpperCase() + rawDesc.slice(1);
+}
+
+function formatIncidentLocation(from, to) {
+    if (from && to && from !== to) return `Between ${from} and ${to}`;
+    if (from) return `Near ${from}`;
+    if (to) return `Near ${to}`;
+    return "Along active route";
+}
+
+function getIncidentSeverity(delay, category) {
+    if (category === 1 || category === 8 || delay > 1200) {
+        return { label: 'CRITICAL', styles: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30' };
+    }
+    if (delay > 600) {
+        return { label: 'MAJOR', styles: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' };
+    }
+    if (delay > 180) {
+        return { label: 'MODERATE', styles: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30' };
+    }
+    return { label: 'MINOR', styles: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30' };
+}
+
+// --- 4. FLOATING DASHBOARD UI RENDERER & SMART FILTER ---
 function renderLiveTrafficDashboard(incidents) {
     const dash = document.getElementById('bottom-traffic-dashboard');
     const statusBadge = document.getElementById('traffic-status-badge');
     const tickerContainer = document.getElementById('dash-metric-delay-ticker');
+    const alertsViewport = document.getElementById('route-alerts-container');
 
-    // Make sure dashboard is visible
     if (dash) {
         dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
         dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
     }
 
-    // Handle Network/Fetch Error
+    // Handle API Offline State
     if (incidents === null) {
         if (statusBadge) {
             statusBadge.textContent = "OFFLINE";
@@ -643,45 +677,98 @@ function renderLiveTrafficDashboard(incidents) {
         if(tickerContainer) {
             tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Traffic telemetry currently unavailable.</div>`;
         }
+        if (alertsViewport) alertsViewport.classList.add('hidden');
         return;
     }
 
-    // Process Valid Incidents
-    const criticalAlerts = incidents.filter(incident => {
-        const delay = incident.properties.events?.[0]?.delay || 0;
-        return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
+    // --- SMART FILTERING ALGORITHM ---
+    let validIncidents = incidents.filter(inc => {
+        const delay = inc.properties.delay || 0;
+        const cat = inc.properties.iconCategory;
+        return delay >= 60 || cat === 1 || cat === 8; // Filter out <60s micro-delays
     });
 
-    if (tickerContainer) tickerContainer.innerHTML = '';
-
-    if (criticalAlerts.length > 0) {
-        let badgeState = "ALERTS";
-        let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+    const uniqueIncidentsMap = new Map();
+    validIncidents.forEach(inc => {
+        const rawDesc = inc.properties.events?.[0]?.description || '';
+        const humanDesc = humanizeTrafficDescription(rawDesc);
+        const delay = inc.properties.delay || 0;
         
-        if (criticalAlerts.length >= 3) {
-            badgeState = "CONGESTED";
-            badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+        if (!uniqueIncidentsMap.has(humanDesc)) {
+            uniqueIncidentsMap.set(humanDesc, inc);
+        } else {
+            const existingDelay = uniqueIncidentsMap.get(humanDesc).properties.delay || 0;
+            if (delay > existingDelay) {
+                uniqueIncidentsMap.set(humanDesc, inc); // Keep the worst iteration of duplicate jams
+            }
         }
+    });
 
+    let processedIncidents = Array.from(uniqueIncidentsMap.values());
+    processedIncidents.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
+    processedIncidents = processedIncidents.slice(0, 10); // Cap at top 10
+
+    // --- UI RENDERING ---
+    if (processedIncidents.length > 0) {
+        let badgeState = processedIncidents.length >= 3 ? "CONGESTED" : "ALERTS";
+        let badgeClasses = processedIncidents.length >= 3 
+            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+            : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+        
         if (statusBadge) {
             statusBadge.textContent = badgeState;
             statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
         }
 
-        const desc = criticalAlerts[0].properties.events?.[0]?.description || 'Traffic disruption';
-        const delaySeconds = criticalAlerts[0].properties.events?.[0]?.delay || 0;
-        const delayMin = Math.round(delaySeconds / 60);
-        
+        const totalDelay = processedIncidents.reduce((sum, inc) => sum + (inc.properties.delay || 0), 0);
+        const delayMin = Math.round(totalDelay / 60);
+
         if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${criticalAlerts.length} Incident(s): ${desc} ${delayMin > 0 ? `(+${delayMin}m)` : ''}</div>`;
+            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${processedIncidents.length} major incidents affecting route (+${delayMin}m total)</div>`;
+        }
+
+        // Render Cards
+        if (alertsViewport) {
+            alertsViewport.classList.remove('hidden');
+            alertsViewport.innerHTML = processedIncidents.map(incident => {
+                const props = incident.properties;
+                const delaySeconds = props.delay || 0;
+                const delayMinutes = Math.round(delaySeconds / 60);
+                
+                const rawDesc = props.events?.[0]?.description || '';
+                const cleanDesc = humanizeTrafficDescription(rawDesc);
+                const locationText = formatIncidentLocation(props.from, props.to);
+                
+                const severity = getIncidentSeverity(delaySeconds, props.iconCategory);
+
+                return `
+                    <div class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-colors">
+                        <div class="flex justify-between items-start w-full gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase shrink-0 ${severity.styles}">
+                                    ${severity.label}
+                                </div>
+                                <h4 class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${cleanDesc}</h4>
+                            </div>
+                            ${delayMinutes > 0 ? `<span class="text-[10px] font-black text-rose-600 dark:text-rose-400 shrink-0">+${delayMinutes}m</span>` : ''}
+                        </div>
+                        <p class="text-[10px] font-medium text-zinc-500 truncate">${locationText}</p>
+                    </div>
+                `;
+            }).join('');
         }
     } else {
+        // Clear State
         if (statusBadge) {
             statusBadge.textContent = "CLEAR";
             statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
         }
         if(tickerContainer) {
             tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
+        }
+        if (alertsViewport) {
+            alertsViewport.innerHTML = '';
+            alertsViewport.classList.add('hidden');
         }
     }
 }
