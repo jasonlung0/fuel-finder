@@ -597,7 +597,8 @@ async function streamLiveTrafficIncidents(bbox) {
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
         // Inside your streamLiveTrafficIncidents function, update this one line:
 
-        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
+        // Add geometry{type,coordinates} to the request!
+        const fieldsTemplate = encodeURIComponent("{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
         
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
@@ -816,8 +817,9 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                     }
                 }
     
-                const topIncidents = uniqueIncidents.slice(0, 4);
-    
+                // 1. INCREASE LIMIT TO 10
+                const topIncidents = uniqueIncidents.slice(0, 10);
+
                 if (topIncidents.length === 0) {
                     alertsViewport.innerHTML = `
                         <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
@@ -827,50 +829,67 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                     `;
                     return;
                 }
-    
+
                 const incidentsHTML = topIncidents.map(incident => {
-                        const props = incident.properties;
-                        
-                        const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
-                        const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
+                    const props = incident.properties;
+                    
+                    const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
+                    const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
 
-                        const delayInSeconds = props.delay || 0;
-                        const delayMinutes = Math.round(delayInSeconds / 60);
-                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
-                        
-                        const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) ? props.events[0].description : '';
-                        const humanDescription = humanizeTrafficDescription(rawDesc);
+                    const delayInSeconds = props.delay || 0;
+                    const delayMinutes = Math.round(delayInSeconds / 60);
+                    const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
+                    
+                    const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) ? props.events[0].description : '';
+                    const humanDescription = humanizeTrafficDescription(rawDesc);
 
-                        // --- NEW: Smart Location Formatter ---
-                        let locationString = '';
-                        if (props.from && props.to && props.from !== props.to) {
-                            locationString = `Between ${props.from} and ${props.to}`;
-                        } else if (props.from || props.to) {
-                            locationString = `Near ${props.from || props.to}`;
-                        } else {
-                            locationString = 'Along route';
+                    let locationString = '';
+                    if (props.from && props.to && props.from !== props.to) {
+                        locationString = `Between ${props.from} and ${props.to}`;
+                    } else if (props.from || props.to) {
+                        locationString = `Near ${props.from || props.to}`;
+                    } else {
+                        locationString = 'Along route';
+                    }
+
+                    // --- NEW: Extract Coordinates for the Map Camera ---
+                    let targetLat = 0;
+                    let targetLng = 0;
+                    if (incident.geometry && incident.geometry.coordinates) {
+                        // TomTom returns Points [lon, lat] or LineStrings [[lon, lat], [lon, lat]]
+                        const coords = incident.geometry.type === 'Point' 
+                            ? incident.geometry.coordinates 
+                            : incident.geometry.coordinates[0]; // Grab the start of the traffic line
+                        
+                        if (coords && coords.length >= 2) {
+                            targetLng = coords[0];
+                            targetLat = coords[1]; // Leaflet expects Lat, Lng
                         }
-                        // --- END NEW ---
+                    }
 
-                        return `
-                            <div class="p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
-                                <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
-                                    ${magnitudeText}
-                                </div>
-                                <div class="flex flex-col flex-1">
-                                    <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
-                                    
-                                    <div class="flex items-start gap-1 mt-0.5 mb-1">
-                                        <span class="text-[10px] mt-[1px]">📍</span>
-                                        <span class="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 leading-tight">${locationString}</span>
-                                    </div>
-                                    
-                                    <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 leading-relaxed">${humanDescription}</span>
-                                </div>
+                    // --- NEW: Added cursor-pointer, hover states, active states, and data-attributes ---
+                    return `
+                        <div data-lat="${targetLat}" data-lng="${targetLng}" class="incident-card cursor-pointer hover:bg-red-100/50 dark:hover:bg-red-900/40 hover:border-red-200 dark:hover:border-red-800 active:scale-[0.98] p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
+                            <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
+                                ${magnitudeText}
                             </div>
-                        `;
-                    }).join('');
-    
+                            <div class="flex flex-col flex-1">
+                                <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
+                                
+                                <div class="flex items-start gap-1 mt-0.5 mb-1">
+                                    <span class="text-[10px] mt-[1px]">📍</span>
+                                    <span class="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 leading-tight">${locationString}</span>
+                                </div>
+                                
+                                <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 leading-relaxed">${humanDescription}</span>
+                            </div>
+                            <div class="flex items-center justify-center h-full opacity-40 hover:opacity-100 transition-opacity">
+                                <span class="text-[10px]">🗺️</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
                 alertsViewport.innerHTML = `
                     <div class="flex flex-col gap-2 w-full">
                         <div class="flex items-center justify-between px-1 mb-1">
@@ -881,6 +900,24 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                         ${incidentsHTML}
                     </div>
                 `;
+
+                // --- NEW: Wire up the click events to the Leaflet Map ---
+                const cards = alertsViewport.querySelectorAll('.incident-card');
+                cards.forEach(card => {
+                    card.addEventListener('click', () => {
+                        const lat = parseFloat(card.getAttribute('data-lat'));
+                        const lng = parseFloat(card.getAttribute('data-lng'));
+                        
+                        // If we successfully extracted coordinates, fly the camera there!
+                        if (lat && lng && lat !== 0) {
+                            // 15 is a great zoom level for viewing an intersection/street
+                            map.flyTo([lat, lng], 15, {
+                                animate: true,
+                                duration: 1.5 // 1.5 seconds of smooth panning
+                            });
+                        }
+                    });
+                });
             }
         }
     }
