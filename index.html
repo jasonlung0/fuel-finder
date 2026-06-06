@@ -180,10 +180,10 @@
                     <div class="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/60 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-950/50">
                         <div class="flex items-center gap-2">
                             <span class="text-xs">📊</span>
-                            <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Route Insights</h3>
+                            <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Traffic Insights</h3>
                         </div>
                     </div>
-
+                
                     <div class="grid grid-cols-2 divide-x divide-y divide-zinc-200/50 dark:divide-zinc-800/60 tabular-nums border-b border-zinc-200/50 dark:border-zinc-800/60">
                         <div class="p-3 space-y-1">
                             <span class="block text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Distance</span>
@@ -198,7 +198,12 @@
                     <div class="p-3 bg-white/40 dark:bg-black/20">
                         <div class="flex items-center justify-between mb-2">
                             <h4 class="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Live Incidents</h4>
-                            <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                            <span id="traffic-status-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                        </div>
+                        
+                        <div id="traffic-loading-pill" style="display: none;" class="flex items-center gap-2 px-3 py-1.5 mb-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse w-fit">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            Scanning live satellite telemetry...
                         </div>
                         
                         <div id="traffic-alerts-viewport" class="relative w-full max-h-32 overflow-y-auto overscroll-contain scroll-smooth rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" tabindex="0" aria-live="polite" aria-atomic="true">
