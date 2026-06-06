@@ -75,8 +75,9 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1 tabular-nums"></div>
     </div>
 
-    <div id="bottom-traffic-dashboard" class="absolute bottom-[150px] md:bottom-10 left-1/2 -translate-x-1/2 z-[3000] w-[calc(100%-32px)] md:w-[600px] transition-all duration-500 translate-y-10 opacity-0 pointer-events-none flex flex-col gap-3">
-        <div class="bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto">
+    <div id="bottom-traffic-dashboard" class="absolute bottom-[150px] md:bottom-10 md:left-[410px] left-4 right-4 md:right-auto z-[3000] md:w-[500px] transition-all duration-500 translate-y-10 opacity-0 pointer-events-none flex flex-col gap-3">
+        <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto">
+            
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="flex h-3 w-3 relative">
@@ -85,28 +86,30 @@
                     </span>
                     <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Route Telemetry</h3>
                 </div>
-                <div class="flex gap-4">
-                    <div class="text-right">
-                        <span class="block text-[9px] font-bold text-zinc-500 uppercase">Distance</span>
-                        <span id="dash-metric-distance" class="text-sm font-black text-zinc-900 dark:text-white tabular-nums">--</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="block text-[9px] font-bold text-emerald-600 uppercase">Cost</span>
-                        <span id="summary-cost" class="text-sm font-black text-emerald-600 tabular-nums">--</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="h-px w-full bg-zinc-200/50 dark:bg-zinc-800/50"></div>
-            
-            <div class="flex items-center justify-between">
                 <span id="traffic-status-badge" class="px-2 py-1 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
-                <div id="dash-metric-delay-ticker" class="flex-1 ml-4 overflow-hidden h-6 relative">
-                    <div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Awaiting route...</div>
-                </div>
             </div>
 
-            <div id="route-alerts-container" class="mt-1 flex flex-col gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1 hidden border-t border-zinc-200/50 dark:border-zinc-800/50 pt-3"></div>
+            <div class="grid grid-cols-3 gap-2 p-2.5 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
+                <div>
+                    <span class="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Journey</span>
+                    <span id="dash-metric-time" class="text-xs font-black text-zinc-900 dark:text-white block">--</span>
+                    <span id="dash-metric-distance" class="text-[10px] font-semibold text-zinc-500">--</span>
+                </div>
+                <div>
+                    <span class="block text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Fuel Est.</span>
+                    <span id="dash-metric-litres" class="text-xs font-black text-zinc-900 dark:text-white block">--</span>
+                </div>
+                <div>
+                    <span class="block text-[9px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Trip Cost</span>
+                    <span id="summary-cost" class="text-sm font-black text-emerald-600 block tabular-nums">--</span>
+                </div>
+            </div>
+            
+            <div id="dash-metric-delay-ticker" class="w-full overflow-hidden h-6 relative bg-zinc-100 dark:bg-zinc-800/50 rounded-md px-2">
+                <div class="absolute inset-0 flex items-center px-2 text-[11px] font-medium text-zinc-500 truncate tracking-tight">Awaiting route...</div>
+            </div>
+
+            <div id="route-alerts-container" class="mt-1 flex flex-col gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1 hidden"></div>
         </div>
     </div>
 
