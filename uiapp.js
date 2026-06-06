@@ -608,21 +608,21 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         const endInput = forcedEnd || endElement?.value || "";
         
         if (!startInput || !endInput) {
-            alert("Please enter both a start point and an end point.");
+            Toast.show("Please enter both a start point and an end point.", "warning");
             return;
         }
         
         const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
         const startNodes = await startRes.json();
         if (!startNodes.length) {
-            alert("Could not find coordinates for the start point.");
+            Toast.show("Could not find coordinates for the start point.", "error");
             return;
         }
         
         const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
         const endNodes = await endRes.json();
         if (!endNodes.length) {
-            alert("Could not find coordinates for the end point.");
+            Toast.show("Could not find coordinates for the end point.", "error");
             return;
         }
         
@@ -895,7 +895,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
     } catch (err) {
         console.error("Pipeline Engine Broken:", err);
-        alert(`Failed to trace route: ${err.message}`);
+        Toast.show(`Failed to trace route: ${err.message}`, "error");
     }
 }
 
@@ -1001,7 +1001,7 @@ function saveActiveRouteCorridor() {
     if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
     
     if (window.innerWidth < 768) setMobileSidebarState('peek');
-    alert("Corridor routing configuration securely saved.");
+    Toast.show("Your route is successfully saved.", "success");
 }
 
 function deleteSavedRouteCorridor(routeId, event) {
