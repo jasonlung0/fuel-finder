@@ -608,21 +608,21 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         const endInput = forcedEnd || endElement?.value || "";
         
         if (!startInput || !endInput) {
-            Toast.show("Please enter both a start point and an end point.", "warning");
+            Toast.show("Choose a start point and a destination.", "warning");
             return;
         }
         
         const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
         const startNodes = await startRes.json();
         if (!startNodes.length) {
-            Toast.show("Could not find coordinates for the start point.", "error");
+            Toast.show("Starting location not found. Try a different address or postcode.", "error");
             return;
         }
         
         const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
         const endNodes = await endRes.json();
         if (!endNodes.length) {
-            Toast.show("Could not find coordinates for the end point.", "error");
+            Toast.show("Destination not found. Try a different address or postcode.", "error");
             return;
         }
         
@@ -895,7 +895,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
     } catch (err) {
         console.error("Pipeline Engine Broken:", err);
-        Toast.show(`Failed to trace route: ${err.message}`, "error");
+        Toast.show(`We couldn't map this route: ${err.message}`, "error");
     }
 }
 
@@ -1001,7 +1001,7 @@ function saveActiveRouteCorridor() {
     if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
     
     if (window.innerWidth < 768) setMobileSidebarState('peek');
-    Toast.show("Your route is successfully saved.", "success");
+    Toast.show("Route saved successfully.", "success");
 }
 
 function deleteSavedRouteCorridor(routeId, event) {
