@@ -577,7 +577,8 @@ async function fetchTrafficChunk(bbox) {
         const formattedMaxLat = Number(bbox[3]).toFixed(6);
 
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
-        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,events{description}}}}");
+        // Change this line inside fetchTrafficChunk:
+        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
         
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
