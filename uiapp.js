@@ -753,12 +753,16 @@ function renderLiveTrafficDashboard(incidents) {
                 const severity = getIncidentSeverity(delaySeconds, props.iconCategory);
 
                 // Extract exact coordinates from the new API geometry field
+                // Extract coordinates safely handling both Point and LineString GeoJSON
                 let incidentLat = 0, incidentLng = 0;
-                if (incident.geometry && incident.geometry.coordinates && incident.geometry.coordinates.length > 0) {
-                    // TomTom returns coordinates as [longitude, latitude] arrays
-                    const coords = incident.geometry.coordinates[0];
-                    incidentLng = coords[0];
-                    incidentLat = coords[1];
+                if (incident.geometry && incident.geometry.coordinates) {
+                    const coords = incident.geometry.coordinates;
+                    // If it's a line, grab the start of the traffic jam. If it's a point, grab the point.
+                    const firstPoint = incident.geometry.type === 'LineString' ? coords[0] : coords;
+                    
+                    // GeoJSON is ALWAYS [Longitude, Latitude]. Leaflet is ALWAYS [Latitude, Longitude].
+                    incidentLng = firstPoint[0];
+                    incidentLat = firstPoint[1];
                 }
 
                 // Added cursor-pointer, hover transitions, and the onclick event handler
