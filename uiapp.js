@@ -509,79 +509,103 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
+
+// --- 1. ROUTE CHUNKER: Slices massive routes into safe API-sized bounding boxes ---
+function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
+    if (!coords || coords.length === 0) return [];
+
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    for (const pt of coords) {
+        if (pt[0] < minLat) minLat = pt[0];
+        if (pt[0] > maxLat) maxLat = pt[0];
+        if (pt[1] < minLon) minLon = pt[1];
+        if (pt[1] > maxLon) maxLon = pt[1];
+    }
+
+    // Add a tiny 1km buffer so incidents just off the road edge aren't missed
+    minLat -= 0.01; maxLat += 0.01;
+    minLon -= 0.01; maxLon += 0.01;
+
+    const R = 6371;
+    const dLat = (maxLat - minLat) * (Math.PI / 180);
+    const dLon = (maxLon - minLon) * (Math.PI / 180);
+    const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
+    const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
+
+    // If the box is a safe size, return it
+    if (area <= maxArea) {
+        return [[minLon, minLat, maxLon, maxLat]];
+    }
+
+    // If it's too big, split the route points in half and check again
+    const mid = Math.floor(coords.length / 2);
+    // Overlap the slices slightly to ensure no gaps in traffic coverage
+    const firstHalf = coords.slice(0, mid + 1);
+    const secondHalf = coords.slice(mid);
+
+    return [
+        ...generateTrafficBoundingBoxes(firstHalf, maxArea),
+        ...generateTrafficBoundingBoxes(secondHalf, maxArea)
+    ];
+}
+
+// --- 2. THE MASTER MATCHER: Fetches and merges all chunks ---
+async function fetchAllRouteTraffic(routeCoords) {
+    if (!routeCoords || routeCoords.length === 0) return [];
+    
+    const bboxes = generateTrafficBoundingBoxes(routeCoords, 8500);
+    console.log(`Route chunked into ${bboxes.length} bounding boxes for traffic scanning.`);
+
+    // Failsafe: Prevent API rate limiting if someone routes to the other side of the planet
+    if (bboxes.length > 20) bboxes.length = 20;
+
+    try {
+        // Fetch all chunks simultaneously for max speed
+        const requests = bboxes.map(bbox => streamLiveTrafficIncidents(bbox));
+        const results = await Promise.all(requests);
+        
+        // Flatten the arrays and deduplicate using TomTom's unique incident IDs
+        const allIncidents = results.flat();
+        const uniqueIncidents = [];
+        const seenIds = new Set();
+        
+        for (const incident of allIncidents) {
+            if (incident && incident.properties && incident.properties.id) {
+                if (!seenIds.has(incident.properties.id)) {
+                    seenIds.add(incident.properties.id);
+                    uniqueIncidents.push(incident);
+                }
+            }
+        }
+        return uniqueIncidents;
+    } catch (e) {
+        console.error("Multi-chunk traffic fetch failed:", e);
+        return [];
+    }
+}
+
 // -------------------------------------------------------------
 // Live Traffic Incident Polling & Stacking Pipeline
 // -------------------------------------------------------------
 async function streamLiveTrafficIncidents(bbox) {
     try {
-        let minLon, minLat, maxLon, maxLat;
-
-        // 1. Extract coordinates based on incoming types
-        if (bbox && typeof bbox.getWest === 'function') {
-            minLon = bbox.getWest();
-            minLat = bbox.getSouth();
-            maxLon = bbox.getEast();
-            maxLat = bbox.getNorth();
-        } else if (Array.isArray(bbox) && bbox.length === 4) {
-            minLon = bbox[0];
-            minLat = bbox[1];
-            maxLon = bbox[2];
-            maxLat = bbox[3];
-        } else if (typeof map !== 'undefined' && map) {
-            const currentBounds = map.getBounds();
-            minLon = currentBounds.getWest();
-            minLat = currentBounds.getSouth();
-            maxLon = currentBounds.getEast();
-            maxLat = currentBounds.getNorth();
-        } else {
-            return [];
-        }
-
-        // 2. Geofence Check (Pre-calculated area verification)
-        const R = 6371; 
-        const dLat = (maxLat - minLat) * (Math.PI / 180);
-        const dLon = (maxLon - minLon) * (Math.PI / 180);
-        const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
-        const width = R * Math.abs(dLon) * Math.cos(meanLat);
-        const height = R * Math.abs(dLat);
-        const area = width * height;
-
-        if (area > 9500) {
-            console.warn(`🚦 Traffic skipped: Route area (${Math.round(area)} km²) exceeds TomTom limit.`);
-            return []; 
-        }
-
-        // 3. Cleanly format and truncate coordinates to exactly 6 decimal places 
-        const formattedMinLon = Number(minLon).toFixed(6);
-        const formattedMinLat = Number(minLat).toFixed(6);
-        const formattedMaxLon = Number(maxLon).toFixed(6);
-        const formattedMaxLat = Number(maxLat).toFixed(6);
+        const formattedMinLon = Number(bbox[0]).toFixed(6);
+        const formattedMinLat = Number(bbox[1]).toFixed(6);
+        const formattedMaxLon = Number(bbox[2]).toFixed(6);
+        const formattedMaxLat = Number(bbox[3]).toFixed(6);
 
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
-        
-        // 4. FIX: Correct the schema fields to match TomTom V5 exact parameter requirements
         const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,events{description}}}}");
         
-        // 5. FIX: Added t=-1 to explicitly request the latest real-time traffic model 
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
-        console.log("Streaming real-time incident data from endpoint:", targetApiEndpoint);
-
         const networkResponse = await fetch(targetApiEndpoint);
-        
-        if (!networkResponse.ok) {
-            throw new Error(`Traffic API unreachable with status code: ${networkResponse.status}`);
-        }
+        if (!networkResponse.ok) return [];
 
         const payload = await networkResponse.json();
-        
-        if (payload && payload.incidents) {
-            return payload.incidents;
-        }
-
-        return [];
+        return (payload && payload.incidents) ? payload.incidents : [];
     } catch (apiError) {
-        console.error("Traffic incident streaming failed:", apiError);
+        console.error("Traffic fetch error:", apiError);
         return []; 
     }
 }
