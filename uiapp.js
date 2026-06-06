@@ -679,47 +679,88 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             const routeBounds = routePolylineLayer.getBounds();
             map.fitBounds(routeBounds);
             
-            // 1. Await the traffic data and capture the result
+            // 1. Get the UI status container pill
+            const trafficStatusContainer = document.getElementById('traffic-status-container');
+            
+            if (trafficStatusContainer) {
+                trafficStatusContainer.innerHTML = `
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        Analyzing Telemetry Bounding Box...
+                    </div>
+                `;
+            }
+
+            // 2. Fetch the incidents
             const liveIncidents = await streamLiveTrafficIncidents(routeBounds);
 
-            // 2. Locate your UI container
-            const trafficViewport = document.getElementById('traffic-alerts-viewport'); 
+            if (trafficStatusContainer) {
+                // STATE A: Route was too large to fetch data
+                // We pass an explicit check or look if the function returned an empty array due to size limits
+                const R = 6371; 
+                const dLat = (routeBounds.getNorth() - routeBounds.getSouth()) * (Math.PI / 180);
+                const dLon = (routeBounds.getEast() - routeBounds.getWest()) * (Math.PI / 180);
+                const meanLat = ((routeBounds.getSouth() + routeBounds.getNorth()) / 2) * (Math.PI / 180);
+                const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
 
-            if (trafficViewport) {
-                // 3. Handle the "No Traffic" state (Empty Array)
-                if (!liveIncidents || liveIncidents.length === 0) {
-                    trafficViewport.innerHTML = `
-                        <div class="flex items-center justify-center p-4 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/50">
-                            <span class="text-lg mr-2">✅</span>
-                            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported.</span>
+                if (area > 9500) {
+                    trafficStatusContainer.innerHTML = `
+                        <div class="w-full p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-start gap-2.5">
+                            <span class="text-xs">🗺️</span>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide">Corridor Too Large</span>
+                                <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">Live traffic tracking skipped. Zoom in closer to view local delays.</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                // STATE B: Clear Roads (No incidents found)
+                else if (!liveIncidents || liveIncidents.length === 0) {
+                    trafficStatusContainer.innerHTML = `
+                        <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
+                            <span class="text-xs text-emerald-600">✅</span>
+                            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported on this corridor.</span>
                         </div>
                     `;
                 } 
-                // 4. Handle the "Traffic Found" state
+                // STATE C: Incidents Reported
                 else {
                     const incidentsHTML = liveIncidents.map(incident => {
                         const props = incident.properties;
                         
+                        // Parse magnitude to give clarity instead of timestamps
+                        const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
+                        const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
+
                         const delayInSeconds = props.delay || 0;
                         const delayMinutes = Math.round(delayInSeconds / 60);
-                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Slow traffic';
+                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Slow Moving';
                         
                         const description = (props.events && props.events.length > 0 && props.events[0].description) 
                             ? props.events[0].description 
-                            : 'Traffic incident reported';
+                            : 'Incident reported';
 
                         return `
-                            <div class="p-3 mb-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/50 rounded-lg flex items-start gap-3 shadow-sm">
-                                <span class="text-red-500 mt-0.5">⚠️</span>
-                                <div class="flex flex-col">
-                                    <span class="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">${delayString}</span>
-                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mt-0.5">${description}</span>
+                            <div class="p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
+                                <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
+                                    ${magnitudeText}
+                                </div>
+                                <div class="flex flex-col flex-1">
+                                    <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
+                                    <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">${description}</span>
                                 </div>
                             </div>
                         `;
-                    }).join(''); 
+                    }).join('');
 
-                    trafficViewport.innerHTML = `<div class="flex flex-col gap-1">${incidentsHTML}</div>`;
+                    trafficStatusContainer.innerHTML = `
+                        <div class="flex flex-col gap-2 w-full">
+                            <div class="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 mb-1">
+                                active telemetry impacts (${liveIncidents.length})
+                            </div>
+                            ${incidentsHTML}
+                        </div>
+                    `;
                 }
             }
         }
