@@ -97,6 +97,18 @@ if (map) {
     });
 }
 
+// --- INTERACTIVE MAP CAMERA FUNCTION ---
+window.focusIncidentMapView = function(lat, lng) {
+    if (map) {
+        // Fly to the exact incident coordinate at a zoom level of 16 (street level)
+        map.flyTo([lat, lng], 16, {
+            animate: true,
+            duration: 1.5,
+            easeLinearity: 0.25
+        });
+    }
+};
+
 // --- GLOBAL TOAST NOTIFICATION ENGINE ---
 const Toast = {
     container: null,
@@ -577,8 +589,8 @@ async function fetchTrafficChunk(bbox) {
         const formattedMaxLat = Number(bbox[3]).toFixed(6);
 
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
-        // Change this line inside fetchTrafficChunk:
-        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
+        // We added 'geometry{type,coordinates}' to explicitly request the map points
+        const fieldsTemplate = encodeURIComponent("{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
         
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
@@ -738,11 +750,21 @@ function renderLiveTrafficDashboard(incidents) {
                 const rawDesc = props.events?.[0]?.description || '';
                 const cleanDesc = humanizeTrafficDescription(rawDesc);
                 const locationText = formatIncidentLocation(props.from, props.to);
-                
                 const severity = getIncidentSeverity(delaySeconds, props.iconCategory);
 
+                // Extract exact coordinates from the new API geometry field
+                let incidentLat = 0, incidentLng = 0;
+                if (incident.geometry && incident.geometry.coordinates && incident.geometry.coordinates.length > 0) {
+                    // TomTom returns coordinates as [longitude, latitude] arrays
+                    const coords = incident.geometry.coordinates[0];
+                    incidentLng = coords[0];
+                    incidentLat = coords[1];
+                }
+
+                // Added cursor-pointer, hover transitions, and the onclick event handler
                 return `
-                    <div class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-colors">
+                    <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
+                         class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-all cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.98]">
                         <div class="flex justify-between items-start w-full gap-2">
                             <div class="flex items-center gap-2 min-w-0">
                                 <div class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase shrink-0 ${severity.styles}">
@@ -935,9 +957,43 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }(routePolylineLayer.getBounds());
         }
         
-        const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
-        const distanceMetric = document.getElementById('dash-metric-distance');
-        if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
+        // --- 4. UPDATE GRANULAR DASHBOARD METRICS ---
+        
+        // A. Calculate Time
+        const travelTimeSeconds = currentActiveRoute.summary.travelTimeInSeconds || 0;
+        const hours = Math.floor(travelTimeSeconds / 3600);
+        const minutes = Math.floor((travelTimeSeconds % 3600) / 60);
+        const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+
+        // B. Calculate Fuel (Litres)
+        // userMpg is already defined earlier in this function
+        const expectedLitres = (globalRouteDistanceMiles / userMpg) * 4.54609;
+
+        // C. Calculate Estimated Trip Cost
+        // We will grab the average price of the currently visible stations to give a highly accurate estimate
+        const activeFuelType = document.getElementById('fuel-type')?.value || 'E10';
+        let averageFuelPricePence = 145.0; // Fallback UK average
+        
+        if (currentlyVisibleStations && currentlyVisibleStations.length > 0) {
+            const prices = currentlyVisibleStations.map(s => parseFloat(s[activeFuelType])).filter(p => !isNaN(p) && p > 0);
+            if (prices.length > 0) {
+                averageFuelPricePence = prices.reduce((a, b) => a + b, 0) / prices.length;
+            }
+        }
+        const tripCost = expectedLitres * (averageFuelPricePence / 100);
+
+        // D. Inject everything into the UI
+        document.getElementById('dash-metric-distance').innerText = `${globalRouteDistanceMiles.toFixed(1)} mi`;
+        
+        const timeEl = document.getElementById('dash-metric-time');
+        if (timeEl) timeEl.innerText = timeString;
+        
+        const litresEl = document.getElementById('dash-metric-litres');
+        if (litresEl) litresEl.innerText = `${expectedLitres.toFixed(1)} L`;
+        
+        const costEl = document.getElementById('summary-cost');
+        if (costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
+        // --------------------------------------------
         
         executeStationDataFilteringPipeline();
         
