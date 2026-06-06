@@ -533,85 +533,154 @@ async function executeAddressGeocodeLookup() {
 // -------------------------------------------------------------
 // Live Traffic Incident Polling & Stacking Pipeline
 // -------------------------------------------------------------
-async function streamLiveTrafficIncidents(routeBounds) {
+// --- 1. ROUTE CHUNKER: Slices massive routes into safe API-sized bounding boxes ---
+function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
+    if (!coords || coords.length === 0) return [];
+
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    for (const pt of coords) {
+        if (pt[0] < minLat) minLat = pt[0];
+        if (pt[0] > maxLat) maxLat = pt[0];
+        if (pt[1] < minLon) minLon = pt[1];
+        if (pt[1] > maxLon) maxLon = pt[1];
+    }
+
+    minLat -= 0.01; maxLat += 0.01;
+    minLon -= 0.01; maxLon += 0.01;
+
+    const R = 6371;
+    const dLat = (maxLat - minLat) * (Math.PI / 180);
+    const dLon = (maxLon - minLon) * (Math.PI / 180);
+    const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
+    const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
+
+    if (area <= maxArea) {
+        return [[minLon, minLat, maxLon, maxLat]];
+    }
+
+    const mid = Math.floor(coords.length / 2);
+    const firstHalf = coords.slice(0, mid + 1);
+    const secondHalf = coords.slice(mid);
+
+    return [
+        ...generateTrafficBoundingBoxes(firstHalf, maxArea),
+        ...generateTrafficBoundingBoxes(secondHalf, maxArea)
+    ];
+}
+
+// --- 2. THE CHUNK FETCHER: Hits TomTom for a single safe bounding box ---
+async function fetchTrafficChunk(bbox) {
+    try {
+        const formattedMinLon = Number(bbox[0]).toFixed(6);
+        const formattedMinLat = Number(bbox[1]).toFixed(6);
+        const formattedMaxLon = Number(bbox[2]).toFixed(6);
+        const formattedMaxLat = Number(bbox[3]).toFixed(6);
+
+        const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
+        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,events{description}}}}");
+        
+        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
+
+        const networkResponse = await fetch(targetApiEndpoint);
+        if (!networkResponse.ok) return [];
+
+        const payload = await networkResponse.json();
+        return (payload && payload.incidents) ? payload.incidents : [];
+    } catch (apiError) {
+        return []; 
+    }
+}
+
+// --- 3. THE MASTER MATCHER: Fetches, Merges, and Deduplicates ---
+async function fetchAllRouteTraffic(routeCoords) {
+    if (!routeCoords || routeCoords.length === 0) return null;
+    
+    const bboxes = generateTrafficBoundingBoxes(routeCoords, 8500);
+    if (bboxes.length > 20) bboxes.length = 20; // Failsafe cap
+
+    try {
+        const requests = bboxes.map(bbox => fetchTrafficChunk(bbox));
+        const results = await Promise.all(requests);
+        
+        const allIncidents = results.flat();
+        const uniqueIncidents = [];
+        const seenIds = new Set();
+        
+        for (const incident of allIncidents) {
+            if (incident && incident.properties && incident.properties.id) {
+                if (!seenIds.has(incident.properties.id)) {
+                    seenIds.add(incident.properties.id);
+                    uniqueIncidents.push(incident);
+                }
+            }
+        }
+        return uniqueIncidents;
+    } catch (e) {
+        console.error("Multi-chunk traffic fetch failed:", e);
+        return null; // Return null to indicate a hard error state for the UI
+    }
+}
+
+// --- 4. FLOATING DASHBOARD UI RENDERER ---
+function renderLiveTrafficDashboard(incidents) {
     const dash = document.getElementById('bottom-traffic-dashboard');
     const statusBadge = document.getElementById('traffic-status-badge');
     const tickerContainer = document.getElementById('dash-metric-delay-ticker');
-    
-    // Show Dashboard
+
+    // Make sure dashboard is visible
     if (dash) {
         dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
         dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
     }
-    
-    if (statusBadge) {
-        statusBadge.textContent = "SCANNING...";
-        statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
-    }
 
-    try {
-        const minLon = routeBounds.getWest().toFixed(5);
-        const minLat = routeBounds.getSouth().toFixed(5);
-        const maxLon = routeBounds.getEast().toFixed(5);
-        const maxLat = routeBounds.getNorth().toFixed(5);
-        const currentBbox = `${minLon},${minLat},${maxLon},${maxLat}`;
-
-        // URL encode the fields payload properly to avoid 400 Bad Request
-        const fieldsParam = encodeURIComponent('{incidents{properties{iconCategory,events{description,delay}}}}');
-        const trafficUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${currentBbox}&fields=${fieldsParam}&language=en-GB`;
-        
-        const response = await fetch(trafficUrl);
-        if (!response.ok) throw new Error("Traffic API unreachable");
-        
-        const data = await response.json();
-        const incidents = data.incidents || [];
-
-        const criticalAlerts = incidents.filter(incident => {
-            const delay = incident.properties.events[0]?.delay || 0;
-            return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
-        });
-
-        if (tickerContainer) tickerContainer.innerHTML = '';
-
-        if (criticalAlerts.length > 0) {
-            let badgeState = "ALERTS";
-            let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-            
-            if (criticalAlerts.length >= 3) {
-                badgeState = "CONGESTED";
-                badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
-            }
-
-            if (statusBadge) {
-                statusBadge.textContent = badgeState;
-                statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
-            }
-
-            const desc = criticalAlerts[0].properties.events[0]?.description || 'Traffic disruption';
-            const delaySeconds = criticalAlerts[0].properties.events[0]?.delay || 0;
-            const delayMin = Math.round(delaySeconds / 60);
-            
-            if(tickerContainer) {
-                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${criticalAlerts.length} Incident(s): ${desc} ${delayMin > 0 ? `(+${delayMin}m)` : ''}</div>`;
-            }
-
-        } else {
-            if (statusBadge) {
-                statusBadge.textContent = "CLEAR";
-                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
-            }
-            if(tickerContainer) {
-                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
-            }
-        }
-    } catch (err) {
-        console.warn("Traffic incident streaming failed:", err);
+    // Handle Network/Fetch Error
+    if (incidents === null) {
         if (statusBadge) {
             statusBadge.textContent = "OFFLINE";
             statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
         }
         if(tickerContainer) {
             tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Traffic telemetry currently unavailable.</div>`;
+        }
+        return;
+    }
+
+    // Process Valid Incidents
+    const criticalAlerts = incidents.filter(incident => {
+        const delay = incident.properties.events?.[0]?.delay || 0;
+        return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
+    });
+
+    if (tickerContainer) tickerContainer.innerHTML = '';
+
+    if (criticalAlerts.length > 0) {
+        let badgeState = "ALERTS";
+        let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+        
+        if (criticalAlerts.length >= 3) {
+            badgeState = "CONGESTED";
+            badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+        }
+
+        if (statusBadge) {
+            statusBadge.textContent = badgeState;
+            statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
+        }
+
+        const desc = criticalAlerts[0].properties.events?.[0]?.description || 'Traffic disruption';
+        const delaySeconds = criticalAlerts[0].properties.events?.[0]?.delay || 0;
+        const delayMin = Math.round(delaySeconds / 60);
+        
+        if(tickerContainer) {
+            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${criticalAlerts.length} Incident(s): ${desc} ${delayMin > 0 ? `(+${delayMin}m)` : ''}</div>`;
+        }
+    } else {
+        if (statusBadge) {
+            statusBadge.textContent = "CLEAR";
+            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
+        }
+        if(tickerContainer) {
+            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
         }
     }
 }
@@ -752,7 +821,30 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
         if (plottedRouteCoordinates.length > 0) {
             map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
-            streamLiveTrafficIncidents(routePolylineLayer.getBounds());
+            if (plottedRouteCoordinates.length > 0) {
+            map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
+            
+            // Set Loading UI state immediately
+            const dash = document.getElementById('bottom-traffic-dashboard');
+            const statusBadge = document.getElementById('traffic-status-badge');
+            const tickerContainer = document.getElementById('dash-metric-delay-ticker');
+            
+            if (dash) {
+                dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+                dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+            }
+            if (statusBadge) {
+                statusBadge.textContent = "SCANNING...";
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
+            }
+            if(tickerContainer) {
+                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Scanning route chunks for live telemetry...</div>`;
+            }
+
+            // Fire the chunker!
+            const stitchedIncidents = await fetchAllRouteTraffic(plottedRouteCoordinates);
+            renderLiveTrafficDashboard(stitchedIncidents);
+        }(routePolylineLayer.getBounds());
         }
         
         const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
@@ -1343,6 +1435,9 @@ function openForecourtDetailSheet(stationData) {
 
     updateAllStarUIStates();
 
+    // Fix: Make sure it's un-hidden before applying mobile transforms
+    sheet.classList.remove('hidden');
+
     if (window.innerWidth < 768) {
         setMobileSheetUIState('full'); 
     } else {
@@ -1353,11 +1448,14 @@ function openForecourtDetailSheet(stationData) {
 function closeForecourtDetailSheet(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+
     if (window.innerWidth < 768) {
         setMobileSheetUIState('hidden');
     } else {
-        const sheet = document.getElementById('global-detail-sheet');
-        if (sheet) sheet.classList.add('drawer-hidden');
+        // Fix: Use standard Tailwind hiding for desktop
+        sheet.classList.add('hidden');
     }
     activeSheetStation = null;
 }
