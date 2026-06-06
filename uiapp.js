@@ -595,7 +595,9 @@ async function streamLiveTrafficIncidents(bbox) {
         const formattedMaxLat = Number(bbox[3]).toFixed(6);
 
         const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
-        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,events{description}}}}");
+        // Inside your streamLiveTrafficIncidents function, update this one line:
+
+        const fieldsTemplate = encodeURIComponent("{incidents{properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
         
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
 
@@ -827,28 +829,47 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                 }
     
                 const incidentsHTML = topIncidents.map(incident => {
-                    const props = incident.properties;
-                    const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
-                    const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
-                    const delayInSeconds = props.delay || 0;
-                    const delayMinutes = Math.round(delayInSeconds / 60);
-                    const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
-                    
-                    const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) ? props.events[0].description : '';
-                    const humanDescription = humanizeTrafficDescription(rawDesc);
-    
-                    return `
-                        <div class="p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
-                            <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
-                                ${magnitudeText}
+                        const props = incident.properties;
+                        
+                        const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
+                        const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
+
+                        const delayInSeconds = props.delay || 0;
+                        const delayMinutes = Math.round(delayInSeconds / 60);
+                        const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
+                        
+                        const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) ? props.events[0].description : '';
+                        const humanDescription = humanizeTrafficDescription(rawDesc);
+
+                        // --- NEW: Smart Location Formatter ---
+                        let locationString = '';
+                        if (props.from && props.to && props.from !== props.to) {
+                            locationString = `Between ${props.from} and ${props.to}`;
+                        } else if (props.from || props.to) {
+                            locationString = `Near ${props.from || props.to}`;
+                        } else {
+                            locationString = 'Along route';
+                        }
+                        // --- END NEW ---
+
+                        return `
+                            <div class="p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
+                                <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
+                                    ${magnitudeText}
+                                </div>
+                                <div class="flex flex-col flex-1">
+                                    <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
+                                    
+                                    <div class="flex items-start gap-1 mt-0.5 mb-1">
+                                        <span class="text-[10px] mt-[1px]">📍</span>
+                                        <span class="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 leading-tight">${locationString}</span>
+                                    </div>
+                                    
+                                    <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 leading-relaxed">${humanDescription}</span>
+                                </div>
                             </div>
-                            <div class="flex flex-col flex-1">
-                                <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
-                                <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 mt-0.5 leading-relaxed">${humanDescription}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
+                        `;
+                    }).join('');
     
                 alertsViewport.innerHTML = `
                     <div class="flex flex-col gap-2 w-full">
