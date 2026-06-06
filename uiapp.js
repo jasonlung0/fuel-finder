@@ -2,7 +2,6 @@
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 
 // Tailwind Design Tokens & Safelist Configuration Layer
-// THIS FIXES THE MARKER COLORS BEING PURGED
 if (window.tailwind) {
     window.tailwind.config = {
         darkMode: 'class',
@@ -70,6 +69,9 @@ let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
 let scanAreaTimeout = null;
 
+const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
+const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+
 // --- GLOBAL TOAST NOTIFICATION ENGINE ---
 const Toast = {
     container: null,
@@ -83,7 +85,6 @@ const Toast = {
     show(message, type = 'info') {
         this.init();
         
-        // High quality SVG icons based on status type
         const icons = {
             success: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
             error: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
@@ -101,14 +102,12 @@ const Toast = {
 
         this.container.appendChild(toast);
 
-        // Animate the toast in
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 toast.classList.add('show');
             });
         });
 
-        // Automatically remove the toast after 3.5 seconds
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
@@ -116,8 +115,11 @@ const Toast = {
     }
 };
 
-const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
-const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+function toggleDesktopSidebar(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sidebar = document.getElementById('primary-control-sidebar');
+    sidebar.classList.toggle('desktop-collapsed');
+}
 
 function toggleSystemColorModeTheme(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
@@ -338,14 +340,12 @@ function switchWorkflowTabContext(contextType) {
     const btnRoute = document.getElementById('tab-btn-route');
     const panelLocal = document.getElementById('panel-tab-local');
     const panelRoute = document.getElementById('panel-tab-route');
-    const weatherModule = document.getElementById('route-weather-module');
 
     if (contextType === 'local') {
         btnLocal.className = "py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
         btnRoute.className = "py-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-600";
         panelLocal.classList.remove('hidden');
         panelRoute.classList.add('hidden');
-        weatherModule.classList.add('hidden');
         clearCalculatedRouteLayers();
     } else {
         btnRoute.className = "py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-600";
@@ -357,10 +357,6 @@ function switchWorkflowTabContext(contextType) {
         if (scanContainer) {
             scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
             scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-        }
-
-        if(plottedRouteCoordinates.length > 0) {
-            weatherModule.classList.remove('hidden');
         }
     }
     executeStationDataFilteringPipeline();
@@ -509,107 +505,89 @@ async function executeAddressGeocodeLookup() {
     } catch (err) { console.error(err); }
 }
 
-
-// --- 1. ROUTE CHUNKER: Slices massive routes into safe API-sized bounding boxes ---
-function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
-    if (!coords || coords.length === 0) return [];
-
-    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-    for (const pt of coords) {
-        if (pt[0] < minLat) minLat = pt[0];
-        if (pt[0] > maxLat) maxLat = pt[0];
-        if (pt[1] < minLon) minLon = pt[1];
-        if (pt[1] > maxLon) maxLon = pt[1];
-    }
-
-    // Add a tiny 1km buffer so incidents just off the road edge aren't missed
-    minLat -= 0.01; maxLat += 0.01;
-    minLon -= 0.01; maxLon += 0.01;
-
-    const R = 6371;
-    const dLat = (maxLat - minLat) * (Math.PI / 180);
-    const dLon = (maxLon - minLon) * (Math.PI / 180);
-    const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
-    const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
-
-    // If the box is a safe size, return it
-    if (area <= maxArea) {
-        return [[minLon, minLat, maxLon, maxLat]];
-    }
-
-    // If it's too big, split the route points in half and check again
-    const mid = Math.floor(coords.length / 2);
-    // Overlap the slices slightly to ensure no gaps in traffic coverage
-    const firstHalf = coords.slice(0, mid + 1);
-    const secondHalf = coords.slice(mid);
-
-    return [
-        ...generateTrafficBoundingBoxes(firstHalf, maxArea),
-        ...generateTrafficBoundingBoxes(secondHalf, maxArea)
-    ];
-}
-
-// --- 2. THE MASTER MATCHER: Fetches and merges all chunks ---
-async function fetchAllRouteTraffic(routeCoords) {
-    if (!routeCoords || routeCoords.length === 0) return [];
-    
-    const bboxes = generateTrafficBoundingBoxes(routeCoords, 8500);
-    console.log(`Route chunked into ${bboxes.length} bounding boxes for traffic scanning.`);
-
-    // Failsafe: Prevent API rate limiting if someone routes to the other side of the planet
-    if (bboxes.length > 20) bboxes.length = 20;
-
-    try {
-        // Fetch all chunks simultaneously for max speed
-        const requests = bboxes.map(bbox => streamLiveTrafficIncidents(bbox));
-        const results = await Promise.all(requests);
-        
-        // Flatten the arrays and deduplicate using TomTom's unique incident IDs
-        const allIncidents = results.flat();
-        const uniqueIncidents = [];
-        const seenIds = new Set();
-        
-        for (const incident of allIncidents) {
-            if (incident && incident.properties && incident.properties.id) {
-                if (!seenIds.has(incident.properties.id)) {
-                    seenIds.add(incident.properties.id);
-                    uniqueIncidents.push(incident);
-                }
-            }
-        }
-        return uniqueIncidents;
-    } catch (e) {
-        console.error("Multi-chunk traffic fetch failed:", e);
-        return [];
-    }
-}
-
 // -------------------------------------------------------------
 // Live Traffic Incident Polling & Stacking Pipeline
 // -------------------------------------------------------------
-async function streamLiveTrafficIncidents(bbox) {
+async function streamLiveTrafficIncidents(routeBounds) {
+    const dash = document.getElementById('bottom-traffic-dashboard');
+    const statusBadge = document.getElementById('traffic-status-badge');
+    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
+    
+    // Show Dashboard
+    if (dash) {
+        dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+        dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+    }
+    
+    if (statusBadge) {
+        statusBadge.textContent = "SCANNING...";
+        statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
+    }
+
     try {
-        const formattedMinLon = Number(bbox[0]).toFixed(6);
-        const formattedMinLat = Number(bbox[1]).toFixed(6);
-        const formattedMaxLon = Number(bbox[2]).toFixed(6);
-        const formattedMaxLat = Number(bbox[3]).toFixed(6);
+        const minLon = routeBounds.getWest().toFixed(5);
+        const minLat = routeBounds.getSouth().toFixed(5);
+        const maxLon = routeBounds.getEast().toFixed(5);
+        const maxLat = routeBounds.getNorth().toFixed(5);
+        const currentBbox = `${minLon},${minLat},${maxLon},${maxLat}`;
 
-        const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
-        // Inside your streamLiveTrafficIncidents function, update this one line:
-
-        // Add geometry{type,coordinates} to the request!
-        const fieldsTemplate = encodeURIComponent("{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
+        // URL encode the fields payload properly to avoid 400 Bad Request
+        const fieldsParam = encodeURIComponent('{incidents{properties{iconCategory,events{description,delay}}}}');
+        const trafficUrl = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${currentBbox}&fields=${fieldsParam}&language=en-GB`;
         
-        const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
+        const response = await fetch(trafficUrl);
+        if (!response.ok) throw new Error("Traffic API unreachable");
+        
+        const data = await response.json();
+        const incidents = data.incidents || [];
 
-        const networkResponse = await fetch(targetApiEndpoint);
-        if (!networkResponse.ok) return [];
+        const criticalAlerts = incidents.filter(incident => {
+            const delay = incident.properties.events[0]?.delay || 0;
+            return delay > 60 || [1, 2, 8].includes(incident.properties.iconCategory); 
+        });
 
-        const payload = await networkResponse.json();
-        return (payload && payload.incidents) ? payload.incidents : [];
-    } catch (apiError) {
-        console.error("Traffic fetch error:", apiError);
-        return []; 
+        if (tickerContainer) tickerContainer.innerHTML = '';
+
+        if (criticalAlerts.length > 0) {
+            let badgeState = "ALERTS";
+            let badgeClasses = "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+            
+            if (criticalAlerts.length >= 3) {
+                badgeState = "CONGESTED";
+                badgeClasses = "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20";
+            }
+
+            if (statusBadge) {
+                statusBadge.textContent = badgeState;
+                statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
+            }
+
+            const desc = criticalAlerts[0].properties.events[0]?.description || 'Traffic disruption';
+            const delaySeconds = criticalAlerts[0].properties.events[0]?.delay || 0;
+            const delayMin = Math.round(delaySeconds / 60);
+            
+            if(tickerContainer) {
+                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${criticalAlerts.length} Incident(s): ${desc} ${delayMin > 0 ? `(+${delayMin}m)` : ''}</div>`;
+            }
+
+        } else {
+            if (statusBadge) {
+                statusBadge.textContent = "CLEAR";
+                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
+            }
+            if(tickerContainer) {
+                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
+            }
+        }
+    } catch (err) {
+        console.warn("Traffic incident streaming failed:", err);
+        if (statusBadge) {
+            statusBadge.textContent = "OFFLINE";
+            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
+        }
+        if(tickerContainer) {
+            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Traffic telemetry currently unavailable.</div>`;
+        }
     }
 }
 
@@ -635,21 +613,21 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         const endInput = forcedEnd || endElement?.value || "";
         
         if (!startInput || !endInput) {
-            Toast.show("Choose a start point and a destination.", "warning");
+            Toast.show("Please enter both a start point and an end point.", "warning");
             return;
         }
         
         const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
         const startNodes = await startRes.json();
         if (!startNodes.length) {
-            Toast.show("Starting location not found. Try a different address or postcode.", "error");
+            Toast.show("Could not find coordinates for the start point.", "error");
             return;
         }
         
         const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
         const endNodes = await endRes.json();
         if (!endNodes.length) {
-            Toast.show("Destination not found. Try a different address or postcode.", "error");
+            Toast.show("Could not find coordinates for the end point.", "error");
             return;
         }
         
@@ -697,7 +675,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }
         coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
-        // Convert MPG to Liters/100km for exact TomTom engine consumption
         const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
         const litersPer100km = (282.48 / userMpg).toFixed(2);
         const consumptionCurve = `50,${litersPer100km}:120,${litersPer100km}`;
@@ -749,187 +726,13 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }
         
         if (plottedRouteCoordinates.length > 0) {
-        const routeBounds = routePolylineLayer.getBounds();
-        map.fitBounds(routeBounds);
-        
-        // 1. Target your UI elements
-        const loadingPill = document.getElementById('traffic-loading-pill');
-        const alertsViewport = document.getElementById('traffic-alerts-viewport');
-        
-        // 2. Turn on the loading pill animation and clear old results
-        if (loadingPill) {
-            loadingPill.style.display = 'flex';
+            map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
+            streamLiveTrafficIncidents(routePolylineLayer.getBounds());
         }
-        if (alertsViewport) {
-            alertsViewport.innerHTML = ''; 
-        }
-    
-        // 3. THIS IS STEP 3: Call the new master chunking fetcher using coordinates
-        const liveIncidents = await fetchAllRouteTraffic(plottedRouteCoordinates);
-    
-        // 4. Turn off the loading pill immediately now that data is back
-        if (loadingPill) {
-            loadingPill.style.display = 'none'; 
-        }
-    
-        // Human translator function (keeps code modular and self-contained)
-        const humanizeTrafficDescription = (rawDesc) => {
-            if (!rawDesc) return 'Traffic incident reported';
-            const lowerDesc = rawDesc.toLowerCase();
-            if (lowerDesc.includes('closed')) return 'Road is currently closed';
-            if (lowerDesc.includes('stationary')) return 'Traffic is at a complete standstill';
-            if (lowerDesc.includes('queueing') || lowerDesc.includes('queuing')) return 'Heavy queuing traffic';
-            if (lowerDesc.includes('accident') || lowerDesc.includes('crash')) return 'Accident reported ahead';
-            if (lowerDesc.includes('roadworks') || lowerDesc.includes('construction')) return 'Active roadworks causing delays';
-            if (lowerDesc.includes('slow')) return 'Traffic is moving slowly';
-            return rawDesc.charAt(0).toUpperCase() + rawDesc.slice(1);
-        };
-    
-        // 5. Render results into the viewport
-        if (alertsViewport) {
-            // NOTE: The old "if (area > 9500)" check is now completely deleted from here!
-    
-            // State A: No Incidents Found across any of the chunks
-            if (!liveIncidents || liveIncidents.length === 0) {
-                alertsViewport.innerHTML = `
-                    <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
-                        <span class="text-xs text-emerald-600">✅</span>
-                        <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported on this corridor.</span>
-                    </div>
-                `;
-            } 
-            // State B: Incidents found, filtered, sorted, and clean cards built
-            else {
-                let significantIncidents = liveIncidents.filter(inc => (inc.properties.delay || 0) >= 60 || (inc.properties.magnitudeOfDelay || 0) >= 2);
-                significantIncidents.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
-    
-                let uniqueIncidents = [];
-                let seenDescriptions = new Set();
-                
-                for (let inc of significantIncidents) {
-                    const rawDesc = (inc.properties.events && inc.properties.events.length > 0 && inc.properties.events[0].description) 
-                        ? inc.properties.events[0].description 
-                        : 'Traffic';
-                        
-                    if (!seenDescriptions.has(rawDesc)) {
-                        uniqueIncidents.push(inc);
-                        seenDescriptions.add(rawDesc);
-                    }
-                }
-    
-                // 1. INCREASE LIMIT TO 10
-                const topIncidents = uniqueIncidents.slice(0, 10);
-
-                if (topIncidents.length === 0) {
-                    alertsViewport.innerHTML = `
-                        <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
-                            <span class="text-xs text-emerald-600">✅</span>
-                            <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Minor delays only. Corridor is mostly clear!</span>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const incidentsHTML = topIncidents.map(incident => {
-                    const props = incident.properties;
-                    
-                    const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
-                    const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
-
-                    const delayInSeconds = props.delay || 0;
-                    const delayMinutes = Math.round(delayInSeconds / 60);
-                    const delayString = delayMinutes > 0 ? `${delayMinutes} min delay` : 'Delay expected';
-                    
-                    const rawDesc = (props.events && props.events.length > 0 && props.events[0].description) ? props.events[0].description : '';
-                    const humanDescription = humanizeTrafficDescription(rawDesc);
-
-                    let locationString = '';
-                    if (props.from && props.to && props.from !== props.to) {
-                        locationString = `Between ${props.from} and ${props.to}`;
-                    } else if (props.from || props.to) {
-                        locationString = `Near ${props.from || props.to}`;
-                    } else {
-                        locationString = 'Along route';
-                    }
-
-                    // --- NEW: Extract Coordinates for the Map Camera ---
-                    let targetLat = 0;
-                    let targetLng = 0;
-                    if (incident.geometry && incident.geometry.coordinates) {
-                        // TomTom returns Points [lon, lat] or LineStrings [[lon, lat], [lon, lat]]
-                        const coords = incident.geometry.type === 'Point' 
-                            ? incident.geometry.coordinates 
-                            : incident.geometry.coordinates[0]; // Grab the start of the traffic line
-                        
-                        if (coords && coords.length >= 2) {
-                            targetLng = coords[0];
-                            targetLat = coords[1]; // Leaflet expects Lat, Lng
-                        }
-                    }
-
-                    // --- NEW: Added cursor-pointer, hover states, active states, and data-attributes ---
-                    return `
-                        <div data-lat="${targetLat}" data-lng="${targetLng}" class="incident-card cursor-pointer hover:bg-red-100/50 dark:hover:bg-red-900/40 hover:border-red-200 dark:hover:border-red-800 active:scale-[0.98] p-3 bg-red-50/60 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-xl flex items-start gap-3 shadow-sm transition-all duration-200">
-                            <div class="px-2 py-0.5 bg-red-500 text-white font-black text-[9px] rounded uppercase mt-0.5 tracking-wide">
-                                ${magnitudeText}
-                            </div>
-                            <div class="flex flex-col flex-1">
-                                <span class="text-[11px] font-bold text-red-700 dark:text-red-400 tracking-wide">${delayString}</span>
-                                
-                                <div class="flex items-start gap-1 mt-0.5 mb-1">
-                                    <span class="text-[10px] mt-[1px]">📍</span>
-                                    <span class="text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 leading-tight">${locationString}</span>
-                                </div>
-                                
-                                <span class="text-xs font-medium text-zinc-600 dark:text-zinc-400 leading-relaxed">${humanDescription}</span>
-                            </div>
-                            <div class="flex items-center justify-center h-full opacity-40 hover:opacity-100 transition-opacity">
-                                <span class="text-[10px]">🗺️</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                alertsViewport.innerHTML = `
-                    <div class="flex flex-col gap-2 w-full">
-                        <div class="flex items-center justify-between px-1 mb-1">
-                            <div class="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                                Top Critical Impacts (${topIncidents.length})
-                            </div>
-                        </div>
-                        ${incidentsHTML}
-                    </div>
-                `;
-
-                // --- NEW: Wire up the click events to the Leaflet Map ---
-                const cards = alertsViewport.querySelectorAll('.incident-card');
-                cards.forEach(card => {
-                    card.addEventListener('click', () => {
-                        const lat = parseFloat(card.getAttribute('data-lat'));
-                        const lng = parseFloat(card.getAttribute('data-lng'));
-                        
-                        // If we successfully extracted coordinates, fly the camera there!
-                        if (lat && lng && lat !== 0) {
-                            // 15 is a great zoom level for viewing an intersection/street
-                            map.flyTo([lat, lng], 15, {
-                                animate: true,
-                                duration: 1.5 // 1.5 seconds of smooth panning
-                            });
-                        }
-                    });
-                });
-            }
-        }
-    }
         
         const distanceStringFormatted = globalRouteDistanceMiles.toFixed(1);
         const distanceMetric = document.getElementById('dash-metric-distance');
         if (distanceMetric) distanceMetric.innerText = `${distanceStringFormatted} mi`;
-        
-        const unifiedInsightsCard = document.getElementById('route-insights-card');
-        if (unifiedInsightsCard) {
-            unifiedInsightsCard.classList.remove('hidden');
-        }
         
         executeStationDataFilteringPipeline();
         
@@ -939,16 +742,25 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             }
         } catch (weatherErr) {
             console.warn("Weather API unreachable.", weatherErr);
-            document.getElementById('route-weather-module')?.classList.add('hidden');
         }
         
         if (typeof calculateOptimalRefuelStrategy === 'function') {
             calculateOptimalRefuelStrategy();
         }
+
+        // --- UI Collapse Logic: Reveal Map ---
+        if (window.innerWidth < 768) {
+            setMobileSidebarState('peek');
+        } else {
+            const sidebar = document.getElementById('primary-control-sidebar');
+            if (sidebar && !sidebar.classList.contains('desktop-collapsed')) {
+                sidebar.classList.add('desktop-collapsed');
+            }
+        }
         
     } catch (err) {
         console.error("Pipeline Engine Broken:", err);
-        Toast.show(`We couldn't map this route: ${err.message}`, "error");
+        Toast.show(`Failed to trace route: ${err.message}`, "error");
     }
 }
 
@@ -965,15 +777,6 @@ function lookupWeatherIconEmoji(code) {
 }
 
 async function triggerRouteWeatherFetchPipeline() {
-    const container = document.getElementById('weather-nodes-stack');
-    const targetModule = document.getElementById('route-weather-module');
-    if (!container || !targetModule) return;
-
-    container.innerHTML = '';
-    if (activeTabContext === 'route') {
-        targetModule.classList.remove('hidden');
-    }
-
     const locationsToFetch = [];
     if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
     
@@ -989,38 +792,22 @@ async function triggerRouteWeatherFetchPipeline() {
             const weatherData = await weatherRes.json();
 
             if (weatherData && weatherData.daily) {
-                const cardElement = document.createElement('div');
-                cardElement.className = "p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl shadow-xs";
-                
-                let headerTitleClean = loc.data.name.split(',')[0];
-                let horizontalForecastHTML = '';
-                
-                for (let d = 0; d < 5; d++) {
-                    const rawDate = new Date(weatherData.daily.time[d]);
-                    const weekdayLabel = rawDate.toLocaleDateString('en-GB', { weekday: 'short' });
-                    const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[d]);
-                    const highTemp = Math.round(weatherData.daily.temperature_2m_max[d]);
-                    const lowTemp = Math.round(weatherData.daily.temperature_2m_min[d]);
+                const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[0]);
+                const highTemp = Math.round(weatherData.daily.temperature_2m_max[0]);
 
-                    horizontalForecastHTML += `
-                        <div class="flex flex-col items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 rounded-lg text-center min-w-[50px] tabular-nums">
-                            <span class="text-[8px] font-black uppercase text-zinc-400 tracking-wider">${weekdayLabel}</span>
-                            <span class="text-sm my-0.5">${conditionEmoji}</span>
-                            <span class="text-[9px] font-black text-zinc-800 dark:text-zinc-200">${highTemp}° / <span class="text-zinc-400">${lowTemp}°</span></span>
-                        </div>
-                    `;
+                const weatherIcon = L.divIcon({
+                    className: 'leaflet-div-icon-reset',
+                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200">
+                            <span class="text-sm">${conditionEmoji}</span>
+                            <span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span>
+                           </div>`,
+                    iconSize: [60, 28],
+                    iconAnchor: [30, 45] // Positions the tag right above the route node line
+                });
+                
+                if (routePolylineLayer) {
+                    L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
                 }
-
-                cardElement.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[9px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">${loc.label}</span>
-                        <span class="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 truncate max-w-[200px] text-right">${headerTitleClean}</span>
-                    </div>
-                    <div class="grid grid-cols-5 gap-1.5 overflow-x-auto no-scrollbar">
-                        ${horizontalForecastHTML}
-                    </div>
-                `;
-                container.appendChild(cardElement);
             }
         } catch (weatherErr) { console.error(weatherErr); }
     }
@@ -1054,7 +841,7 @@ function saveActiveRouteCorridor() {
     if (!document.getElementById('starred-dropdown-panel').classList.contains('hidden')) renderDirectoryDropdown();
     
     if (window.innerWidth < 768) setMobileSidebarState('peek');
-    Toast.show("Route saved successfully.", "success");
+    Toast.show("Corridor routing successfully saved.", "success");
 }
 
 function deleteSavedRouteCorridor(routeId, event) {
@@ -1127,9 +914,13 @@ function clearCalculatedRouteLayers() {
         addWaypointFieldInputRow();
     }
 
-    document.getElementById('route-insights-card')?.classList.add('hidden');
+    const dash = document.getElementById('bottom-traffic-dashboard');
+    if (dash) {
+        dash.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+        dash.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+    }
+
     document.getElementById('cheapest-ranking-block')?.classList.add('hidden');
-    document.getElementById('route-weather-module')?.classList.add('hidden');
 
     clearFuelOptimizationState();
     executeStationDataFilteringPipeline();
@@ -1150,14 +941,6 @@ function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
     }
     return minimumTrackSeparationMiles;
 }
-
-document.getElementById('radius-slider')?.addEventListener('input', (e) => {
-    document.getElementById('radius-val').textContent = `${e.target.value} Miles`; 
-    executeStationDataFilteringPipeline();
-});
-document.getElementById('route-radius-slider')?.addEventListener('input', (e) => {
-    document.getElementById('route-radius-val').textContent = `${e.target.value} Miles`;
-});
 
 document.addEventListener('click', (e) => {
     const suggestionBoxes = document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]');
@@ -1362,7 +1145,7 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
     }
 
-    // --- FIX: Statistical Tertiles to ignore extreme Motorway Outliers ---
+    // Use absolute tertiles from global pool to prevent color shifting on zoom/pan
     const globalPricesArray = rawGlobalStationsPool
         .map(s => parseFloat(s[variant]))
         .filter(p => !isNaN(p) && p > 0)
@@ -1372,10 +1155,8 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     let blueThreshold = 0;
 
     if (globalPricesArray.length > 0) {
-        // Split the UK distribution into three equal buckets
         const oneThirdIndex = Math.floor(globalPricesArray.length * 0.333);
         const twoThirdsIndex = Math.floor(globalPricesArray.length * 0.666);
-        
         greenThreshold = globalPricesArray[oneThirdIndex];
         blueThreshold = globalPricesArray[twoThirdsIndex];
     }
@@ -1387,7 +1168,6 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
         let tierBgClassColor = 'bg-fuel-blue';
 
         if (globalPricesArray.length > 0) {
-            // Apply the tertile thresholds
             if (numericPrice <= greenThreshold) tierBgClassColor = 'bg-fuel-green';
             else if (numericPrice <= blueThreshold) tierBgClassColor = 'bg-fuel-blue';
             else tierBgClassColor = 'bg-fuel-red';
@@ -1537,24 +1317,22 @@ function openForecourtDetailSheet(stationData) {
     document.getElementById('sheet-price-premiumdiesel').textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
 
     updateAllStarUIStates();
-    sheet.classList.remove('hidden');
 
     if (window.innerWidth < 768) {
         setMobileSheetUIState('full'); 
     } else {
-        sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
+        sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full');
     }
 }
 
 function closeForecourtDetailSheet(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
-    const sheet = document.getElementById('global-detail-sheet');
-    if (!sheet) return;
     
     if (window.innerWidth < 768) {
         setMobileSheetUIState('hidden');
     } else {
-        sheet.classList.add('hidden');
+        const sheet = document.getElementById('global-detail-sheet');
+        if (sheet) sheet.classList.add('drawer-hidden');
     }
     activeSheetStation = null;
 }
@@ -1569,7 +1347,9 @@ function triggerExternalMappingVectorRoute(event) {
     if (!activeSheetStation) return;
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+    
+    // Fixed: Properly injected the lat/lon variables into the Maps URL
+    window.open(`http://maps.google.com/maps?q=${lat},${lon}`, '_blank');
 }
 
 function setMobileSidebarState(stateStr) {
@@ -1587,12 +1367,7 @@ function setMobileSheetUIState(stateStr) {
     if (!sheet) return;
     
     sheet.className = sheet.className.replace(/\bdrawer-\w+/g, '');
-    if (stateStr === 'hidden') {
-        sheet.classList.add('hidden');
-    } else {
-        sheet.classList.remove('hidden');
-        sheet.classList.add(`drawer-${stateStr}`);
-    }
+    sheet.classList.add(`drawer-${stateStr}`);
 }
 
 function initializeClickIsolationBubbling() {
@@ -1666,7 +1441,7 @@ function initializeGestureTrackEngine() {
         e.stopPropagation();
         if (currentMobileSheetUIState === 'peek') setMobileSheetUIState('mid');
         else if (currentMobileSheetUIState === 'mid') setMobileSheetUIState('full');
-        else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('peek');
+        else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('hidden');
     });
 
     bindSwipeGestureDetectionToMobileSheets('sidebar-drag-handle', 'sidebar', setMobileSidebarState);
@@ -1675,29 +1450,6 @@ function initializeGestureTrackEngine() {
 
 
 let refuelMarkersGroup = null;
-
-function getDistanceInMiles(lat1, lon1, lat2, lon2) {
-    const R = 3958.8; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function getNumericInputValue(id, fallback) {
-    const el = document.getElementById(id);
-    if (!el) return fallback;
-    if (el.value && el.value.trim() !== "") {
-        const val = parseFloat(el.value);
-        return isNaN(val) ? fallback : val;
-    }
-    if (el.placeholder && el.placeholder.trim() !== "") {
-        const val = parseFloat(el.placeholder);
-        return isNaN(val) ? fallback : val;
-    }
-    return fallback;
-}
 
 // -------------------------------------------------------------
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
@@ -1725,13 +1477,11 @@ function calculateOptimalRefuelStrategy() {
         return; 
     }
 
-    // --- 1. MATH FIX: Calculate true remaining range based on tank capacity ---
     const milesPerLiter = averageMpg / 4.54609; 
     const currentLitersInTank = tankSizeLiters * (currentFuelPercentage / 100);
     const bufferLitersNeeded = safetyBufferMiles / milesPerLiter;
     const usableLiters = Math.max(0, currentLitersInTank - bufferLitersNeeded);
     
-    // True remaining range in miles (Factoring in the safety buffer)
     const remainingRange = usableLiters * milesPerLiter;
     const totalTripDistance = activeDistance; 
     
@@ -1765,14 +1515,11 @@ function calculateOptimalRefuelStrategy() {
     let bestStation = null;
     let isEmergencyMode = false;
 
-    // We need the start coordinates to calculate distance to stations
     const startLat = plottedRouteCoordinates[0][0];
     const startLon = plottedRouteCoordinates[0][1];
 
-    // --- 2. EMERGENCY MODE & REACHABILITY FIX ---
     if (currentFuelPercentage <= 5 || usableLiters <= 0) {
         isEmergencyMode = true;
-        // Find the absolute closest station to the START of the route
         validStations.sort((a, b) => {
             const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
             const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
@@ -1781,24 +1528,17 @@ function calculateOptimalRefuelStrategy() {
         bestStation = validStations[0];
         
     } else {
-        // NORMAL MODE: Filter by REACHABILITY first, THEN by price
         let reachableStations = validStations.filter(station => {
             const distFromStart = computeDistanceVectorMiles(
                 startLat, startLon, 
                 parseFloat(station.latitude || station.lat), 
                 parseFloat(station.longitude || station.lng)
             );
-            
-            // Multiply straight-line distance by 1.2 to safely estimate winding road distance
             const estimatedRoadDistance = distFromStart * 1.2; 
-            
-            // The station MUST be closer than our usable range (which factors in the Safety Buffer)
             return estimatedRoadDistance <= remainingRange;
         });
 
         if (reachableStations.length === 0) {
-            // We have fuel, but NO stations are within our remaining range!
-            // Fallback: Force Emergency Mode and just find the absolute closest station.
             isEmergencyMode = true;
             validStations.sort((a, b) => {
                 const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
@@ -1806,9 +1546,8 @@ function calculateOptimalRefuelStrategy() {
                 return distA - distB;
             });
             bestStation = validStations[0];
-            console.warn("No stations within safe range. Defaulting to absolute closest.");
+            Toast.show('No cheap stations within safe range. Showing nearest option.', 'warning');
         } else {
-            // We have reachable stations! Now pick the absolute cheapest one.
             reachableStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
             bestStation = reachableStations[0];
         }
@@ -1829,11 +1568,9 @@ function calculateOptimalRefuelStrategy() {
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
     const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
     
-    // --- 3. CORE SAVINGS LOGIC ENGINE ---
     const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType] || s[fuelType]).map(parseFloat).filter(p => p && !isNaN(p) && p > 0);
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
-    // How much fuel to buy? If we are empty, fill the tank. Otherwise, fill what's missing.
     const litersToFill = Math.max(0, tankSizeLiters - currentLitersInTank);
     const totalCost = (litersToFill * bestPrice) / 100;
     
@@ -1847,9 +1584,6 @@ function calculateOptimalRefuelStrategy() {
     
     const contextLabel = isEmergencyMode ? 'Nearest Emergency Stop' : 'Optimal Stop';
     const markerContext = isEmergencyMode ? '⚠️ Emergency Refuel' : 'Optimal Refuel Stop';
-
-    // --- NEW: Calculate distance to the chosen stop ---
-    // We multiply by 1.2 to match the "Estimated Road Distance" logic used in our reachability filter
     const distanceToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
 
     if (timelineContainer) {
@@ -1949,13 +1683,8 @@ function clearFuelOptimizationState() {
     if (savingsBlock) {
         savingsBlock.classList.add('hidden');
     }
-
-    console.log("Fuel Optimization interface states successfully defaulted.");
 }
 
-// -------------------------------------------------------------
-// LAUNCH PROTOCOLS & EVENT BINDINGS
-// -------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
     initializeSpatialMapEngine();
     applyThemeChangesToDOM();
@@ -1964,8 +1693,7 @@ window.addEventListener('DOMContentLoaded', () => {
     initializeGestureTrackEngine();
     forceReloadRemotePipelineData();
 
-    // Hook inputs to dynamic reactive rendering engines
-    // 1. Inputs that should ONLY trigger the general station filtering (Radius, Fuel Type)
+    // 1. Inputs that should ONLY trigger the general station filtering
     const mapFilteringInputs = ['fuel-type', 'radius-slider', 'route-radius-slider'];
     mapFilteringInputs.forEach(id => {
         const el = document.getElementById(id);
@@ -1975,12 +1703,11 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 2. Inputs that should ONLY trigger the Smart Refuel math (Tank Size, Current Fuel, Buffer, MPG)
+    // 2. Inputs that should ONLY trigger the Smart Refuel math 
     const smartRefuelInputs = ['refuel-current-level', 'refuel-safety-buffer', 'refuel-tank-size', 'vehicle-mpg'];
     smartRefuelInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            // Only fire the math, don't redraw the whole station map!
             el.addEventListener('change', () => {
                  if (activeTabContext === 'route') {
                      calculateOptimalRefuelStrategy();
@@ -1988,7 +1715,6 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
-    
 
     const tabStationsBtn = document.getElementById('dir-tab-stations');
     const tabRoutesBtn = document.getElementById('dir-tab-routes');
