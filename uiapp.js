@@ -72,6 +72,31 @@ let scanAreaTimeout = null;
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
 const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
+// 1. Hide on initialization (Assuming you have a function to control the sheet/popup)
+document.addEventListener('DOMContentLoaded', () => {
+    // If it's a custom DOM element
+    const activeSheet = document.getElementById('your-station-sheet-id');
+    if (activeSheet) {
+        activeSheet.classList.add('hidden'); // or whatever your hide class is
+    }
+});
+
+// 2. Add a global map dismissal listener
+if (map) {
+    map.on('click', function(e) {
+        // Dismiss native Leaflet popups
+        map.closePopup(); 
+        
+        // Dismiss your custom station sheet/drawer
+        if (typeof closeStationSheet === 'function') {
+            closeStationSheet(); 
+        }
+        
+        // If you are using active states on pins, reset them here
+        activeSheetStation = null; 
+    });
+}
+
 // --- GLOBAL TOAST NOTIFICATION ENGINE ---
 const Toast = {
     container: null,
