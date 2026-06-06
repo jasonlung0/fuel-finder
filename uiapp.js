@@ -1676,6 +1676,10 @@ function calculateOptimalRefuelStrategy() {
     const contextLabel = isEmergencyMode ? 'Nearest Emergency Stop' : 'Optimal Stop';
     const markerContext = isEmergencyMode ? '⚠️ Emergency Refuel' : 'Optimal Refuel Stop';
 
+    // --- NEW: Calculate distance to the chosen stop ---
+    // We multiply by 1.2 to match the "Estimated Road Distance" logic used in our reachability filter
+    const distanceToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
+
     if (timelineContainer) {
         timelineContainer.classList.remove('hidden');
         timelineContainer.innerHTML = `
@@ -1692,6 +1696,11 @@ function calculateOptimalRefuelStrategy() {
                         <span class="font-bold text-zinc-900 dark:text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
                         <span class="text-[10px] text-zinc-400 block">${(bestStation.address || '').replace(/['"]/g, '')}</span>
                     </div>
+                </div>
+
+                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+                    <span class="text-zinc-500 font-medium">Distance to Stop</span>
+                    <span class="font-bold text-zinc-900 dark:text-white">~${distanceToStop.toFixed(1)} miles</span>
                 </div>
                 
                 <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
