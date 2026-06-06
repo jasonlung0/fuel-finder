@@ -961,43 +961,65 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         }(routePolylineLayer.getBounds());
         }
         
-        // --- 4. UPDATE GRANULAR DASHBOARD METRICS ---
+        // --- 4. UPDATE GRANULAR DASHBOARD METRICS (WITH EV SUPPORT) ---
         
-        // A. Calculate Time
         const travelTimeSeconds = currentActiveRoute.summary.travelTimeInSeconds || 0;
         const hours = Math.floor(travelTimeSeconds / 3600);
         const minutes = Math.floor((travelTimeSeconds % 3600) / 60);
-        const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+        const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} m`;
 
-        // B. Calculate Fuel (Litres)
-        // userMpg is already defined earlier in this function
-        const expectedLitres = (globalRouteDistanceMiles / userMpg) * 4.54609;
-
-        // C. Calculate Estimated Trip Cost
-        // We will grab the average price of the currently visible stations to give a highly accurate estimate
         const activeFuelType = document.getElementById('fuel-type')?.value || 'E10';
-        let averageFuelPricePence = 145.0; // Fallback UK average
+        let tripCost = 0;
+        let consumptionString = "--";
         
-        if (currentlyVisibleStations && currentlyVisibleStations.length > 0) {
-            const prices = currentlyVisibleStations.map(s => parseFloat(s[activeFuelType])).filter(p => !isNaN(p) && p > 0);
-            if (prices.length > 0) {
-                averageFuelPricePence = prices.reduce((a, b) => a + b, 0) / prices.length;
-            }
-        }
-        const tripCost = expectedLitres * (averageFuelPricePence / 100);
+        if (activeFuelType === 'electric') {
+            // --- EV MATH ---
+            document.getElementById('energy-label').innerText = "ENERGY";
+            const evEfficiencyMpkWh = 3.5; // Average EV gets 3.5 miles per kWh
+            const expectedKwh = globalRouteDistanceMiles / evEfficiencyMpkWh;
+            consumptionString = `${expectedKwh.toFixed(1)} kWh`;
+            
+            // Average UK public fast charging cost is roughly 75p per kWh
+            tripCost = expectedKwh * 0.75; 
 
-        // D. Inject everything into the UI
+            // NOTE FOR API: To show EV stations on the map, you will need to point 
+            // your station fetcher to TomTom's EV Charging Stations Availability API
+            // Endpoint: https://api.tomtom.com/search/2/categorySearch/electric%20vehicle%20station.json
+        } else {
+            // --- COMBUSTION MATH ---
+            document.getElementById('energy-label').innerText = "FUEL";
+            const expectedLitres = (globalRouteDistanceMiles / userMpg) * 4.54609;
+            consumptionString = `${expectedLitres.toFixed(1)} L`;
+            
+            // Calculate a TRUE average of currently visible stations to prevent the "cheapest only" bug
+            let validPrices = [];
+            if (currentlyVisibleStations && currentlyVisibleStations.length > 0) {
+                currentlyVisibleStations.forEach(station => {
+                    const price = parseFloat(station[activeFuelType]);
+                    // Only include prices that are real numbers and greater than 0
+                    if (!isNaN(price) && price > 0) validPrices.push(price);
+                });
+            }
+            
+            let averageFuelPricePence = 145.0; // Reliable fallback
+            if (validPrices.length > 0) {
+                const sum = validPrices.reduce((total, p) => total + p, 0);
+                averageFuelPricePence = sum / validPrices.length;
+            }
+            
+            tripCost = expectedLitres * (averageFuelPricePence / 100);
+        }
+
+        // Inject into UI
         document.getElementById('dash-metric-distance').innerText = `${globalRouteDistanceMiles.toFixed(1)} mi`;
-        
         const timeEl = document.getElementById('dash-metric-time');
         if (timeEl) timeEl.innerText = timeString;
         
         const litresEl = document.getElementById('dash-metric-litres');
-        if (litresEl) litresEl.innerText = `${expectedLitres.toFixed(1)} L`;
+        if (litresEl) litresEl.innerText = consumptionString;
         
         const costEl = document.getElementById('summary-cost');
         if (costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
-        // --------------------------------------------
         
         executeStationDataFilteringPipeline();
         
