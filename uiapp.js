@@ -679,32 +679,41 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
             const routeBounds = routePolylineLayer.getBounds();
             map.fitBounds(routeBounds);
             
-            // 1. Get the UI status container pill
-            const trafficStatusContainer = document.getElementById('traffic-status-container');
+            // 1. Target both potential HTML containers
+            const statusContainer = document.getElementById('traffic-status-container');
+            const alertsViewport = document.getElementById('traffic-alerts-viewport');
             
-            if (trafficStatusContainer) {
-                trafficStatusContainer.innerHTML = `
-                    <div class="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse">
+            // 2. Mount the loading state
+            if (statusContainer) {
+                statusContainer.innerHTML = `
+                    <div class="flex items-center gap-2 px-3 py-1.5 mb-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse">
                         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                         Analyzing Telemetry Bounding Box...
                     </div>
                 `;
             }
 
-            // 2. Fetch the incidents
+            // 3. Fetch the real-time incidents
             const liveIncidents = await streamLiveTrafficIncidents(routeBounds);
 
-            if (trafficStatusContainer) {
-                // STATE A: Route was too large to fetch data
-                // We pass an explicit check or look if the function returned an empty array due to size limits
+            // 4. DESTROY the loading state so it doesn't stack
+            if (statusContainer) {
+                statusContainer.innerHTML = ''; 
+            }
+
+            // 5. Render results into whichever container exists (preferring alertsViewport)
+            const targetRenderDiv = alertsViewport || statusContainer;
+
+            if (targetRenderDiv) {
                 const R = 6371; 
                 const dLat = (routeBounds.getNorth() - routeBounds.getSouth()) * (Math.PI / 180);
                 const dLon = (routeBounds.getEast() - routeBounds.getWest()) * (Math.PI / 180);
                 const meanLat = ((routeBounds.getSouth() + routeBounds.getNorth()) / 2) * (Math.PI / 180);
                 const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
 
+                // STATE A: Corridor Too Large
                 if (area > 9500) {
-                    trafficStatusContainer.innerHTML = `
+                    targetRenderDiv.innerHTML = `
                         <div class="w-full p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-start gap-2.5">
                             <span class="text-xs">🗺️</span>
                             <div class="flex flex-col">
@@ -714,21 +723,20 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                         </div>
                     `;
                 }
-                // STATE B: Clear Roads (No incidents found)
+                // STATE B: Clear Roads
                 else if (!liveIncidents || liveIncidents.length === 0) {
-                    trafficStatusContainer.innerHTML = `
+                    targetRenderDiv.innerHTML = `
                         <div class="w-full p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center gap-2">
                             <span class="text-xs text-emerald-600">✅</span>
                             <span class="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Clear roads ahead! No delays reported on this corridor.</span>
                         </div>
                     `;
                 } 
-                // STATE C: Incidents Reported
+                // STATE C: Traffic Incidents
                 else {
                     const incidentsHTML = liveIncidents.map(incident => {
                         const props = incident.properties;
                         
-                        // Parse magnitude to give clarity instead of timestamps
                         const magnitudeMap = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Critical' };
                         const magnitudeText = magnitudeMap[props.magnitudeOfDelay] || 'Traffic';
 
@@ -753,7 +761,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                         `;
                     }).join('');
 
-                    trafficStatusContainer.innerHTML = `
+                    targetRenderDiv.innerHTML = `
                         <div class="flex flex-col gap-2 w-full">
                             <div class="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1 mb-1">
                                 active telemetry impacts (${liveIncidents.length})
