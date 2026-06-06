@@ -735,7 +735,7 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
                             <span class="text-xs">🗺️</span>
                             <div class="flex flex-col">
                                 <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-wide">Zoom in for live traffic</span>
-                                <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">This area is too wide to scan all at once. Zoom in on the map to load real-time local delays.</span>
+                                <span class="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">This area is too wide to scan all at once. Zoom in on a specific section of your route to load real-time local delays.</span>
                             </div>
                         </div>
                     `;
