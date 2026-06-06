@@ -75,7 +75,43 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 no-scrollbar flex-1 tabular-nums"></div>
     </div>
 
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-120px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/50 dark:bg-zinc-950/50 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
+    <div id="bottom-traffic-dashboard" class="absolute bottom-[150px] md:bottom-10 left-1/2 -translate-x-1/2 z-[3000] w-[calc(100%-32px)] md:w-[600px] transition-all duration-500 translate-y-10 opacity-0 pointer-events-none flex flex-col gap-3">
+        <div class="bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-zinc-200/60 dark:border-zinc-800/60 rounded-2xl shadow-2xl p-4 flex flex-col gap-3 pointer-events-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-3 w-3 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Route Telemetry</h3>
+                </div>
+                <div class="flex gap-4">
+                    <div class="text-right">
+                        <span class="block text-[9px] font-bold text-zinc-500 uppercase">Distance</span>
+                        <span id="dash-metric-distance" class="text-sm font-black text-zinc-900 dark:text-white tabular-nums">--</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="block text-[9px] font-bold text-emerald-600 uppercase">Cost</span>
+                        <span id="summary-cost" class="text-sm font-black text-emerald-600 tabular-nums">--</span>
+                    </div>
+                </div>
+            </div>
+            <div class="h-px w-full bg-zinc-200/50 dark:bg-zinc-800/50"></div>
+            <div class="flex items-center justify-between">
+                <span id="traffic-status-badge" class="px-2 py-1 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                <div id="dash-metric-delay-ticker" class="flex-1 ml-4 overflow-hidden h-6 relative">
+                    <div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Awaiting route...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-100px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/80 dark:bg-zinc-950/80 backdrop-blur-2xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col transition-all duration-400">
+        
+        <button onclick="toggleDesktopSidebar(event)" class="hidden md:flex absolute top-1/2 -right-10 -translate-y-1/2 w-10 h-20 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-[4px_0_15px_rgba(0,0,0,0.1)] dark:shadow-[4px_0_15px_rgba(0,0,0,0.5)] rounded-r-2xl border-y border-r border-zinc-200/50 dark:border-zinc-800/50 items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors z-[2001] focus:outline-none">
+            <svg id="sidebar-chevron" class="w-5 h-5 text-zinc-500 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+
         <div id="sidebar-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
         </div>
@@ -89,7 +125,7 @@
             </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar relative">
             
             <div class="space-y-2 bg-white/50 dark:bg-zinc-900/40 p-3 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                 <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Fuel Type</label>
@@ -175,46 +211,6 @@
                     <button onclick="saveActiveRouteCorridor()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-black py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-md col-span-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600">Save</button>
                     <button onclick="clearRoute()" class="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1 active:scale-95 border border-zinc-200/40 dark:border-zinc-700 col-span-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-400">Clear</button>
                 </div>
-
-                <div id="route-insights-card" class="hidden mt-6 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-md border border-zinc-200/60 dark:border-zinc-700/50 rounded-2xl shadow-sm overflow-hidden transition-all duration-300">
-                    <div class="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/60 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-950/50">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs">📊</span>
-                            <h3 class="text-xs font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Traffic Insights</h3>
-                        </div>
-                    </div>
-                
-                    <div class="grid grid-cols-2 divide-x divide-y divide-zinc-200/50 dark:divide-zinc-800/60 tabular-nums border-b border-zinc-200/50 dark:border-zinc-800/60">
-                        <div class="p-3 space-y-1">
-                            <span class="block text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Distance</span>
-                            <span id="dash-metric-distance" class="block text-base font-black text-zinc-900 dark:text-white tracking-tight">--</span>
-                        </div>
-                        <div class="p-3 space-y-1 bg-emerald-50/30 dark:bg-emerald-950/10">
-                            <span class="block text-[9px] font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-wider">Lowest Route Price</span>
-                            <span id="summary-cost" class="block text-base font-black text-emerald-700 dark:text-emerald-400 tracking-tight">--</span>
-                        </div>
-                    </div>
-                    
-                    <div class="p-3 bg-white/40 dark:bg-black/20">
-                        <div class="flex items-center justify-between mb-2">
-                            <h4 class="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Live Incidents</h4>
-                            <span id="traffic-status-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
-                        </div>
-                        
-                        <div id="traffic-loading-pill" style="display: none;" class="flex items-center gap-2 px-3 py-1.5 mb-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-full text-amber-800 dark:text-amber-400 text-[10px] font-bold tracking-wide uppercase animate-pulse w-fit">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            Scanning live satellite telemetry...
-                        </div>
-                        
-                        <div id="traffic-alerts-viewport" class="relative w-full max-h-32 overflow-y-auto overscroll-contain scroll-smooth rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" tabindex="0" aria-live="polite" aria-atomic="true">
-                            <div id="dash-metric-delay-ticker" class="flex flex-col gap-2">
-                                <div class="p-3 text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-white/5 rounded-lg border border-zinc-200/50 dark:border-white/10 backdrop-blur-md">
-                                    Awaiting route calculation...
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 
                 <div class="mt-4 bg-zinc-900 border border-emerald-500/30 rounded-2xl p-4 text-white shadow-xl relative overflow-hidden">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
@@ -286,10 +282,10 @@
                             </div>
                         </div>
                     </div>
-                
+
                     <div class="w-full bg-emerald-950/30 border border-emerald-500/20 text-emerald-500 font-bold text-[10px] py-2 rounded-xl flex items-center justify-center gap-2 uppercase tracking-widest relative z-10 shadow-inner">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Auto-Optimising Route...
+                        Auto-Optimizing Route
                     </div>
                     
                     <div id="smart-refuel-savings-block" class="hidden mt-4 bg-emerald-50/10 dark:bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between transition-all duration-300">
@@ -312,14 +308,6 @@
                 </div>
                 <div id="cheapest-cards-stack" class="space-y-3 tabular-nums"></div>
             </div>
-
-            <div id="route-weather-module" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
-                <div class="flex items-center gap-1">
-                    <span class="text-xs">🌤️</span>
-                    <h3 class="text-[9px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">5-Day Weather Forecast</h3>
-                </div>
-                <div id="weather-nodes-stack" class="space-y-3 tabular-nums"></div>
-            </div>
         </div>
 
         <div class="p-4 md:p-3 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md border-t border-zinc-200/50 dark:border-zinc-800/50 flex items-center justify-between text-[10px] font-bold text-zinc-500 dark:text-zinc-400 tracking-wide uppercase shrink-0 transition-colors duration-300 pb-[calc(14px+env(safe-area-inset-bottom,16px))] md:pb-3 tabular-nums">
@@ -328,7 +316,7 @@
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-white/40 dark:border-zinc-800/60 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 md:z-[5000] md:rounded-3xl transition-all duration-300 hidden pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
+    <div id="global-detail-sheet" class="mobile-bottom-drawer drawer-hidden md:absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-white/40 dark:border-zinc-800/60 shadow-2xl p-5 flex flex-col gap-4 md:w-[380px] md:top-20 md:bottom-auto md:left-auto md:right-4 z-[6000] md:z-[6000] md:rounded-3xl transition-all duration-400 pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
         <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-row-resize select-none touch-none active:bg-zinc-100/50 dark:active:bg-zinc-900/50 -mt-5 -mx-5 rounded-t-3xl">
             <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
         </div>
