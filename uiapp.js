@@ -338,49 +338,33 @@ function initializeClusterLayerPipeline() {
     if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
     
     markerClusterGroupInstance = L.markerClusterGroup({
-        maxClusterRadius: 40,
-        iconCreateFunction: function(cluster) {
-            const children = cluster.getAllChildMarkers();
-            let minPrice = Infinity;
-            let maxPrice = -Infinity;
-            const currentFuelType = document.getElementById('fuel-type').value;
-            const isEV = currentFuelType === 'ev';
-
-            children.forEach(marker => {
-                // Try to extract the price attached to the marker data
-                let priceToCheck = null;
-                if (marker.options && marker.options.priceData) {
-                    priceToCheck = marker.options.priceData;
-                } else if (marker.options && marker.options.stationData) {
-                    // Fallback to station object
-                    const st = marker.options.stationData;
-                    if (isEV) {
-                         priceToCheck = (st.usageCost && st.usageCost.match(/\d+(\.\d+)?/)) 
-                             ? parseFloat(st.usageCost.match(/\d+(\.\d+)?/)[0]) 
-                             : null;
-                    } else {
-                         priceToCheck = st.prices ? st.prices[currentFuelType] : null;
-                    }
-                }
-
-                if (priceToCheck && !isNaN(priceToCheck)) {
-                    minPrice = Math.min(minPrice, priceToCheck);
-                    maxPrice = Math.max(maxPrice, priceToCheck);
+        showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
+        iconCreateFunction: function (cluster) {
+            const dynamicChildMarkers = cluster.getAllChildMarkers();
+            const activeFuelKey = document.getElementById('fuel-type')?.value || 'E10';
+            
+            let pricesExtracted = [];
+            dynamicChildMarkers.forEach(marker => {
+                if(marker.options?.stationRawData?.[activeFuelKey]) {
+                    const val = parseFloat(marker.options.stationRawData[activeFuelKey]);
+                    if(!isNaN(val) && val > 0) pricesExtracted.push(val);
                 }
             });
 
-            let displayLabel = children.length; // Default to just the count
-            if (minPrice !== Infinity && maxPrice !== -Infinity) {
-                // If prices exist, show the range (e.g., "140 - 145p")
-                displayLabel = minPrice === maxPrice 
-                    ? `${isEV ? '£' : ''}${minPrice}${isEV ? '/kWh' : 'p'}` 
-                    : `${minPrice}-${maxPrice}${isEV ? '' : 'p'}`;
+            if(pricesExtracted.length === 0) {
+                return L.divIcon({
+                    html: `<div class="fuel-cluster-capsule tabular-nums"><span>Cluster</span></div>`,
+                    className: 'leaflet-div-icon-reset', iconSize: [95, 32]
+                });
             }
 
+            const min = Math.min(...pricesExtracted);
+            const max = Math.max(...pricesExtracted);
+            const labelString = (min === max) ? `${min.toFixed(1)}p` : `${min.toFixed(1)}p - ${max.toFixed(1)}p`;
+
             return L.divIcon({
-                html: `<div class="bg-zinc-900 text-white font-bold rounded-full border-2 border-white shadow-md flex items-center justify-center text-[10px] px-2 py-1">${displayLabel}</div>`,
-                className: 'leaflet-div-icon-reset',
-                iconSize: [null, null] // Auto sizing
+                html: `<div class="fuel-cluster-capsule tabular-nums"><span>${labelString}</span></div>`,
+                className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16]
             });
         }
     });
@@ -556,10 +540,6 @@ async function executeAddressGeocodeLookup() {
             if (window.innerWidth < 768) setMobileSidebarState('peek');
         }
     } catch (err) { console.error(err); }
-    // At the end of executeAddressGeocodeLookup() and executeRouteGenerationPipeline()
-    if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
-        setMobileSidebarState('peek'); // Lowers the drawer so the map view is instantly fully visible
-    }
 }
 
 // -------------------------------------------------------------
@@ -727,48 +707,30 @@ function renderLiveTrafficDashboard(incidents) {
         return;
     }
 
-    // --- SMART FILTERING ALGORITHM (WITH SPATIAL ON-ROUTE CHECK) ---
+    // --- SMART FILTERING ALGORITHM ---
     let validIncidents = incidents.filter(inc => {
         const delay = inc.properties.delay || 0;
         const cat = inc.properties.iconCategory;
+        return delay >= 60 || cat === 1 || cat === 8; // Filter out <60s micro-delays
+    });
+
+    const uniqueIncidentsMap = new Map();
+    validIncidents.forEach(inc => {
+        const rawDesc = inc.properties.events?.[0]?.description || '';
+        const humanDesc = humanizeTrafficDescription(rawDesc);
+        const delay = inc.properties.delay || 0;
         
-        // 1. Filter out micro-delays (< 1 min) unless they are critical closures/accidents
-        if (delay < 60 && cat !== 1 && cat !== 8) return false;
-
-        // 2. NEW FIX: Spatial filter to guarantee the incident is physically ON your route line
-        if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-            let incidentLat = 0;
-            let incidentLng = 0;
-
-            if (inc.geometry && inc.geometry.coordinates) {
-                const type = inc.geometry.type;
-                const coords = inc.geometry.coordinates;
-
-                // Extract center coordinate of the incident
-                if (type === 'Point' && Array.isArray(coords)) {
-                    incidentLng = coords[0];
-                    incidentLat = coords[1];
-                } else if (type === 'LineString' && Array.isArray(coords) && coords.length > 0) {
-                    const midpoint = coords[Math.floor(coords.length / 2)];
-                    incidentLng = Array.isArray(midpoint) ? midpoint[0] : coords[0][0];
-                    incidentLat = Array.isArray(midpoint) ? midpoint[1] : coords[0][1];
-                }
-            }
-
-            if (incidentLat !== 0 && incidentLng !== 0) {
-                // Check distance against your drawn map polyline
-                const distToRoute = computeMinimumDistanceToRouteCorridor(incidentLat, incidentLng);
-                // If the incident is more than 0.2 miles away from the exact road, ignore it!
-                if (distToRoute > 1.5) {
-                    return false; 
-                }
+        if (!uniqueIncidentsMap.has(humanDesc)) {
+            uniqueIncidentsMap.set(humanDesc, inc);
+        } else {
+            const existingDelay = uniqueIncidentsMap.get(humanDesc).properties.delay || 0;
+            if (delay > existingDelay) {
+                uniqueIncidentsMap.set(humanDesc, inc); // Keep the worst iteration of duplicate jams
             }
         }
-        return true;
     });
 
     // --- NEW PLACEMENT: Convert to array and sort from Route Start (A) to End (B) ---
-    const uniqueIncidentsMap = new Map();
     let processedIncidents = Array.from(uniqueIncidentsMap.values());
 
     if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
@@ -864,11 +826,6 @@ function renderLiveTrafficDashboard(incidents) {
                 const hasValidCoords = !isNaN(incidentLat) && !isNaN(incidentLng) && incidentLat !== 0;
                 const clickAction = hasValidCoords ? `onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})"` : '';
 
-                // Determine fuel noun based on the global selector
-                const currentFuelMode = document.getElementById('fuel-type') ? document.getElementById('fuel-type').value : 'E10';
-                const isEVMode = currentFuelMode === 'ev';
-                const fuelNoun = isEVMode ? 'kWh' : 'Liters';
-                
                 // --- UPDATED RETURN: Card now includes onclick and hover states ---
                 return `
                     <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
@@ -1181,10 +1138,6 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         console.error("Pipeline Engine Broken:", err);
         Toast.show(`Failed to trace route: ${err.message}`, "error");
     }
-    // At the end of executeAddressGeocodeLookup() and executeRouteGenerationPipeline()
-    if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
-        setMobileSidebarState('peek'); // Lowers the drawer so the map view is instantly fully visible
-    }
 }
 
 function lookupWeatherIconEmoji(code) {
@@ -1340,12 +1293,6 @@ function clearCalculatedRouteLayers() {
     const dash = document.getElementById('bottom-traffic-dashboard');
     if (dash) {
         dash.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
-        // --- ADD THIS MOBILE SYNC STATE BLOCK HERE ---
-        // When a route is cleared, snap the drawer to half-screen ('mid') 
-        // so mobile users can easily access the inputs to enter a new destination.
-        if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
-            setMobileSidebarState('mid');
-        }
         dash.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
     }
 
@@ -1427,14 +1374,7 @@ async function executeStationDataFilteringPipeline() {
 
     // --- NEW: EV CHARGING STATION FETCH PIPELINE ---
     if (targetFuelType === 'electric') {
-        // Grab the container from the HTML. 
-        // Note: If your HTML ID is different (like 'dynamic-waypoints-container'), change the ID below!
-        const timelineContainer = document.getElementById('timeline-container') || document.getElementById('dynamic-waypoints-container');
-        
-        // Only run the timeline code if the container actually exists on the screen
-        if (timelineContainer) {
-            if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
-        }
+        if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
         
         try {
             let ocmUrl = '';
@@ -1461,11 +1401,7 @@ async function executeStationDataFilteringPipeline() {
     
             const res = await fetch(ocmUrl);
             const data = await res.json();
-
-            // Grab the radius from the user's dropdown, default to 5 if not found
-            const radiusSelectElement = document.getElementById('search-radius');
-            const radiusMiles = radiusSelectElement ? parseFloat(radiusSelectElement.value) : 5;
-            
+    
             // Normalise OCM schema mapping to match app's internal station interface format
             currentlyVisibleStations = data.map(poi => ({
                 id: poi.ID,
@@ -1526,14 +1462,9 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
     if (validPool.length === 0) { block.classList.add('hidden'); return; }
 
     container.innerHTML = '';
-    
-    // 1. Identify if we are in EV mode to change units and logic
-    const isEV = fuelVariant === 'electric';
-    const unitString = isEV ? 'kW' : 'p';
 
     if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
-        // 2. Update title based on EV state
-        blockTitle.textContent = isEV ? "3 Fastest Chargers On Route" : "3 Cheapest Stations On Route";
+        blockTitle.textContent = "3 Cheapest Stations On Your Route";
         
         const milestoneLocationsList = [];
         milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
@@ -1551,13 +1482,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             });
 
             rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
-            
-            // 3. EV sorts Highest kW first. Combustion sorts Lowest Price first.
-            rawMilestonePool.sort((a, b) => {
-                return isEV 
-                    ? parseFloat(b.station[fuelVariant]) - parseFloat(a.station[fuelVariant])
-                    : parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]);
-            });
+            rawMilestonePool.sort((a, b) => parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]));
 
             let slicedTopThree = rawMilestonePool.slice(0, 3);
             if (slicedTopThree.length > 0) {
@@ -1586,7 +1511,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
                                 <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-700 dark:text-emerald-500">${item.distanceToNode.toFixed(1)} mi away</span></div>
                             </div>
                         </div>
-                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}${unitString}</div></div>
+                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
                     `;
                     subGroupWrapper.appendChild(card);
                 });
@@ -1594,15 +1519,8 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             }
         });
     } else {
-        // 4. Update title based on EV state for standard nearby list
-        blockTitle.textContent = isEV ? "Fastest Chargers Nearby" : "Cheapest Stations Nearby";
-        
-        // 5. EV sorts Highest kW first. Combustion sorts Lowest Price first.
-        validPool.sort((a, b) => {
-            return isEV 
-                ? parseFloat(b[fuelVariant]) - parseFloat(a[fuelVariant])
-                : parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]);
-        });
+        blockTitle.textContent = "Cheapest Stations Nearby";
+        validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
         
         validPool.slice(0, 3).forEach((station, idx) => {
             const lat = parseFloat(station.latitude || station.lat);
@@ -1620,7 +1538,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
                         <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
                     </div>
                 </div>
-                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}${unitString}</div></div>
+                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
             `;
             container.appendChild(card);
         });
@@ -1962,27 +1880,39 @@ function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModif
     if (!targetHandle) return;
 
     let touchBaseY = 0;
+    let touchCurrentY = 0;
+    let touchStartTime = 0;
 
     targetHandle.addEventListener('touchstart', (e) => {
         touchBaseY = e.touches[0].clientY;
-        // Prevent map scrolling while dragging the handle
-        e.stopPropagation();
+        touchStartTime = Date.now();
     }, { passive: true });
 
-    targetHandle.addEventListener('touchend', (e) => {
-        const touchCurrentY = e.changedTouches[0].clientY;
-        const trackDeltaY = touchBaseY - touchCurrentY; // Positive = Swipe Up, Negative = Swipe Down
+    targetHandle.addEventListener('touchmove', (e) => {
+        touchCurrentY = e.touches[0].clientY;
+    }, { passive: true });
+
+    targetHandle.addEventListener('touchend', () => {
+        const trackDeltaY = touchBaseY - touchCurrentY;
+        const timeframeDuration = Date.now() - touchStartTime;
         
+        if (Math.abs(trackDeltaY) < 35) return; 
+
+        const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
         let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
 
-        // Require a 40px swipe to register as an intentional gesture
-        if (Math.abs(trackDeltaY) > 40) {
-            if (trackDeltaY > 0) {
-                // Swiped UP
+        if (trackDeltaY > 35) {
+            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
+                stateModificationCallback('full');
+            } else {
                 if (currentActiveState === 'peek') stateModificationCallback('mid');
                 else if (currentActiveState === 'mid') stateModificationCallback('full');
+            }
+        } else if (trackDeltaY < -35) {
+            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
+                if (elementId === 'sidebar') stateModificationCallback('peek');
+                else stateModificationCallback('hidden');
             } else {
-                // Swiped DOWN
                 if (currentActiveState === 'full') stateModificationCallback('mid');
                 else if (currentActiveState === 'mid') {
                     if (elementId === 'sidebar') stateModificationCallback('peek');

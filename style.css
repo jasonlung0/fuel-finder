@@ -82,53 +82,27 @@ body {
     color: white;
 }
 
-/* --- PRECISE MOBILE UI ARCHITECTURE --- */
+/* --- PRECISE MOBILE DRAWER ARCHITECTURE --- */
 @media (max-width: 767px) {
-    /* 1. Header Compactness */
-    header {
-        top: 8px !important;
-        gap: 8px !important;
-    }
-    header .bg-white\/95 {
-        padding: 6px 12px !important;
-    }
-
-    /* 2. Master Sidebar Drawer Logic */
     .mobile-bottom-drawer {
         position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
-        /* FIX: Enforce strict height so percentage-based sliding works perfectly */
-        height: 85vh !important; 
-        max-height: 85vh !important;
-        border-bottom-left-radius: 0 !important;
-        border-bottom-right-radius: 0 !important;
+        height: auto;
+        /* Constrain max height so it never blocks the top header completely */
+        max-height: calc(100vh - 100px);
         transform: translateY(100%);
-        transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+        transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
         will-change: transform;
-        z-index: 5000 !important;
     }
     
-    /* The 3 Perfect Touch States */
+    /* 3 Precise States relative to the element's height */
     .mobile-bottom-drawer.drawer-hidden { transform: translateY(100%); }
-    .mobile-bottom-drawer.drawer-peek { transform: translateY(calc(100% - 64px)); } /* Only tabs & handle visible */
-    .mobile-bottom-drawer.drawer-mid { transform: translateY(50%); } /* Half screen for typing */
-    .mobile-bottom-drawer.drawer-full { transform: translateY(0); } /* Full screen for scrolling lists */
-
-    /* 3. Traffic Dashboard Float Logic */
-    #bottom-traffic-dashboard {
-        position: fixed;
-        /* Float exactly above the 'peeked' sidebar (64px + 10px buffer) */
-        bottom: 74px !important; 
-        width: calc(100% - 24px);
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 4000 !important;
-    }
+    .mobile-bottom-drawer.drawer-peek { transform: translateY(calc(100% - 140px)); }
+    .mobile-bottom-drawer.drawer-mid { transform: translateY(50%); }
+    .mobile-bottom-drawer.drawer-full { transform: translateY(0); }
 }
-
-
 
 /* --- DESKTOP SIDEBAR COLLAPSE --- */
 @media (min-width: 768px) {
@@ -258,7 +232,13 @@ body {
     }
 }
 
-
+/* Mobile responsive fallback */
+@media (max-width: 768px) {
+    #bottom-traffic-dashboard {
+        left: 50%;
+        width: 90%;
+    }
+}
 
 
 
