@@ -668,6 +668,20 @@ function getIncidentSeverity(delay, category) {
     return { label: 'MINOR', styles: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30' };
 }
 
+
+// --- MAP CAMERA HELPER ---
+window.focusIncidentMapView = function(lat, lng) {
+    if (map && lat !== 0 && lng !== 0) {
+        map.flyTo([lat, lng], 16, {
+            animate: true,
+            duration: 1.5,
+            easeLinearity: 0.25
+        });
+    } else {
+        Toast.show("Exact incident coordinates unavailable.", "warning");
+    }
+};
+
 // --- 4. FLOATING DASHBOARD UI RENDERER & SMART FILTER ---
 function renderLiveTrafficDashboard(incidents) {
     const dash = document.getElementById('bottom-traffic-dashboard');
@@ -754,18 +768,22 @@ function renderLiveTrafficDashboard(incidents) {
 
                 // Extract exact coordinates from the new API geometry field
                 // Extract coordinates safely handling both Point and LineString GeoJSON
+                // --- NEW PLACEMENT: Safely parse TomTom GeoJSON to Leaflet Coordinates ---
                 let incidentLat = 0, incidentLng = 0;
                 if (incident.geometry && incident.geometry.coordinates) {
                     const coords = incident.geometry.coordinates;
-                    // If it's a line, grab the start of the traffic jam. If it's a point, grab the point.
-                    const firstPoint = incident.geometry.type === 'LineString' ? coords[0] : coords;
                     
-                    // GeoJSON is ALWAYS [Longitude, Latitude]. Leaflet is ALWAYS [Latitude, Longitude].
-                    incidentLng = firstPoint[0];
-                    incidentLat = firstPoint[1];
+                    // Leaflet requires [Lat, Lng]. TomTom provides GeoJSON as [Lng, Lat].
+                    if (incident.geometry.type === 'LineString' && coords.length > 0) {
+                        incidentLng = coords[0][0]; // Longitude is index 0
+                        incidentLat = coords[0][1]; // Latitude is index 1
+                    } else if (incident.geometry.type === 'Point') {
+                        incidentLng = coords[0];
+                        incidentLat = coords[1];
+                    }
                 }
 
-                // Added cursor-pointer, hover transitions, and the onclick event handler
+                // --- UPDATED RETURN: Card now includes onclick and hover states ---
                 return `
                     <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
                          class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-all cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.98]">
@@ -1274,8 +1292,8 @@ function focusAndHighlightMapMarker(lat, lon) {
 // -------------------------------------------------------------
 // MAIN PIPELINE: Filter Stations & Draw Map (Fixes Ref Error)
 // -------------------------------------------------------------
-function executeStationDataFilteringPipeline() {
-    if (!rawGlobalStationsPool?.length) return;
+async function executeStationDataFilteringPipeline() {
+    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type')?.value !== 'electric') return;
     
     const targetFuelType = document.getElementById('fuel-type')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
@@ -1283,18 +1301,50 @@ function executeStationDataFilteringPipeline() {
     
     let dynamicBoundedStations = [];
 
-    if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
-        dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
-            if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-            const dist = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
-            return dist <= targetLocalRadiusThreshold;
-        });
-    } else {
-        dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
-            if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-            const dist = computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
-            return dist <= targetCorridorRadiusThreshold;
-        });
+    // --- NEW: EV CHARGING STATION FETCH PIPELINE ---
+    if (targetFuelType === 'electric') {
+        const radiusMeters = Math.round((activeTabContext === 'local' ? targetLocalRadiusThreshold : targetCorridorRadiusThreshold) * 1609.34);
+        
+        // Determine where to search from (Device Location vs Route Start)
+        const searchLat = activeTabContext === 'local' || plottedRouteCoordinates.length === 0 ? mapSearchAnchorCoordinates[0] : plottedRouteCoordinates[0][0];
+        const searchLon = activeTabContext === 'local' || plottedRouteCoordinates.length === 0 ? mapSearchAnchorCoordinates[1] : plottedRouteCoordinates[0][1];
+
+        try {
+            // Hit TomTom's specific EV Category endpoint
+            const evUrl = `https://api.tomtom.com/search/2/categorySearch/electric%20vehicle%20station.json?key=${TOMTOM_API_KEY}&lat=${searchLat}&lon=${searchLon}&radius=${radiusMeters}&limit=50`;
+            const evRes = await fetch(evUrl);
+            const evData = await evRes.json();
+            
+            if (evData.results) {
+                dynamicBoundedStations = evData.results.map(poi => ({
+                    id: poi.id,
+                    brand_name: poi.poi.name,
+                    address: poi.address.freeformAddress,
+                    latitude: poi.position.lat,
+                    longitude: poi.position.lon,
+                    electric: 75.0 // Mocking 75p/kWh average so the map coloring logic still works
+                }));
+            }
+        } catch(e) { 
+            console.error("EV Fetch Error", e); 
+            Toast.show("Failed to fetch EV charging network.", "error");
+        }
+    } 
+    // --- EXISTING: COMBUSTION FUEL PIPELINE ---
+    else {
+        if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
+            dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
+                if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
+                const dist = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+                return dist <= targetLocalRadiusThreshold;
+            });
+        } else {
+            dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
+                if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
+                const dist = computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+                return dist <= targetCorridorRadiusThreshold;
+            });
+        }
     }
 
     currentlyVisibleStations = dynamicBoundedStations;
