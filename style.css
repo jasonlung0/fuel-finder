@@ -217,9 +217,29 @@ body {
 /* Desktop layout rules */
 @media (min-width: 1024px) {
     #bottom-traffic-dashboard {
-        /* Centers the dashboard perfectly within the remaining viewport space to the right of the 380px sidebar */
-        left: calc(380px + ((100vw - 380px) / 2));
-        transform: translateX(-50%);
         width: 480px;
+        position: fixed;
+        bottom: 24px;
+        /* 380px (sidebar) + half of the remaining viewport width */
+        left: calc(380px + (100vw - 380px) / 2); 
+        transform: translateX(-50%);
+        z-index: 1000;
+        /* Modern Glassmorphism */
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border-radius: 16px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
     }
 }
+
+/* Mobile responsive fallback */
+@media (max-width: 768px) {
+    #bottom-traffic-dashboard {
+        left: 50%;
+        width: 90%;
+    }
+}
+
+
+
+
