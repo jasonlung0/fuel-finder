@@ -684,55 +684,31 @@ window.focusIncidentMapView = function(lat, lng) {
 
 // --- 4. FLOATING DASHBOARD UI RENDERER & SMART FILTER ---
 function renderLiveTrafficDashboard(incidents) {
-    const dash = document.getElementById('bottom-traffic-dashboard');
-    const statusBadge = document.getElementById('traffic-status-badge');
-    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
-    const alertsViewport = document.getElementById('route-alerts-container');
-
-    if (dash) {
-        dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
-        dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
-    }
-
-    // Handle API Offline State
-    if (incidents === null) {
-        if (statusBadge) {
-            statusBadge.textContent = "OFFLINE";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
-        }
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Traffic telemetry currently unavailable.</div>`;
-        }
-        if (alertsViewport) alertsViewport.classList.add('hidden');
-        return;
-    }
-
-    // --- SMART FILTERING ALGORITHM ---
-    let validIncidents = incidents.filter(inc => {
-        const delay = inc.properties.delay || 0;
-        const cat = inc.properties.iconCategory;
-        return delay >= 60 || cat === 1 || cat === 8; // Filter out <60s micro-delays
-    });
-
+    const alertsViewport = document.getElementById('traffic-alerts-viewport');
+    
+    // 1. SMART FILTERING ALGORITHM
     const uniqueIncidentsMap = new Map();
-    validIncidents.forEach(inc => {
-        const rawDesc = inc.properties.events?.[0]?.description || '';
-        const humanDesc = humanizeTrafficDescription(rawDesc);
-        const delay = inc.properties.delay || 0;
-        
-        if (!uniqueIncidentsMap.has(humanDesc)) {
-            uniqueIncidentsMap.set(humanDesc, inc);
-        } else {
-            const existingDelay = uniqueIncidentsMap.get(humanDesc).properties.delay || 0;
-            if (delay > existingDelay) {
-                uniqueIncidentsMap.set(humanDesc, inc); // Keep the worst iteration of duplicate jams
+    
+    if (incidents && incidents.length > 0) {
+        incidents.forEach(incident => {
+            const props = incident.properties;
+            const delay = props.delay || 0;
+            const desc = props.events?.[0]?.description || 'Traffic incident';
+            
+            // Filter out minor delays under 60s
+            if (delay < 60) return;
+            
+            // Deduplicate same incident types on the same stretch
+            const sig = `${desc}-${Math.round(delay/60)}`;
+            if (!uniqueIncidentsMap.has(sig) || uniqueIncidentsMap.get(sig).properties.delay < delay) {
+                uniqueIncidentsMap.set(sig, incident);
             }
-        }
-    });
+        });
+    }
 
-    // --- NEW PLACEMENT: Convert to array and sort from Route Start (A) to End (B) ---
     let processedIncidents = Array.from(uniqueIncidentsMap.values());
 
+    // Sort from Route Start (A) to End (B)
     if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
         const startLat = plottedRouteCoordinates[0][0];
         const startLng = plottedRouteCoordinates[0][1];
@@ -742,121 +718,76 @@ function renderLiveTrafficDashboard(incidents) {
             let coordsB = b.geometry?.coordinates;
 
             if (!coordsA || !coordsB) return 0;
-
-            // Normalize TomTom GeoJSON (LineString vs Point)
             if (a.geometry.type === 'LineString') coordsA = coordsA[0];
             if (b.geometry.type === 'LineString') coordsB = coordsB[0];
 
-            // Calculate exact distance from the starting node (TomTom uses [Lng, Lat])
             const distA = computeDistanceVectorMiles(startLat, startLng, coordsA[1], coordsA[0]);
             const distB = computeDistanceVectorMiles(startLat, startLng, coordsB[1], coordsB[0]);
             
-            return distA - distB; // Ascending order ensures Point A is top, Point B is bottom
+            return distA - distB; 
         });
     } else {
-        // Fallback: If no route is actively drawn, sort by worst delay severity
         processedIncidents.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
     }
 
-    processedIncidents = processedIncidents.slice(0, 10); // Still cap at top 10 to protect UI performance
-    // --------------------------------------------------------------------------------
+    processedIncidents = processedIncidents.slice(0, 10); // Cap at 10 to protect UI
 
-    // --- UI RENDERING ---
-    if (processedIncidents.length > 0) {
-        let badgeState = processedIncidents.length >= 3 ? "CONGESTED" : "ALERTS";
-        let badgeClasses = processedIncidents.length >= 3 
-            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-            : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
+    // 2. MINIMISED VIEW SPEED COLORS (Google Maps Style)
+    // Assuming you have access to the route's average speed. If not, default to 40.
+    const avgSpeed = typeof currentAverageSpeedValue !== 'undefined' ? parseFloat(currentAverageSpeedValue) : 40;
+    let speedColorClass = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400";
+    
+    if (avgSpeed < 40) speedColorClass = "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400";
+    if (avgSpeed < 20) speedColorClass = "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400";
+    if (avgSpeed < 10) speedColorClass = "bg-red-900 text-white border-red-800 animate-pulse";
+
+    const speedBadge = document.getElementById('dash-header-speed-badge');
+    if (speedBadge) {
+        speedBadge.className = `ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase transition-colors duration-300 ${speedColorClass}`;
+        speedBadge.innerText = `${avgSpeed.toFixed(0)} MPH`;
+    }
+
+    // 3. RENDER INCIDENT CARDS (With click-to-pan action)
+    if (alertsViewport) {
+        alertsViewport.classList.remove('hidden');
         
-        if (statusBadge) {
-            statusBadge.textContent = badgeState;
-            statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
+        if (processedIncidents.length === 0) {
+             alertsViewport.innerHTML = `<div class="text-xs text-zinc-500 p-2 text-center">No major delays reported.</div>`;
+             return;
         }
 
-        const totalDelay = processedIncidents.reduce((sum, inc) => sum + (inc.properties.delay || 0), 0);
-        const delayMin = Math.round(totalDelay / 60);
-
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${processedIncidents.length} major incidents affecting route (+${delayMin}m total)</div>`;
-        }
-
-        // Render Cards
-        if (alertsViewport) {
-            alertsViewport.classList.remove('hidden');
-            alertsViewport.innerHTML = processedIncidents.map(incident => {
-                const props = incident.properties;
-                const delaySeconds = props.delay || 0;
-                const delayMinutes = Math.round(delaySeconds / 60);
-                
-                const rawDesc = props.events?.[0]?.description || '';
-                const cleanDesc = humanizeTrafficDescription(rawDesc);
-                const locationText = formatIncidentLocation(props.from, props.to);
-                const severity = getIncidentSeverity(delaySeconds, props.iconCategory);
-
-                // Extract exact coordinates from the new API geometry field
-                // Extract coordinates safely handling both Point and LineString GeoJSON
-                // --- NEW PLACEMENT: Safely parse TomTom GeoJSON to Leaflet Coordinates ---
-                // --- FIX: Absolute extraction of incident coordinates ---
-                let incidentLat = 0;
-                let incidentLng = 0;
-
-                if (incident.geometry && incident.geometry.coordinates) {
-                    const type = incident.geometry.type;
-                    const coords = incident.geometry.coordinates;
-
-                    if (type === 'Point' && Array.isArray(coords)) {
-                        incidentLng = coords[0];
-                        incidentLat = coords[1];
-                    } else if (type === 'LineString' && Array.isArray(coords) && coords.length > 0) {
-                        // For a stretch of road delay, safely pluck the middle index of the jam sequence 
-                        // rather than just the tail point to center the view directly on the issue
-                        const targetIndex = Math.floor(coords.length / 2);
-                        const midpoint = coords[targetIndex];
-                        if (Array.isArray(midpoint)) {
-                            incidentLng = midpoint[0];
-                            incidentLat = midpoint[1];
-                        } else {
-                            incidentLng = coords[0][0];
-                            incidentLat = coords[0][1];
-                        }
-                    }
+        alertsViewport.innerHTML = processedIncidents.map(incident => {
+            const props = incident.properties;
+            const delayMinutes = Math.round((props.delay || 0) / 60);
+            const rawDesc = props.events?.[0]?.description || 'Traffic Alert';
+            
+            // Safely extract Leaflet coordinates from TomTom GeoJSON [Lng, Lat]
+            let incidentLat = 0, incidentLng = 0;
+            if (incident.geometry && incident.geometry.coordinates) {
+                const coords = incident.geometry.coordinates;
+                if (incident.geometry.type === 'LineString' && coords.length > 0) {
+                    const midpoint = coords[Math.floor(coords.length / 2)];
+                    incidentLng = Array.isArray(midpoint) ? midpoint[0] : coords[0][0];
+                    incidentLat = Array.isArray(midpoint) ? midpoint[1] : coords[0][1];
+                } else if (incident.geometry.type === 'Point') {
+                    incidentLng = coords[0];
+                    incidentLat = coords[1];
                 }
+            }
 
-                // Ensure coordinates are finite and real numbers before painting the click node
-                const hasValidCoords = !isNaN(incidentLat) && !isNaN(incidentLng) && incidentLat !== 0;
-                const clickAction = hasValidCoords ? `onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})"` : '';
-
-                // --- UPDATED RETURN: Card now includes onclick and hover states ---
-                return `
-                    <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
-                         class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-all cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.98]">
-                        <div class="flex justify-between items-start w-full gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <div class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase shrink-0 ${severity.styles}">
-                                    ${severity.label}
-                                </div>
-                                <h4 class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${cleanDesc}</h4>
-                            </div>
-                            ${delayMinutes > 0 ? `<span class="text-[10px] font-black text-rose-600 dark:text-rose-400 shrink-0">+${delayMinutes}m</span>` : ''}
+            return `
+                <div onclick="if(typeof map !== 'undefined') { map.setView([${incidentLat}, ${incidentLng}], 16); }" 
+                     class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-all cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.98]">
+                    <div class="flex justify-between items-start w-full gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <h4 class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${rawDesc}</h4>
                         </div>
-                        <p class="text-[10px] font-medium text-zinc-500 truncate">${locationText}</p>
+                        ${delayMinutes > 0 ? `<span class="text-[10px] font-black text-rose-600 dark:text-rose-400 shrink-0">+${delayMinutes}m</span>` : ''}
                     </div>
-                `;
-            }).join('');
-        }
-    } else {
-        // Clear State
-        if (statusBadge) {
-            statusBadge.textContent = "CLEAR";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
-        }
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
-        }
-        if (alertsViewport) {
-            alertsViewport.innerHTML = '';
-            alertsViewport.classList.add('hidden');
-        }
+                    <p class="text-[10px] font-medium text-zinc-500 truncate">Tap to view on map</p>
+                </div>
+            `;
+        }).join('');
     }
 }
 
@@ -1576,31 +1507,25 @@ function assignPricingTierColorStyles(valueRaw, variantKey) {
     return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
 }
 
-function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
-    if(!markerClusterGroupInstance) return;
-    markerClusterGroupInstance.clearLayers();
-    
-    const pricesArray = stationsList.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0);
-    const minPrice = Math.min(...pricesArray) || 0;
-
-    if (activeTabContext === 'route' && routeDistanceContext && pricesArray.length > 0) {
-        document.getElementById('summary-cost').textContent = `${minPrice.toFixed(1)}p`;
+function paintMarkerCanvasLayersToMap(stationsList, variant, totalCount, distanceContext) {
+    // Clear existing markers
+    if (typeof window.globalStationsMapLayer !== 'undefined' && window.globalStationsMapLayer) {
+        window.globalStationsMapLayer.clearLayers();
+    } else {
+        window.globalStationsMapLayer = L.layerGroup().addTo(map);
     }
 
-    // Use absolute tertiles from global pool to prevent color shifting on zoom/pan
-    const globalPricesArray = rawGlobalStationsPool
-        .map(s => parseFloat(s[variant]))
-        .filter(p => !isNaN(p) && p > 0)
-        .sort((a, b) => a - b);
-        
+    if (!stationsList || stationsList.length === 0) return;
+
+    // Determine thresholds based on Fuel vs EV
     let greenThreshold = 0;
     let blueThreshold = 0;
+    const globalPricesArray = stationsList.map(s => parseFloat(s[variant])).filter(p => !isNaN(p) && p > 0).sort((a, b) => a - b);
 
-    // --- NEW PLACEMENT: Define thresholds based on Fuel vs EV ---
     if (variant === 'electric') {
         // Hardcoded optimal thresholds for EV charging (Pence per kWh)
-        greenThreshold = 65;
-        blueThreshold = 75;
+        greenThreshold = 50;
+        blueThreshold = 70;
     } else if (globalPricesArray.length > 0) {
         // Statistical Tertiles for standard combustion fuels (E10, B7, etc.)
         const oneThirdIndex = Math.floor(globalPricesArray.length * 0.333);
@@ -1610,33 +1535,81 @@ function paintMarkerCanvasLayersToMap(stationsList, variant, fallbackTotalCount,
     }
 
     stationsList.forEach((station) => {
-        const numericPrice = parseFloat(station[variant]);
-        if (!numericPrice) return;
-        
-        let tierBgClassColor = 'bg-fuel-blue';
+        const lat = parseFloat(station.latitude || station.lat);
+        const lng = parseFloat(station.longitude || station.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
 
-        if (globalPricesArray.length > 0) {
-            if (numericPrice <= greenThreshold) tierBgClassColor = 'bg-fuel-green';
-            else if (numericPrice <= blueThreshold) tierBgClassColor = 'bg-fuel-blue';
-            else tierBgClassColor = 'bg-fuel-red';
+        const price = parseFloat(station[variant]);
+        let markerColorClass = "bg-zinc-600 border-zinc-800"; // Fallback
+        
+        if (!isNaN(price) && price > 0) {
+            if (price <= greenThreshold) markerColorClass = "bg-emerald-500 border-emerald-700";
+            else if (price <= blueThreshold) markerColorClass = "bg-blue-500 border-blue-700";
+            else markerColorClass = "bg-rose-500 border-rose-700";
         }
 
-        const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
-            stationRawData: station,
-            icon: L.divIcon({
-                html: `<div class="fuel-marker-bubble tabular-nums ${tierBgClassColor}"><span>${numericPrice.toFixed(1)}p</span></div>`,
-                className: 'leaflet-div-icon-reset', iconSize: [75, 28], iconAnchor: [37, 14]
-            })
-        });
-        
-        markerInstance.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            openForecourtDetailSheet(station);
-        });
-        markerClusterGroupInstance.addLayer(markerInstance);
-    });
+        const displayPrice = (!isNaN(price) && price > 0) ? `${price.toFixed(1)}p` : 'N/A';
 
-    if (document.getElementById('station-counter')) document.getElementById('station-counter').textContent = `Stations: ${fallbackTotalCount}`;
+        const customIcon = L.divIcon({
+            className: 'custom-price-marker',
+            html: `<div class="${markerColorClass} text-white text-[10px] font-black px-2 py-1 rounded-full shadow-md border-2 whitespace-nowrap transform transition-transform hover:scale-110">${displayPrice}</div>`,
+            iconSize: [40, 24],
+            iconAnchor: [20, 12]
+        });
+
+        let popupContentHTML = '';
+
+        if (variant === 'electric') {
+            // UI TRANSPARENCY FOR OCM POPUPS
+            const accessLabel = station.usage_title || (station.is_public !== false ? 'Public Access' : 'Restricted / Private');
+            const connectionLink = station.operator_url ? station.operator_url : `https://openchargemap.org/site/poi/details/${station.id}`;
+
+            popupContentHTML = `
+                <div class="p-1 space-y-2.5 min-w-[200px] font-sans">
+                    <div>
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block mb-0.5">${accessLabel}</span>
+                        <strong class="text-xs text-zinc-900 font-black block leading-tight">${station.brand_name || 'EV Charger'}</strong>
+                        <span class="text-[10px] text-zinc-500 block truncate mt-0.5">${station.address || 'Location Details'}</span>
+                    </div>
+                    
+                    <div class="bg-zinc-50 border border-zinc-100 p-2 rounded-lg flex flex-col gap-1">
+                        <div class="text-[10px] text-zinc-600 font-medium flex items-center gap-1">
+                            <span>⚡</span> Network Standard: 24/7
+                        </div>
+                        <div class="text-[10px] text-zinc-600 font-medium flex items-center gap-1">
+                            <span>✓</span> Reliability: Historically Stable
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-1 border-t border-zinc-100">
+                        <span class="text-[10px] font-bold text-zinc-400 uppercase">Rate</span>
+                        <span class="text-xs font-black text-zinc-900">${displayPrice}<span class="text-[9px] text-zinc-400 font-medium">/kWh</span></span>
+                    </div>
+
+                    <a href="${connectionLink}" target="_blank" 
+                       class="w-full text-center block mt-2 bg-zinc-900 text-white hover:bg-zinc-800 text-[10px] font-bold py-2 rounded-md transition-transform active:scale-95 shadow-sm">
+                        Check Live Status via Network
+                    </a>
+                </div>
+            `;
+        } else {
+            // STANDARD ICE FUEL POPUP
+            popupContentHTML = `
+                <div class="p-2 min-w-[180px] flex flex-col gap-1 font-sans">
+                    <h4 class="text-xs font-black text-zinc-900">${station.brand_name || 'Fuel Station'}</h4>
+                    <p class="text-[10px] text-zinc-500">${station.address || ''}</p>
+                    <div class="mt-1 pt-1 border-t border-zinc-100 flex justify-between items-center">
+                        <span class="text-[10px] font-bold uppercase text-zinc-400">${variant}</span>
+                        <span class="text-xs font-black text-zinc-900">${displayPrice}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        L.marker([lat, lng], { icon: customIcon })
+            .bindPopup(popupContentHTML)
+            .addTo(window.globalStationsMapLayer);
+    });
 }
 
 function toggleCurrentStationStar(event) {
