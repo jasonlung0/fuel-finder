@@ -189,3 +189,26 @@ body {
 
 .toast-info { background: rgba(239, 246, 255, 0.9); border-color: rgba(59, 130, 246, 0.3); color: #1d4ed8; }
 .dark .toast-info { background: rgba(23, 37, 84, 0.9); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+
+
+/* --- UI OVERLAP & POSITIONING FIXES --- */
+
+/* 1. Push Leaflet zoom controls down below the top header */
+.leaflet-control-zoom {
+    margin-top: 80px !important; 
+}
+
+/* 2. Smart Dashboard Positioning */
+#bottom-traffic-dashboard {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* On medium screens where sidebar is active, center it in the remaining right-side space */
+@media (min-width: 768px) {
+    #bottom-traffic-dashboard {
+        /* Sidebar is ~380px. We center the dashboard in the space between 400px and the right edge */
+        left: calc(400px + ((100vw - 400px) / 2));
+        transform: translateX(-50%);
+    }
+}
