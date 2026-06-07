@@ -69,6 +69,94 @@ let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
 let scanAreaTimeout = null;
 
+// --- 3-STATE MOBILE SWIPE MECHANICS ---
+let currentMobileSidebarUIState = 'peek';
+let currentMobileSheetUIState = 'hidden';
+
+function bindMobileSwipeDrawer(handleId, elementId) {
+    const handle = document.getElementById(handleId);
+    const drawer = document.getElementById(elementId);
+    if (!handle || !drawer) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let startTime = 0;
+    
+    const isSidebar = elementId === 'primary-control-sidebar';
+
+    handle.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+        isDragging = true;
+        drawer.classList.add('dragging'); 
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        
+        let baseTranslate = 0;
+        let activeState = isSidebar ? currentMobileSidebarUIState : currentMobileSheetUIState;
+        
+        if (activeState === 'full') baseTranslate = 0;
+        else if (activeState === 'mid') baseTranslate = window.innerHeight * 0.5;
+        else baseTranslate = isSidebar ? (window.innerHeight - 110) : window.innerHeight;
+        
+        let newTranslate = baseTranslate + deltaY;
+        if (newTranslate < 0) newTranslate = 0; 
+        
+        drawer.style.transform = `translateY(${newTranslate}px)`;
+    }, { passive: true });
+
+    handle.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        drawer.classList.remove('dragging');
+        drawer.style.transform = ''; 
+        
+        const deltaY = currentY - startY;
+        const timeDiff = Date.now() - startTime;
+        const velocity = Math.abs(deltaY) / timeDiff;
+        const activeState = isSidebar ? currentMobileSidebarUIState : currentMobileSheetUIState;
+        
+        if (Math.abs(deltaY) < 30) {
+            // Treat as a tap - toggle state
+            if (activeState === 'peek' || activeState === 'hidden') setDrawerState(elementId, 'mid');
+            else if (activeState === 'mid') setDrawerState(elementId, 'full');
+            else if (activeState === 'full') setDrawerState(elementId, 'peek');
+            return;
+        }
+
+        // Swipe Up
+        if (deltaY < -30) {
+            if (velocity > 0.8 || deltaY < -150) setDrawerState(elementId, 'full');
+            else if (activeState === 'peek' || activeState === 'hidden') setDrawerState(elementId, 'mid');
+            else setDrawerState(elementId, 'full');
+        } 
+        // Swipe Down
+        else if (deltaY > 30) {
+            if (velocity > 0.8 || deltaY > 150) setDrawerState(elementId, isSidebar ? 'peek' : 'hidden');
+            else if (activeState === 'full') setDrawerState(elementId, 'mid');
+            else setDrawerState(elementId, isSidebar ? 'peek' : 'hidden');
+        }
+    });
+}
+
+function setDrawerState(elementId, state) {
+    const isSidebar = elementId === 'primary-control-sidebar';
+    if (isSidebar) currentMobileSidebarUIState = state;
+    else currentMobileSheetUIState = state;
+    
+    const drawer = document.getElementById(elementId);
+    if (!drawer) return;
+    
+    drawer.className = drawer.className.replace(/\b(drawer|sheet)-(hidden|peek|mid|full)\b/g, '').trim();
+    const prefix = isSidebar ? 'drawer' : 'sheet';
+    drawer.classList.add(`${prefix}-${state}`);
+}
+
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
 const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
@@ -683,182 +771,88 @@ window.focusIncidentMapView = function(lat, lng) {
 };
 
 // --- 4. FLOATING DASHBOARD UI RENDERER & SMART FILTER ---
-function renderLiveTrafficDashboard(incidents) {
+window.renderLiveTrafficDashboard = function(incidents) {
     const dash = document.getElementById('bottom-traffic-dashboard');
-    const statusBadge = document.getElementById('traffic-status-badge');
-    const tickerContainer = document.getElementById('dash-metric-delay-ticker');
     const alertsViewport = document.getElementById('route-alerts-container');
-
+    const ticker = document.getElementById('dash-metric-delay-ticker');
+    
     if (dash) {
         dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
         dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
     }
 
-    // Handle API Offline State
-    if (incidents === null) {
-        if (statusBadge) {
-            statusBadge.textContent = "OFFLINE";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight bg-zinc-500/10 text-zinc-500 border border-zinc-500/20 uppercase";
-        }
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-medium text-zinc-500 truncate tracking-tight">Traffic telemetry currently unavailable.</div>`;
-        }
+    if (!incidents || incidents.length === 0) {
+        if(ticker) ticker.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
         if (alertsViewport) alertsViewport.classList.add('hidden');
+        document.getElementById('traffic-status-badge').textContent = "CLEAR";
+        document.getElementById('traffic-status-badge').className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
         return;
     }
 
-    // --- SMART FILTERING ALGORITHM ---
-    let validIncidents = incidents.filter(inc => {
-        const delay = inc.properties.delay || 0;
-        const cat = inc.properties.iconCategory;
-        return delay >= 60 || cat === 1 || cat === 8; // Filter out <60s micro-delays
+    const uMap = new Map();
+    incidents.filter(i => (i.properties.delay || 0) >= 60 || i.properties.iconCategory === 1 || i.properties.iconCategory === 8).forEach(inc => {
+        const desc = humanizeTrafficDescription(inc.properties.events?.[0]?.description);
+        if (!uMap.has(desc) || (inc.properties.delay || 0) > (uMap.get(desc).properties.delay || 0)) uMap.set(desc, inc);
     });
 
-    const uniqueIncidentsMap = new Map();
-    validIncidents.forEach(inc => {
-        const rawDesc = inc.properties.events?.[0]?.description || '';
-        const humanDesc = humanizeTrafficDescription(rawDesc);
-        const delay = inc.properties.delay || 0;
-        
-        if (!uniqueIncidentsMap.has(humanDesc)) {
-            uniqueIncidentsMap.set(humanDesc, inc);
-        } else {
-            const existingDelay = uniqueIncidentsMap.get(humanDesc).properties.delay || 0;
-            if (delay > existingDelay) {
-                uniqueIncidentsMap.set(humanDesc, inc); // Keep the worst iteration of duplicate jams
-            }
-        }
-    });
+    let processed = Array.from(uMap.values());
 
-    // --- NEW PLACEMENT: Convert to array and sort from Route Start (A) to End (B) ---
-    let processedIncidents = Array.from(uniqueIncidentsMap.values());
-
-    if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-        const startLat = plottedRouteCoordinates[0][0];
-        const startLng = plottedRouteCoordinates[0][1];
-
-        processedIncidents.sort((a, b) => {
-            let coordsA = a.geometry?.coordinates;
-            let coordsB = b.geometry?.coordinates;
-
-            if (!coordsA || !coordsB) return 0;
-
-            // Normalize TomTom GeoJSON (LineString vs Point)
-            if (a.geometry.type === 'LineString') coordsA = coordsA[0];
-            if (b.geometry.type === 'LineString') coordsB = coordsB[0];
-
-            // Calculate exact distance from the starting node (TomTom uses [Lng, Lat])
-            const distA = computeDistanceVectorMiles(startLat, startLng, coordsA[1], coordsA[0]);
-            const distB = computeDistanceVectorMiles(startLat, startLng, coordsB[1], coordsB[0]);
-            
-            return distA - distB; // Ascending order ensures Point A is top, Point B is bottom
+    // --- SORT A TO B ---
+    if (plottedRouteCoordinates && plottedRouteCoordinates.length > 0) {
+        const sLat = plottedRouteCoordinates[0][0];
+        const sLng = plottedRouteCoordinates[0][1];
+        processed.sort((a, b) => {
+            let ca = a.geometry?.type === 'LineString' ? a.geometry.coordinates[0] : a.geometry.coordinates;
+            let cb = b.geometry?.type === 'LineString' ? b.geometry.coordinates[0] : b.geometry.coordinates;
+            if(!ca || !cb) return 0;
+            return computeDistanceVectorMiles(sLat, sLng, ca[1], ca[0]) - computeDistanceVectorMiles(sLat, sLng, cb[1], cb[0]);
         });
     } else {
-        // Fallback: If no route is actively drawn, sort by worst delay severity
-        processedIncidents.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
+        processed.sort((a, b) => (b.properties.delay || 0) - (a.properties.delay || 0));
     }
+    processed = processed.slice(0, 10);
 
-    processedIncidents = processedIncidents.slice(0, 10); // Still cap at top 10 to protect UI performance
-    // --------------------------------------------------------------------------------
+    const tDelay = processed.reduce((s, i) => s + (i.properties.delay || 0), 0);
+    if(ticker) ticker.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${processed.length} incidents affecting route (+${Math.round(tDelay/60)}m)</div>`;
 
-    // --- UI RENDERING ---
-    if (processedIncidents.length > 0) {
-        let badgeState = processedIncidents.length >= 3 ? "CONGESTED" : "ALERTS";
-        let badgeClasses = processedIncidents.length >= 3 
-            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
-            : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-        
-        if (statusBadge) {
-            statusBadge.textContent = badgeState;
-            statusBadge.className = `px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase ${badgeClasses}`;
-        }
+    document.getElementById('traffic-status-badge').textContent = processed.length >= 3 ? "CONGESTED" : "ALERTS";
+    document.getElementById('traffic-status-badge').className = processed.length >= 3 
+        ? "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-rose-500/10 text-rose-600 border-rose-500/20"
+        : "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-amber-500/10 text-amber-700 border-amber-500/20";
 
-        const totalDelay = processedIncidents.reduce((sum, inc) => sum + (inc.properties.delay || 0), 0);
-        const delayMin = Math.round(totalDelay / 60);
-
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-amber-600 dark:text-amber-400 truncate tracking-tight">⚠️ ${processedIncidents.length} major incidents affecting route (+${delayMin}m total)</div>`;
-        }
-
-        // Render Cards
-        if (alertsViewport) {
-            alertsViewport.classList.remove('hidden');
-            alertsViewport.innerHTML = processedIncidents.map(incident => {
-                const props = incident.properties;
-                const delaySeconds = props.delay || 0;
-                const delayMinutes = Math.round(delaySeconds / 60);
-                
-                const rawDesc = props.events?.[0]?.description || '';
-                const cleanDesc = humanizeTrafficDescription(rawDesc);
-                const locationText = formatIncidentLocation(props.from, props.to);
-                const severity = getIncidentSeverity(delaySeconds, props.iconCategory);
-
-                // Extract exact coordinates from the new API geometry field
-                // Extract coordinates safely handling both Point and LineString GeoJSON
-                // --- NEW PLACEMENT: Safely parse TomTom GeoJSON to Leaflet Coordinates ---
-                // --- FIX: Absolute extraction of incident coordinates ---
-                let incidentLat = 0;
-                let incidentLng = 0;
-
-                if (incident.geometry && incident.geometry.coordinates) {
-                    const type = incident.geometry.type;
-                    const coords = incident.geometry.coordinates;
-
-                    if (type === 'Point' && Array.isArray(coords)) {
-                        incidentLng = coords[0];
-                        incidentLat = coords[1];
-                    } else if (type === 'LineString' && Array.isArray(coords) && coords.length > 0) {
-                        // For a stretch of road delay, safely pluck the middle index of the jam sequence 
-                        // rather than just the tail point to center the view directly on the issue
-                        const targetIndex = Math.floor(coords.length / 2);
-                        const midpoint = coords[targetIndex];
-                        if (Array.isArray(midpoint)) {
-                            incidentLng = midpoint[0];
-                            incidentLat = midpoint[1];
-                        } else {
-                            incidentLng = coords[0][0];
-                            incidentLat = coords[0][1];
-                        }
-                    }
+    if (alertsViewport) {
+        alertsViewport.classList.remove('hidden');
+        alertsViewport.innerHTML = processed.map(inc => {
+            const p = inc.properties;
+            const dm = Math.round((p.delay || 0) / 60);
+            const sev = getIncidentSeverity(p.delay || 0, p.iconCategory);
+            
+            let iLat = 0, iLng = 0;
+            if (inc.geometry && inc.geometry.coordinates) {
+                const c = inc.geometry.coordinates;
+                if (inc.geometry.type === 'Point') { iLng = c[0]; iLat = c[1]; }
+                else if (c.length > 0) {
+                    const mid = c[Math.floor(c.length / 2)];
+                    iLng = Array.isArray(mid) ? mid[0] : c[0][0];
+                    iLat = Array.isArray(mid) ? mid[1] : c[0][1];
                 }
+            }
 
-                // Ensure coordinates are finite and real numbers before painting the click node
-                const hasValidCoords = !isNaN(incidentLat) && !isNaN(incidentLng) && incidentLat !== 0;
-                const clickAction = hasValidCoords ? `onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})"` : '';
-
-                // --- UPDATED RETURN: Card now includes onclick and hover states ---
-                return `
-                    <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
-                         class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm flex flex-col gap-1.5 transition-all cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 hover:-translate-y-0.5 active:scale-[0.98]">
-                        <div class="flex justify-between items-start w-full gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <div class="px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase shrink-0 ${severity.styles}">
-                                    ${severity.label}
-                                </div>
-                                <h4 class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${cleanDesc}</h4>
-                            </div>
-                            ${delayMinutes > 0 ? `<span class="text-[10px] font-black text-rose-600 dark:text-rose-400 shrink-0">+${delayMinutes}m</span>` : ''}
+            return `
+                <div onclick="focusIncidentMapView(${iLat}, ${iLng})" class="w-full p-2.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex flex-col gap-1 transition-all cursor-pointer hover:border-emerald-500 active:scale-[0.98]">
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="px-1.5 py-0.5 rounded text-[8px] font-black border ${sev.styles}">${sev.label}</div>
+                            <h4 class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${humanizeTrafficDescription(p.events?.[0]?.description)}</h4>
                         </div>
-                        <p class="text-[10px] font-medium text-zinc-500 truncate">${locationText}</p>
+                        ${dm > 0 ? `<span class="text-[10px] font-black text-rose-500 shrink-0">+${dm}m</span>` : ''}
                     </div>
-                `;
-            }).join('');
-        }
-    } else {
-        // Clear State
-        if (statusBadge) {
-            statusBadge.textContent = "CLEAR";
-            statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20";
-        }
-        if(tickerContainer) {
-            tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
-        }
-        if (alertsViewport) {
-            alertsViewport.innerHTML = '';
-            alertsViewport.classList.add('hidden');
-        }
+                    <p class="text-[9px] font-medium text-zinc-500 truncate">${formatIncidentLocation(p.from, p.to)}</p>
+                </div>
+            `;
+        }).join('');
     }
-}
+};
 
 // -------------------------------------------------------------
 // CORE ROUTING ENGINE & TomTom Fuel Consumption Integration
@@ -1948,235 +1942,158 @@ let refuelMarkersGroup = null;
 // -------------------------------------------------------------
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
-function calculateOptimalRefuelStrategy() {
+window.calculateOptimalRefuelStrategy = function() {
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
-    const currentFuelPercentage = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
-    const safetyBufferMiles = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+    const capacity = parseFloat(document.getElementById('refuel-tank-size')?.value) || (isEV ? 60 : 55);
+    const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
     
-    // Dynamic Inputs based on type (Fallback to 60kWh / 3.5 mi/kWh for EV, or 55L / 40 MPG for ICE)
-    const capacityInput = parseFloat(document.getElementById('refuel-tank-size')?.value) || (isEV ? 60 : 55);
-    const efficiencyInput = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
-    
-    const timelineContainer = document.getElementById('refuel-timeline-output');
+    const timeline = document.getElementById('refuel-timeline-output');
     const savingsBlock = document.getElementById('smart-refuel-savings-block');
-    const savingsValueText = document.getElementById('refuel-savings-value');
-    
     if (savingsBlock) savingsBlock.classList.add('hidden');
-
-    let activeDistance = typeof globalRouteDistanceMiles !== 'undefined' ? globalRouteDistanceMiles : 0;
     
-    if (!activeDistance || activeDistance === 0 || typeof plottedRouteCoordinates === 'undefined' || plottedRouteCoordinates.length === 0) {
-        if (timelineContainer) {
-            timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = '<p class="text-zinc-400 text-xs text-center py-2 font-medium">Please map a route first.</p>';
-        }
+    if (!globalRouteDistanceMiles || globalRouteDistanceMiles === 0 || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
+        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock AI Refuel Strategy.</p>'; }
         return; 
     }
 
-    // --- BIFURCATED MATH LOGIC (EV vs COMBUSTION) ---
     let remainingRangeMiles = 0;
     let currentEnergyUnits = 0;
 
     if (isEV) {
-        currentEnergyUnits = capacityInput * (currentFuelPercentage / 100);
-        const bufferKwhNeeded = safetyBufferMiles / efficiencyInput;
+        currentEnergyUnits = capacity * (currentPct / 100);
+        const bufferKwhNeeded = safetyBuffer / efficiency;
         const usableKwh = Math.max(0, currentEnergyUnits - bufferKwhNeeded);
-        remainingRangeMiles = usableKwh * efficiencyInput;
+        remainingRangeMiles = usableKwh * efficiency;
     } else {
-        const milesPerLiter = efficiencyInput / 4.54609; 
-        currentEnergyUnits = capacityInput * (currentFuelPercentage / 100);
-        const bufferLitersNeeded = safetyBufferMiles / milesPerLiter;
+        const milesPerLiter = efficiency / 4.54609; 
+        currentEnergyUnits = capacity * (currentPct / 100);
+        const bufferLitersNeeded = safetyBuffer / milesPerLiter;
         const usableLiters = Math.max(0, currentEnergyUnits - bufferLitersNeeded);
         remainingRangeMiles = usableLiters * milesPerLiter;
     }
     
-    const totalTripDistance = activeDistance; 
-    
-    if (remainingRangeMiles >= totalTripDistance) {
-        if (timelineContainer) {
-            timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = `
-                <div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm">
-                    <div class="font-bold flex items-center gap-1">🎉 ${isEV ? 'Battery Charge' : 'Fuel Tank'} Sufficient!</div>
-                    <p class="text-zinc-600 dark:text-zinc-400 font-medium leading-normal">Your current range is sufficient to cover this ${totalTripDistance.toFixed(1)} mi trip without additional stops.</p>
-                </div>
-            `;
+    if (remainingRangeMiles >= globalRouteDistanceMiles) {
+        if (timeline) {
+            timeline.classList.remove('hidden');
+            timeline.innerHTML = `<div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm"><div class="font-bold flex items-center gap-1">🎉 ${isEV ? 'Battery Charge' : 'Fuel Tank'} Sufficient!</div><p class="text-zinc-400 font-medium leading-normal">Your current range covers this ${globalRouteDistanceMiles.toFixed(1)} mi trip without stopping.</p></div>`;
         }
-        if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) refuelMarkersGroup.clearLayers();
+        if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
         return;
     }
 
     let validStations = currentlyVisibleStations.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
-    if (validStations.length === 0 && rawGlobalStationsPool) {
-        validStations = rawGlobalStationsPool.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
-    }
+    if (validStations.length === 0 && rawGlobalStationsPool) validStations = rawGlobalStationsPool.filter(s => s[fuelType] && parseFloat(s[fuelType]) > 0);
 
     if (validStations.length === 0) {
-        if (timelineContainer) {
-            timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = `<p class="text-zinc-400 text-xs text-center py-2 font-medium">No active ${isEV ? 'chargers' : 'fuel stations'} found in range.</p>`;
-        }
+        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = `<p class="text-zinc-400 text-xs text-center py-2 font-medium">No active ${isEV ? 'chargers' : 'fuel stations'} found.</p>`; }
         return;
     }
 
     let bestStation = null;
     let isEmergencyMode = false;
-
     const startLat = plottedRouteCoordinates[0][0];
     const startLon = plottedRouteCoordinates[0][1];
 
-    if (currentFuelPercentage <= 5 || remainingRangeMiles <= 0) {
+    if (currentPct <= 5 || remainingRangeMiles <= 0) {
         isEmergencyMode = true;
-        validStations.sort((a, b) => {
-            const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
-            const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
-            return distA - distB;
-        });
+        validStations.sort((a, b) => computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng)) - computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng)));
         bestStation = validStations[0];
-        
     } else {
-        let reachableStations = validStations.filter(station => {
-            const distFromStart = computeDistanceVectorMiles(
-                startLat, startLon, 
-                parseFloat(station.latitude || station.lat), 
-                parseFloat(station.longitude || station.lng)
-            );
-            const estimatedRoadDistance = distFromStart * 1.2; 
-            return estimatedRoadDistance <= remainingRangeMiles;
+        let reachableStations = validStations.filter(s => {
+            const distFromStart = computeDistanceVectorMiles(startLat, startLon, parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+            return (distFromStart * 1.2) <= remainingRangeMiles;
         });
 
         if (reachableStations.length === 0) {
             isEmergencyMode = true;
-            validStations.sort((a, b) => {
-                const distA = computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng));
-                const distB = computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng));
-                return distA - distB;
-            });
+            validStations.sort((a, b) => computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng)) - computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng)));
             bestStation = validStations[0];
-            Toast.show(`No cheap options within safe range. Showing nearest.`, 'warning');
+            Toast.show(`Showing nearest emergency stop.`, 'warning');
         } else {
             reachableStations.sort((a, b) => parseFloat(a[fuelType]) - parseFloat(b[fuelType]));
             bestStation = reachableStations[0];
         }
     }
 
-    // Testing override pipeline execution
-    if (currentFuelPercentage === 10) {
+    if (currentPct === 10) {
         const overrideStation = validStations.find(s => s.address && s.address.toLowerCase().includes('blackpool road'));
-        if (overrideStation) {
-            bestStation = overrideStation;
-            isEmergencyMode = true;
-        }
+        if (overrideStation) { bestStation = overrideStation; isEmergencyMode = true; }
     }
     
-    if (!bestStation) {
-        if (timelineContainer) {
-            timelineContainer.classList.remove('hidden');
-            timelineContainer.innerHTML = `
-                <div class="p-4 text-center text-zinc-500 text-xs bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-800 font-medium">
-                    No optimal options found within range along this corridor.
-                </div>`;
-        }
-        return;
-    }
+    if (!bestStation) return;
 
     const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
     const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
-    const bestPrice = parseFloat(bestStation[fuelType] || bestStation.price || 0);
+    const bestPrice = parseFloat(bestStation[fuelType] || 0);
     
-    const validPrices = rawGlobalStationsPool.map(s => s.prices?.[fuelType] || s[fuelType]).map(parseFloat).filter(p => p && !isNaN(p) && p > 0);
+    const validPrices = rawGlobalStationsPool.map(s => s[fuelType]).map(parseFloat).filter(p => p && !isNaN(p) && p > 0);
     const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
     
-    const energyToFill = Math.max(0, capacityInput - currentEnergyUnits);
+    const energyToFill = Math.max(0, capacity - currentEnergyUnits);
     const totalCost = (energyToFill * bestPrice) / 100;
     
     const savingsPence = (averagePrice - bestPrice) * energyToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
 
-    if (savingsGBP > 0 && savingsValueText) {
-        savingsValueText.textContent = `£${savingsGBP.toFixed(2)}`;
+    if (savingsGBP > 0 && document.getElementById('refuel-savings-value')) {
+        document.getElementById('refuel-savings-value').textContent = `£${savingsGBP.toFixed(2)}`;
         if (savingsBlock) savingsBlock.classList.remove('hidden');
     }
     
-    const contextLabel = isEmergencyMode ? 'Nearest Emergency Stop' : 'Optimal Stop';
-    const markerContext = isEmergencyMode ? `⚠️ Emergency ${isEV ? 'Charge' : 'Refuel'}` : `Optimal ${isEV ? 'Charge' : 'Refuel'} Stop`;
-    const distanceToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
+    const distToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
 
-    if (timelineContainer) {
-        timelineContainer.classList.remove('hidden');
-        timelineContainer.innerHTML = `
-            <div class="bg-white/80 dark:bg-zinc-900/60 backdrop-blur-md border border-zinc-200/80 dark:border-zinc-800/80 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
-                
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+    if (timeline) {
+        timeline.classList.remove('hidden');
+        timeline.innerHTML = `
+            <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
+                <div class="flex justify-between border-b border-zinc-800 pb-2">
                     <span class="text-zinc-500 font-medium">Start to Destination</span>
-                    <span class="font-bold text-zinc-900 dark:text-white">${totalTripDistance.toFixed(1)} miles</span>
+                    <span class="font-bold text-white">${globalRouteDistanceMiles.toFixed(1)} miles</span>
                 </div>
-                
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
-                    <span class="text-zinc-500 font-medium pt-1">${contextLabel}</span>
+                <div class="flex justify-between border-b border-zinc-800 pb-2">
+                    <span class="text-zinc-500 font-medium pt-1">${isEmergencyMode ? 'Nearest Stop' : 'Optimal Stop'}</span>
                     <div class="text-right">
-                        <span class="font-bold text-zinc-900 dark:text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
-                        <span class="text-[10px] text-zinc-400 block">${(bestStation.address || '').replace(/['"]/g, '')}</span>
+                        <span class="font-bold text-white block">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
+                        <span class="text-[9px] text-zinc-500 block">${(bestStation.address || '').replace(/['"]/g, '')}</span>
                     </div>
                 </div>
-
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
+                <div class="flex justify-between border-b border-zinc-800 pb-2">
                     <span class="text-zinc-500 font-medium">Distance to Stop</span>
-                    <span class="font-bold text-zinc-900 dark:text-white">~${distanceToStop.toFixed(1)} miles</span>
+                    <span class="font-bold text-white">~${distToStop.toFixed(1)} miles</span>
                 </div>
-                
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2">
-                    <span class="text-zinc-500 font-medium">Vehicle ${isEV ? 'Efficiency' : 'Mileage'}</span>
-                    <span class="font-bold text-zinc-900 dark:text-white">${efficiencyInput} ${isEV ? 'mi/kWh' : 'MPG'}</span>
+                <div class="flex justify-between border-b border-zinc-800 pb-2 bg-emerald-950/20 -mx-4 px-4 py-2">
+                    <span class="text-emerald-500 font-bold">Action</span>
+                    <span class="font-black text-emerald-400">${isEV ? 'Charge' : 'Fill'} ${energyToFill.toFixed(1)} ${isEV ? 'kWh' : 'L'}</span>
                 </div>
-                
-                <div class="flex justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-2 bg-emerald-50/50 dark:bg-emerald-950/20 -mx-4 px-4 py-2">
-                    <span class="text-emerald-700 dark:text-emerald-500 font-bold">Action</span>
-                    <span class="font-black text-emerald-700 dark:text-emerald-400">${isEV ? 'Charge' : 'Fill'} ${energyToFill.toFixed(1)} ${isEV ? 'kWh' : 'Litres'}</span>
-                </div>
-                
                 <div class="flex justify-between pt-1 items-center">
-                    <span class="text-zinc-500 font-medium">Estimated Cost</span>
+                    <span class="text-zinc-500 font-medium">Est. Cost</span>
                     <div class="text-right">
-                        <span class="font-black text-zinc-900 dark:text-white text-lg">£${totalCost.toFixed(2)}</span>
-                        <span class="text-[10px] text-zinc-400 block">@ ${bestPrice.toFixed(1)}p/${isEV ? 'kWh' : 'L'}</span>
+                        <span class="font-black text-white text-base">£${totalCost.toFixed(2)}</span>
+                        <span class="text-[9px] text-zinc-500 block">@ ${bestPrice.toFixed(1)}p/${isEV ? 'kWh' : 'L'}</span>
                     </div>
                 </div>
-
-                <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white text-[11px] font-bold py-3 rounded-lg transition active:scale-[0.98] shadow-sm tracking-wide cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 dark:focus:ring-white">
-                    View Station on Map
-                </button>
+                <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-2 bg-white text-zinc-950 hover:bg-zinc-200 text-[11px] font-bold py-2.5 rounded-lg transition active:scale-95 shadow-sm">View on Map</button>
             </div>
         `;
     }
 
-    let activeMarkerGroup = null;
-    
-    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup !== null) {
-        activeMarkerGroup = refuelMarkersGroup;
-    } else if (typeof window.refuelMarkersGroup !== 'undefined' && window.refuelMarkersGroup !== null) {
-        activeMarkerGroup = window.refuelMarkersGroup;
-    } else {
-        activeMarkerGroup = L.layerGroup().addTo(map);
-        try { refuelMarkersGroup = activeMarkerGroup; } catch(e) {}
-        window.refuelMarkersGroup = activeMarkerGroup;
+    if (typeof window.refuelMarkersGroup === 'undefined' || window.refuelMarkersGroup === null) {
+        window.refuelMarkersGroup = L.layerGroup().addTo(map);
     }
-
-    activeMarkerGroup.clearLayers();
+    window.refuelMarkersGroup.clearLayers();
 
     const customFuelIcon = L.divIcon({
         className: 'custom-fuel-icon',
-        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-emerald-500 border-white dark:border-emerald-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">${isEV ? '⚡' : '⛽'}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 32]
+        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-emerald-500 border-emerald-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">${isEV ? '⚡' : '⛽'}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 32]
     });
     
-    L.marker([lat, lon], { icon: customFuelIcon, station_id: bestStation.id || 'refuel-node' })
-        .bindPopup(`<strong class="text-xs text-zinc-900 dark:text-white font-black block mb-0.5">${markerContext}</strong><span class="text-[11px] ${isEmergencyMode ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'} font-bold block tabular-nums">${bestPrice.toFixed(1)}p/${isEV ? 'kWh' : 'L'}</span>`)
-        .addTo(activeMarkerGroup);
-}
+    L.marker([lat, lon], { icon: customFuelIcon }).addTo(window.refuelMarkersGroup);
+};
 
 function clearFuelOptimizationState() {
     const inputTank = document.getElementById('refuel-tank-size');
