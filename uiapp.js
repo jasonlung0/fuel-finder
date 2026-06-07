@@ -1374,53 +1374,56 @@ async function executeStationDataFilteringPipeline() {
 
     // --- NEW: EV CHARGING STATION FETCH PIPELINE ---
     if (targetFuelType === 'electric') {
-        const radiusMeters = Math.round((activeTabContext === 'local' ? targetLocalRadiusThreshold : targetCorridorRadiusThreshold) * 1609.34);
+        if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
         
-        // Determine where to search from (Device Location vs Route Start)
-        const searchLat = activeTabContext === 'local' || plottedRouteCoordinates.length === 0 ? mapSearchAnchorCoordinates[0] : plottedRouteCoordinates[0][0];
-        const searchLon = activeTabContext === 'local' || plottedRouteCoordinates.length === 0 ? mapSearchAnchorCoordinates[1] : plottedRouteCoordinates[0][1];
-
         try {
-            // --- NEW PLACEMENT: DYNAMIC EV URL GENERATOR (ROUTE VS RADIAL) ---
-            let evUrl = '';
-            if (activeTabContext === 'route' && plottedRouteCoordinates && plottedRouteCoordinates.length > 0) {
-                // Create a comma-separated path for TomTom to search ALONG the route
-                // TomTom limits points, so take every 10th coordinate to form a generalized path
-                const pathPoints = plottedRouteCoordinates.filter((_, i) => i % 10 === 0).map(c => `${c[1]},${c[0]}`).join(':');
-                evUrl = `https://api.tomtom.com/search/2/searchAlongRoute/electric%20vehicle%20station.json?key=${TOMTOM_API_KEY}&maxDetourTime=900&limit=20&route=${pathPoints}`;
-            } else {
-                // Local radial search fallback
-                const searchLat = activeTabContext === 'local' || !plottedRouteCoordinates.length ? mapSearchAnchorCoordinates[0] : plottedRouteCoordinates[0][0];
-                const searchLon = activeTabContext === 'local' || !plottedRouteCoordinates.length ? mapSearchAnchorCoordinates[1] : plottedRouteCoordinates[0][1];
+            let ocmUrl = '';
+            const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e'; // Ensure your key is pasted here
+    
+            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+                // Sample coordinates to prevent query string bloat
+                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 12 === 0);
                 
-                evUrl = `https://api.tomtom.com/search/2/categorySearch/electric%20vehicle%20station.json?key=${TOMTOM_API_KEY}&lat=${searchLat}&lon=${searchLon}&radius=${radiusMeters}&limit=50`;
+                // Format as polyline or bounding box box parameter array for OCM compatibility
+                const lats = sampledWaypoints.map(c => c[0]);
+                const lngs = sampledWaypoints.map(c => c[1]);
+                const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+                const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=60&verbose=false`;
+            } else {
+                // Local fallback radial calculation
+                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : plottedRouteCoordinates[0][0];
+                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : plottedRouteCoordinates[0][1];
+                
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&latitude=${searchLat}&longitude=${searchLon}&distance=${radiusMiles}&distanceunit=Miles&maxresults=50`;
             }
-            // -----------------------------------------------------------------
-
-            const evRes = await fetch(evUrl);
-            const evData = await evRes.json();
-            
-            if (evData.results) {
-                dynamicBoundedStations = evData.results.map((poi, index) => {
-                    // Generate a dynamic realistic charging price between 62p and 79p based on station index
-                    const dynamicEvPrice = (62 + (index % 18)).toFixed(1);
-                    
-                    return {
-                        id: poi.id,
-                        brand_name: poi.poi.name || "EV Charging Station",
-                        address: poi.address.freeformAddress || "UK Charging Network",
-                        latitude: poi.position.lat,
-                        longitude: poi.position.lon,
-                        electric: parseFloat(dynamicEvPrice), // Dynamic price tracking
-                        isEV: true // Flag to identify this layer easily
-                    };
-                });
-            }
-        } catch(e) { 
-            console.error("EV Fetch Error", e); 
-            Toast.show("Failed to fetch EV charging network.", "error");
+    
+            const res = await fetch(ocmUrl);
+            const data = await res.json();
+    
+            // Normalise OCM schema mapping to match app's internal station interface format
+            currentlyVisibleStations = data.map(poi => ({
+                id: poi.ID,
+                brand_name: poi.OperatorInfo?.Title || 'Independent Charger',
+                address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                latitude: poi.AddressInfo?.Latitude,
+                longitude: poi.AddressInfo?.Longitude,
+                electric: poi.Connections?.[0]?.PowerKW || 50, // Using max kw rating as substitute scalar value
+                is_public: poi.UsageType?.IsPayAtLocation ?? true,
+                usage_title: poi.UsageType?.Title || 'Public Access',
+                operator_url: poi.OperatorInfo?.WebsiteURL || null
+            }));
+    
+            // Trigger UI rendering pipe update seamlessly
+            paintMarkerCanvasLayersToMap(currentlyVisibleStations, 'electric');
+            renderSidebarListings(currentlyVisibleStations, 'electric');
+    
+        } catch (err) {
+            console.error("OpenChargeMap engine processing failure:", err);
         }
-    } 
+        return;
+    }
     // --- EXISTING: COMBUSTION FUEL PIPELINE ---
     else {
         if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
@@ -1543,19 +1546,21 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
     block.classList.remove('hidden');
 }
 
+// FIND inside function assignPricingTierColorStyles(valueRaw, variantKey):
 function assignPricingTierColorStyles(valueRaw, variantKey) {
     const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
     if (!valueRaw) return fallbackClasses;
     const numericVal = parseFloat(valueRaw);
     if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
-    // --- NEW: EV Pricing Tiers ---
-    // Uses absolute thresholds since EV prices are generally standardized
+    // --- REPLACE / INSERT THIS EV BLOCK HERE ---
     if (variantKey === 'electric') {
-        if (numericVal <= 65) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
-        if (numericVal <= 75) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
+        // Price thresholds for charging in pence per kWh
+        if (numericVal <= 50) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+        if (numericVal <= 70) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
         return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
     }
+    // --------------------------------------------
 
     // --- EXISTING: Petrol/Diesel Pricing Tiers ---
     const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
@@ -2270,28 +2275,47 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- DYNAMIC UI TOGGLER FOR EV vs PETROL ---
-document.getElementById('fuel-type')?.addEventListener('change', (e) => {
-    const isEV = e.target.value === 'electric';
+// FIND your initialization block or add this directly to the bottom of app.js:
+document.getElementById('fuel-type')?.addEventListener('change', function(e) {
+    const selectedFuel = e.target.value;
+    const capacityLabel = document.getElementById('tank-capacity-title');
+    const capacityDesc = document.getElementById('tank-capacity-desc');
+    const capacitySelect = document.getElementById('refuel-tank-size'); // Your select input ID
     
-    // Update Smart Refuel & Efficiency Labels
-    const mpgLabel = document.getElementById('mpg-label') || document.querySelector('label[for="vehicle-mpg"]');
-    if (mpgLabel) mpgLabel.innerText = isEV ? 'Efficiency (mi/kWh)' : 'Vehicle Efficiency (MPG)';
-    
-    const mpgInput = document.getElementById('vehicle-mpg');
-    if (mpgInput) mpgInput.placeholder = isEV ? 'e.g. 3.5' : 'e.g. 45';
-    
-    const tankLabel = document.getElementById('tank-size-label') || document.querySelector('label[for="refuel-tank-size"]');
-    if (tankLabel) tankLabel.innerText = isEV ? 'Battery Capacity (kWh)' : 'Tank Size (Litres)';
-    
-    const tankInput = document.getElementById('refuel-tank-size');
-    if (tankInput) tankInput.placeholder = isEV ? 'e.g. 60' : 'e.g. 50';
-    
-    const currentLevelLabel = document.getElementById('current-fuel-label') || document.querySelector('label[for="refuel-current-level"]');
-    if (currentLevelLabel) currentLevelLabel.innerText = isEV ? 'Current Charge (%)' : 'Current Fuel Level (%)';
+    const currentFuelLabel = document.getElementById('current-fuel-title');
+    const currentFuelDesc = document.getElementById('current-fuel-desc');
 
-    // Force a recalculation if the route is active
-    if (typeof globalRouteDistanceMiles !== 'undefined' && globalRouteDistanceMiles > 0) {
-        executeRouteGenerationPipeline(); 
+    if (selectedFuel === 'electric') {
+        if (capacityLabel) capacityLabel.innerText = 'Battery Capacity';
+        if (capacityDesc) capacityDesc.innerText = 'Maximum energy capacity in kWh.';
+        if (currentFuelLabel) currentFuelLabel.innerText = 'State of Charge (SoC)';
+        if (currentFuelDesc) currentFuelDesc.innerText = 'Current battery charge percentage.';
+        
+        if (capacitySelect) {
+            capacitySelect.innerHTML = `
+                <option value="40">40 kWh (Compact / Hatchback)</option>
+                <option value="60" selected>60 kWh (Standard Range)</option>
+                <option value="80">80 kWh (Long Range)</option>
+                <option value="100">100 kWh (Performance / SUV)</option>
+            `;
+        }
+    } else {
+        if (capacityLabel) capacityLabel.innerText = 'Tank Capacity';
+        if (capacityDesc) capacityDesc.innerText = 'Maximum fuel tank size.';
+        if (currentFuelLabel) currentFuelLabel.innerText = 'Current Fuel Level';
+        if (currentFuelDesc) currentFuelDesc.innerText = 'Current remaining fuel percentage.';
+        
+        if (capacitySelect) {
+            capacitySelect.innerHTML = `
+                <option value="45">45 L (Compact Car)</option>
+                <option value="55" selected>55 L (Standard Sedan)</option>
+                <option value="70">70 L (Large SUV / Van)</option>
+            `;
+        }
+    }
+    
+    // Auto-recalculate the strategy when the user toggles modes
+    if (typeof calculateOptimalRefuelStrategy === 'function') {
+        calculateOptimalRefuelStrategy();
     }
 });
