@@ -707,27 +707,44 @@ function renderLiveTrafficDashboard(incidents) {
         return;
     }
 
-    // --- SMART FILTERING ALGORITHM ---
+    // --- SMART FILTERING ALGORITHM (WITH SPATIAL ON-ROUTE CHECK) ---
     let validIncidents = incidents.filter(inc => {
         const delay = inc.properties.delay || 0;
         const cat = inc.properties.iconCategory;
-        return delay >= 60 || cat === 1 || cat === 8; // Filter out <60s micro-delays
-    });
-
-    const uniqueIncidentsMap = new Map();
-    validIncidents.forEach(inc => {
-        const rawDesc = inc.properties.events?.[0]?.description || '';
-        const humanDesc = humanizeTrafficDescription(rawDesc);
-        const delay = inc.properties.delay || 0;
         
-        if (!uniqueIncidentsMap.has(humanDesc)) {
-            uniqueIncidentsMap.set(humanDesc, inc);
-        } else {
-            const existingDelay = uniqueIncidentsMap.get(humanDesc).properties.delay || 0;
-            if (delay > existingDelay) {
-                uniqueIncidentsMap.set(humanDesc, inc); // Keep the worst iteration of duplicate jams
+        // 1. Filter out micro-delays (< 1 min) unless they are critical closures/accidents
+        if (delay < 60 && cat !== 1 && cat !== 8) return false;
+
+        // 2. NEW FIX: Spatial filter to guarantee the incident is physically ON your route line
+        if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+            let incidentLat = 0;
+            let incidentLng = 0;
+
+            if (inc.geometry && inc.geometry.coordinates) {
+                const type = inc.geometry.type;
+                const coords = inc.geometry.coordinates;
+
+                // Extract center coordinate of the incident
+                if (type === 'Point' && Array.isArray(coords)) {
+                    incidentLng = coords[0];
+                    incidentLat = coords[1];
+                } else if (type === 'LineString' && Array.isArray(coords) && coords.length > 0) {
+                    const midpoint = coords[Math.floor(coords.length / 2)];
+                    incidentLng = Array.isArray(midpoint) ? midpoint[0] : coords[0][0];
+                    incidentLat = Array.isArray(midpoint) ? midpoint[1] : coords[0][1];
+                }
+            }
+
+            if (incidentLat !== 0 && incidentLng !== 0) {
+                // Check distance against your drawn map polyline
+                const distToRoute = computeMinimumDistanceToRouteCorridor(incidentLat, incidentLng);
+                // If the incident is more than 0.2 miles away from the exact road, ignore it!
+                if (distToRoute > 0.2) {
+                    return false; 
+                }
             }
         }
+        return true;
     });
 
     // --- NEW PLACEMENT: Convert to array and sort from Route Start (A) to End (B) ---
@@ -1880,39 +1897,27 @@ function bindSwipeGestureDetectionToMobileSheets(handleId, elementId, stateModif
     if (!targetHandle) return;
 
     let touchBaseY = 0;
-    let touchCurrentY = 0;
-    let touchStartTime = 0;
 
     targetHandle.addEventListener('touchstart', (e) => {
         touchBaseY = e.touches[0].clientY;
-        touchStartTime = Date.now();
+        // Prevent map scrolling while dragging the handle
+        e.stopPropagation();
     }, { passive: true });
 
-    targetHandle.addEventListener('touchmove', (e) => {
-        touchCurrentY = e.touches[0].clientY;
-    }, { passive: true });
-
-    targetHandle.addEventListener('touchend', () => {
-        const trackDeltaY = touchBaseY - touchCurrentY;
-        const timeframeDuration = Date.now() - touchStartTime;
+    targetHandle.addEventListener('touchend', (e) => {
+        const touchCurrentY = e.changedTouches[0].clientY;
+        const trackDeltaY = touchBaseY - touchCurrentY; // Positive = Swipe Up, Negative = Swipe Down
         
-        if (Math.abs(trackDeltaY) < 35) return; 
-
-        const velocityPixelsPerMs = Math.abs(trackDeltaY) / timeframeDuration;
         let currentActiveState = (elementId === 'sidebar') ? currentMobileSidebarUIState : currentMobileSheetUIState;
 
-        if (trackDeltaY > 35) {
-            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
-                stateModificationCallback('full');
-            } else {
+        // Require a 40px swipe to register as an intentional gesture
+        if (Math.abs(trackDeltaY) > 40) {
+            if (trackDeltaY > 0) {
+                // Swiped UP
                 if (currentActiveState === 'peek') stateModificationCallback('mid');
                 else if (currentActiveState === 'mid') stateModificationCallback('full');
-            }
-        } else if (trackDeltaY < -35) {
-            if (velocityPixelsPerMs > 0.85 || Math.abs(trackDeltaY) > 160) {
-                if (elementId === 'sidebar') stateModificationCallback('peek');
-                else stateModificationCallback('hidden');
             } else {
+                // Swiped DOWN
                 if (currentActiveState === 'full') stateModificationCallback('mid');
                 else if (currentActiveState === 'mid') {
                     if (elementId === 'sidebar') stateModificationCallback('peek');
