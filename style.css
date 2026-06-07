@@ -205,10 +205,21 @@ body {
 }
 
 /* On medium screens where sidebar is active, center it in the remaining right-side space */
-@media (min-width: 768px) {
+/* --- TRAFFIC DASHBOARD RESPONSIVE POSITIONING --- */
+#bottom-traffic-dashboard {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem); /* Full width minus margins on mobile */
+    max-width: 480px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Desktop layout rules */
+@media (min-width: 1024px) {
     #bottom-traffic-dashboard {
-        /* Sidebar is ~380px. We center the dashboard in the space between 400px and the right edge */
-        left: calc(400px + ((100vw - 400px) / 2));
+        /* Centers the dashboard perfectly within the remaining viewport space to the right of the 380px sidebar */
+        left: calc(380px + ((100vw - 380px) / 2));
         transform: translateX(-50%);
+        width: 480px;
     }
 }
