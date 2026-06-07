@@ -769,19 +769,35 @@ function renderLiveTrafficDashboard(incidents) {
                 // Extract exact coordinates from the new API geometry field
                 // Extract coordinates safely handling both Point and LineString GeoJSON
                 // --- NEW PLACEMENT: Safely parse TomTom GeoJSON to Leaflet Coordinates ---
-                let incidentLat = 0, incidentLng = 0;
+                // --- FIX: Absolute extraction of incident coordinates ---
+                let incidentLat = 0;
+                let incidentLng = 0;
+
                 if (incident.geometry && incident.geometry.coordinates) {
+                    const type = incident.geometry.type;
                     const coords = incident.geometry.coordinates;
-                    
-                    // Leaflet requires [Lat, Lng]. TomTom provides GeoJSON as [Lng, Lat].
-                    if (incident.geometry.type === 'LineString' && coords.length > 0) {
-                        incidentLng = coords[0][0]; // Longitude is index 0
-                        incidentLat = coords[0][1]; // Latitude is index 1
-                    } else if (incident.geometry.type === 'Point') {
+
+                    if (type === 'Point' && Array.isArray(coords)) {
                         incidentLng = coords[0];
                         incidentLat = coords[1];
+                    } else if (type === 'LineString' && Array.isArray(coords) && coords.length > 0) {
+                        // For a stretch of road delay, safely pluck the middle index of the jam sequence 
+                        // rather than just the tail point to center the view directly on the issue
+                        const targetIndex = Math.floor(coords.length / 2);
+                        const midpoint = coords[targetIndex];
+                        if (Array.isArray(midpoint)) {
+                            incidentLng = midpoint[0];
+                            incidentLat = midpoint[1];
+                        } else {
+                            incidentLng = coords[0][0];
+                            incidentLat = coords[0][1];
+                        }
                     }
                 }
+
+                // Ensure coordinates are finite and real numbers before painting the click node
+                const hasValidCoords = !isNaN(incidentLat) && !isNaN(incidentLng) && incidentLat !== 0;
+                const clickAction = hasValidCoords ? `onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})"` : '';
 
                 // --- UPDATED RETURN: Card now includes onclick and hover states ---
                 return `
