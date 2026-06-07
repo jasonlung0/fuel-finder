@@ -864,6 +864,11 @@ function renderLiveTrafficDashboard(incidents) {
                 const hasValidCoords = !isNaN(incidentLat) && !isNaN(incidentLng) && incidentLat !== 0;
                 const clickAction = hasValidCoords ? `onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})"` : '';
 
+                // Determine fuel noun based on the global selector
+                const currentFuelMode = document.getElementById('fuel-type') ? document.getElementById('fuel-type').value : 'E10';
+                const isEVMode = currentFuelMode === 'ev';
+                const fuelNoun = isEVMode ? 'kWh' : 'Liters';
+                
                 // --- UPDATED RETURN: Card now includes onclick and hover states ---
                 return `
                     <div onclick="focusIncidentMapView(${incidentLat}, ${incidentLng})" 
@@ -1521,9 +1526,14 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
     if (validPool.length === 0) { block.classList.add('hidden'); return; }
 
     container.innerHTML = '';
+    
+    // 1. Identify if we are in EV mode to change units and logic
+    const isEV = fuelVariant === 'electric';
+    const unitString = isEV ? 'kW' : 'p';
 
     if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
-        blockTitle.textContent = "3 Cheapest Stations On Your Route";
+        // 2. Update title based on EV state
+        blockTitle.textContent = isEV ? "3 Fastest Chargers On Route" : "3 Cheapest Stations On Route";
         
         const milestoneLocationsList = [];
         milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
@@ -1541,7 +1551,13 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             });
 
             rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
-            rawMilestonePool.sort((a, b) => parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]));
+            
+            // 3. EV sorts Highest kW first. Combustion sorts Lowest Price first.
+            rawMilestonePool.sort((a, b) => {
+                return isEV 
+                    ? parseFloat(b.station[fuelVariant]) - parseFloat(a.station[fuelVariant])
+                    : parseFloat(a.station[fuelVariant]) - parseFloat(b.station[fuelVariant]);
+            });
 
             let slicedTopThree = rawMilestonePool.slice(0, 3);
             if (slicedTopThree.length > 0) {
@@ -1570,7 +1586,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
                                 <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-700 dark:text-emerald-500">${item.distanceToNode.toFixed(1)} mi away</span></div>
                             </div>
                         </div>
-                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
+                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}${unitString}</div></div>
                     `;
                     subGroupWrapper.appendChild(card);
                 });
@@ -1578,8 +1594,15 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
             }
         });
     } else {
-        blockTitle.textContent = "Cheapest Stations Nearby";
-        validPool.sort((a, b) => parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]));
+        // 4. Update title based on EV state for standard nearby list
+        blockTitle.textContent = isEV ? "Fastest Chargers Nearby" : "Cheapest Stations Nearby";
+        
+        // 5. EV sorts Highest kW first. Combustion sorts Lowest Price first.
+        validPool.sort((a, b) => {
+            return isEV 
+                ? parseFloat(b[fuelVariant]) - parseFloat(a[fuelVariant])
+                : parseFloat(a[fuelVariant]) - parseFloat(b[fuelVariant]);
+        });
         
         validPool.slice(0, 3).forEach((station, idx) => {
             const lat = parseFloat(station.latitude || station.lat);
@@ -1597,7 +1620,7 @@ function generateCheapestRankingListDeck(pool, fuelVariant) {
                         <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
                     </div>
                 </div>
-                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}p</div></div>
+                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${val}${unitString}</div></div>
             `;
             container.appendChild(card);
         });
