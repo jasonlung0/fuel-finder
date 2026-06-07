@@ -59,8 +59,6 @@ let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
 let globalRouteDistanceMiles = 0;
 
-let currentMobileSidebarUIState = 'peek';
-let currentMobileSheetUIState = 'hidden';
 let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 
 let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
