@@ -1054,6 +1054,34 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
         
         const costEl = document.getElementById('summary-cost');
         if (costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
+
+        // --- NEW PLACEMENT: UPDATE DYNAMIC ROUTE SPEED INDICATOR BADGE ---
+        if (currentActiveRoute && currentActiveRoute.summary) {
+            const summary = currentActiveRoute.summary;
+            const routeMeters = summary.lengthInMeters || 0;
+            const routeSeconds = summary.travelTimeInSeconds || 0;
+            const liveDelaySeconds = summary.trafficDelayInSeconds || 0;
+
+            if (routeMeters > 0 && routeSeconds > 0) {
+                // Convert to mph: (meters/seconds) * 2.23694
+                const averageSpeedMph = Math.round((routeMeters / routeSeconds) * 2.23694);
+                const speedBadge = document.getElementById('dash-header-speed-badge');
+                
+                if (speedBadge) {
+                    speedBadge.innerText = `${averageSpeedMph} mph`;
+                    
+                    // Determine semantic color theme based on relative delay severity
+                    if (liveDelaySeconds > 300) { // Heavy delay > 5 mins
+                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40";
+                    } else if (liveDelaySeconds > 60) { // Moderate delay > 1 min
+                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40";
+                    } else { // Optimal clear conditions
+                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40";
+                    }
+                }
+            }
+        }
+        // -----------------------------------------------------------------
         
         executeStationDataFilteringPipeline();
         
