@@ -540,6 +540,10 @@ async function executeAddressGeocodeLookup() {
             if (window.innerWidth < 768) setMobileSidebarState('peek');
         }
     } catch (err) { console.error(err); }
+    // At the end of executeAddressGeocodeLookup() and executeRouteGenerationPipeline()
+    if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
+        setMobileSidebarState('peek'); // Lowers the drawer so the map view is instantly fully visible
+    }
 }
 
 // -------------------------------------------------------------
@@ -1154,6 +1158,10 @@ async function executeRouteGenerationPipeline(forcedStart, forcedEnd) {
     } catch (err) {
         console.error("Pipeline Engine Broken:", err);
         Toast.show(`Failed to trace route: ${err.message}`, "error");
+    }
+    // At the end of executeAddressGeocodeLookup() and executeRouteGenerationPipeline()
+    if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
+        setMobileSidebarState('peek'); // Lowers the drawer so the map view is instantly fully visible
     }
 }
 
