@@ -338,33 +338,49 @@ function initializeClusterLayerPipeline() {
     if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
     
     markerClusterGroupInstance = L.markerClusterGroup({
-        showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
-        iconCreateFunction: function (cluster) {
-            const dynamicChildMarkers = cluster.getAllChildMarkers();
-            const activeFuelKey = document.getElementById('fuel-type')?.value || 'E10';
-            
-            let pricesExtracted = [];
-            dynamicChildMarkers.forEach(marker => {
-                if(marker.options?.stationRawData?.[activeFuelKey]) {
-                    const val = parseFloat(marker.options.stationRawData[activeFuelKey]);
-                    if(!isNaN(val) && val > 0) pricesExtracted.push(val);
+        maxClusterRadius: 40,
+        iconCreateFunction: function(cluster) {
+            const children = cluster.getAllChildMarkers();
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+            const currentFuelType = document.getElementById('fuel-type').value;
+            const isEV = currentFuelType === 'ev';
+
+            children.forEach(marker => {
+                // Try to extract the price attached to the marker data
+                let priceToCheck = null;
+                if (marker.options && marker.options.priceData) {
+                    priceToCheck = marker.options.priceData;
+                } else if (marker.options && marker.options.stationData) {
+                    // Fallback to station object
+                    const st = marker.options.stationData;
+                    if (isEV) {
+                         priceToCheck = (st.usageCost && st.usageCost.match(/\d+(\.\d+)?/)) 
+                             ? parseFloat(st.usageCost.match(/\d+(\.\d+)?/)[0]) 
+                             : null;
+                    } else {
+                         priceToCheck = st.prices ? st.prices[currentFuelType] : null;
+                    }
+                }
+
+                if (priceToCheck && !isNaN(priceToCheck)) {
+                    minPrice = Math.min(minPrice, priceToCheck);
+                    maxPrice = Math.max(maxPrice, priceToCheck);
                 }
             });
 
-            if(pricesExtracted.length === 0) {
-                return L.divIcon({
-                    html: `<div class="fuel-cluster-capsule tabular-nums"><span>Cluster</span></div>`,
-                    className: 'leaflet-div-icon-reset', iconSize: [95, 32]
-                });
+            let displayLabel = children.length; // Default to just the count
+            if (minPrice !== Infinity && maxPrice !== -Infinity) {
+                // If prices exist, show the range (e.g., "140 - 145p")
+                displayLabel = minPrice === maxPrice 
+                    ? `${isEV ? '£' : ''}${minPrice}${isEV ? '/kWh' : 'p'}` 
+                    : `${minPrice}-${maxPrice}${isEV ? '' : 'p'}`;
             }
 
-            const min = Math.min(...pricesExtracted);
-            const max = Math.max(...pricesExtracted);
-            const labelString = (min === max) ? `${min.toFixed(1)}p` : `${min.toFixed(1)}p - ${max.toFixed(1)}p`;
-
             return L.divIcon({
-                html: `<div class="fuel-cluster-capsule tabular-nums"><span>${labelString}</span></div>`,
-                className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16]
+                html: `<div class="bg-zinc-900 text-white font-bold rounded-full border-2 border-white shadow-md flex items-center justify-center text-[10px] px-2 py-1">${displayLabel}</div>`,
+                className: 'leaflet-div-icon-reset',
+                iconSize: [null, null] // Auto sizing
             });
         }
     });
@@ -743,7 +759,7 @@ function renderLiveTrafficDashboard(incidents) {
                 // Check distance against your drawn map polyline
                 const distToRoute = computeMinimumDistanceToRouteCorridor(incidentLat, incidentLng);
                 // If the incident is more than 0.2 miles away from the exact road, ignore it!
-                if (distToRoute > 0.2) {
+                if (distToRoute > 1.5) {
                     return false; 
                 }
             }
@@ -1440,7 +1456,11 @@ async function executeStationDataFilteringPipeline() {
     
             const res = await fetch(ocmUrl);
             const data = await res.json();
-    
+
+            // Grab the radius from the user's dropdown, default to 5 if not found
+            const radiusSelectElement = document.getElementById('search-radius');
+            const radiusMiles = radiusSelectElement ? parseFloat(radiusSelectElement.value) : 5;
+            
             // Normalise OCM schema mapping to match app's internal station interface format
             currentlyVisibleStations = data.map(poi => ({
                 id: poi.ID,
