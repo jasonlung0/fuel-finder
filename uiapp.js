@@ -752,6 +752,7 @@ function renderLiveTrafficDashboard(incidents) {
     });
 
     // --- NEW PLACEMENT: Convert to array and sort from Route Start (A) to End (B) ---
+    const uniqueIncidentsMap = new Map();
     let processedIncidents = Array.from(uniqueIncidentsMap.values());
 
     if (typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
@@ -1405,7 +1406,14 @@ async function executeStationDataFilteringPipeline() {
 
     // --- NEW: EV CHARGING STATION FETCH PIPELINE ---
     if (targetFuelType === 'electric') {
-        if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
+        // Grab the container from the HTML. 
+        // Note: If your HTML ID is different (like 'dynamic-waypoints-container'), change the ID below!
+        const timelineContainer = document.getElementById('timeline-container') || document.getElementById('dynamic-waypoints-container');
+        
+        // Only run the timeline code if the container actually exists on the screen
+        if (timelineContainer) {
+            if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
+        }
         
         try {
             let ocmUrl = '';
