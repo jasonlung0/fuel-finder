@@ -70,6 +70,7 @@ let scanAreaTimeout = null;
 
 // --- 3-STATE MOBILE SWIPE MECHANICS ---
 let currentMobileSidebarUIState = 'peek';
+let currentMobileRightSidebarUIState = 'hidden';
 let currentMobileSheetUIState = 'hidden';
 
 function bindMobileSwipeDrawer(handleId, elementId) {
@@ -82,7 +83,8 @@ function bindMobileSwipeDrawer(handleId, elementId) {
     let isDragging = false;
     let startTime = 0;
     
-    const isSidebar = elementId === 'sidebar' || elementId === 'primary-control-sidebar';
+    const isMainSidebar = elementId === 'primary-control-sidebar';
+    const isRightSidebar = elementId === 'secondary-control-sidebar';
 
     handle.addEventListener('touchstart', (e) => {
         startY = e.touches[0].clientY;
@@ -97,11 +99,11 @@ function bindMobileSwipeDrawer(handleId, elementId) {
         const deltaY = currentY - startY;
         
         let baseTranslate = 0;
-        let activeState = isSidebar ? currentMobileSidebarUIState : currentMobileSheetUIState;
+        let activeState = isMainSidebar ? currentMobileSidebarUIState : (isRightSidebar ? currentMobileRightSidebarUIState : currentMobileSheetUIState);
         
         if (activeState === 'full') baseTranslate = 0;
         else if (activeState === 'mid') baseTranslate = window.innerHeight * 0.5;
-        else baseTranslate = isSidebar ? (window.innerHeight - 110) : window.innerHeight;
+        else baseTranslate = (isMainSidebar || isRightSidebar) ? (window.innerHeight - 110) : window.innerHeight;
         
         let newTranslate = baseTranslate + deltaY;
         if (newTranslate < 0) newTranslate = 0; 
@@ -118,7 +120,7 @@ function bindMobileSwipeDrawer(handleId, elementId) {
         const deltaY = currentY - startY;
         const timeDiff = Date.now() - startTime;
         const velocity = Math.abs(deltaY) / timeDiff;
-        const activeState = isSidebar ? currentMobileSidebarUIState : currentMobileSheetUIState;
+        const activeState = isMainSidebar ? currentMobileSidebarUIState : (isRightSidebar ? currentMobileRightSidebarUIState : currentMobileSheetUIState);
         
         if (Math.abs(deltaY) < 30) {
             if (activeState === 'peek' || activeState === 'hidden') setDrawerState(elementId, 'mid');
@@ -133,29 +135,35 @@ function bindMobileSwipeDrawer(handleId, elementId) {
             else setDrawerState(elementId, 'full');
         } 
         else if (deltaY > 30) {
-            if (velocity > 0.8 || deltaY > 150) setDrawerState(elementId, isSidebar ? 'peek' : 'hidden');
+            if (velocity > 0.8 || deltaY > 150) setDrawerState(elementId, (isMainSidebar || isRightSidebar) ? 'peek' : 'hidden');
             else if (activeState === 'full') setDrawerState(elementId, 'mid');
-            else setDrawerState(elementId, isSidebar ? 'peek' : 'hidden');
+            else setDrawerState(elementId, (isMainSidebar || isRightSidebar) ? 'peek' : 'hidden');
         }
     });
 }
 
 function setDrawerState(elementId, state) {
-    const isSidebar = elementId === 'sidebar' || elementId === 'primary-control-sidebar';
-    if (isSidebar) currentMobileSidebarUIState = state;
+    const isMainSidebar = elementId === 'primary-control-sidebar';
+    const isRightSidebar = elementId === 'secondary-control-sidebar';
+    
+    if (isMainSidebar) currentMobileSidebarUIState = state;
+    else if (isRightSidebar) currentMobileRightSidebarUIState = state;
     else currentMobileSheetUIState = state;
     
     const drawer = document.getElementById(elementId);
     if (!drawer) return;
     
     drawer.className = drawer.className.replace(/\b(drawer|sheet)-(hidden|peek|mid|full)\b/g, '').trim();
-    const prefix = isSidebar ? 'drawer' : 'sheet';
+    const prefix = (isMainSidebar || isRightSidebar) ? 'drawer' : 'sheet';
     drawer.classList.add(`${prefix}-${state}`);
 }
 
 function setMobileSidebarState(stateStr) {
-    setDrawerState('sidebar', stateStr);
     setDrawerState('primary-control-sidebar', stateStr);
+}
+
+function setMobileRightSidebarState(stateStr) {
+    setDrawerState('secondary-control-sidebar', stateStr);
 }
 
 function setMobileSheetUIState(stateStr) {
@@ -165,14 +173,12 @@ function setMobileSheetUIState(stateStr) {
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
 const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
 
-window.toggleSmartRefuelPanel = function() {
-    const panel = document.getElementById('floating-smart-refuel-sheet');
-    if (panel) panel.classList.toggle('panel-collapsed');
+window.toggleRightSidebar = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sidebar = document.getElementById('secondary-control-sidebar');
+    if (sidebar) sidebar.classList.toggle('desktop-collapsed-right');
 };
 
-/**
- * Updates UI labels and capacity options based on selected mode.
- */
 window.updateUIForMode = function(isEV) {
     const capacityLabel = document.getElementById('label-capacity');
     const capacityDesc = document.getElementById('desc-capacity');
@@ -231,8 +237,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     try {
         if (document.getElementById('sidebar-drag-handle')) {
-            bindMobileSwipeDrawer('sidebar-drag-handle', 'sidebar');
             bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
+        }
+        if (document.getElementById('right-sidebar-drag-handle')) {
+            bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
         }
         if (document.getElementById('detail-sheet-drag-handle')) {
             bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
@@ -274,16 +282,12 @@ document.addEventListener('DOMContentLoaded', () => {
         calculateOptimalRefuelStrategy();
     }
     
-    const smartRefuelSheet = document.getElementById('floating-smart-refuel-sheet');
-    if (smartRefuelSheet && activeTabContext !== 'route') {
-        smartRefuelSheet.classList.add('hidden');
-    }
-
     setupAutocompleteListeners();
     initializeClickIsolationBubbling();
 
     if (window.innerWidth < 768) {
         setMobileSidebarState('peek');
+        setMobileRightSidebarState('hidden');
     }
 
     console.log('UI Initialized successfully.');
@@ -296,7 +300,6 @@ window.focusIncidentMapView = function(lat, lng) {
     let targetedLat = parseFloat(lat);
     let targetedLng = parseFloat(lng);
     
-    // Correct TomTom GeoJSON [Lng, Lat] format to match Leaflet expectations [Lat, Lng]
     if (Math.abs(targetedLat) < Math.abs(targetedLng) && targetedLng > 49 && targetedLng < 61) {
         const temp = targetedLat;
         targetedLat = targetedLng;
@@ -356,7 +359,7 @@ const Toast = {
 
 window.toggleDesktopSidebar = function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
-    const sidebar = document.getElementById('sidebar') || document.getElementById('primary-control-sidebar');
+    const sidebar = document.getElementById('primary-control-sidebar');
     if (sidebar) sidebar.classList.toggle('desktop-collapsed');
 };
 
@@ -560,8 +563,11 @@ function initializeClusterLayerPipeline() {
             
             let pricesExtracted = [];
             dynamicChildMarkers.forEach(marker => {
-                if(marker.options?.stationRawData?.[activeFuelKey]) {
-                    const val = parseFloat(marker.options.stationRawData[activeFuelKey]);
+                if(marker.options?.stationRawData) {
+                    let val = parseFloat(marker.options.stationRawData[activeFuelKey]);
+                    if (isEV && (!val || isNaN(val))) {
+                        val = parseFloat(marker.options.stationRawData.electric_price || marker.options.stationRawData.charge_rate || marker.options.stationRawData.electric);
+                    }
                     if(!isNaN(val) && val > 0) pricesExtracted.push(val);
                 }
             });
@@ -592,21 +598,18 @@ window.switchWorkflowTabContext = function(contextType) {
     const btnRoute = document.getElementById('tab-btn-route');
     const panelLocal = document.getElementById('panel-tab-local');
     const panelRoute = document.getElementById('panel-tab-route');
-    const smartRefuelSheet = document.getElementById('floating-smart-refuel-sheet');
 
     if (contextType === 'local') {
         if(btnLocal) btnLocal.className = "py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none";
         if(btnRoute) btnRoute.className = "py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus:outline-none";
         if(panelLocal) panelLocal.classList.remove('hidden');
         if(panelRoute) panelRoute.classList.add('hidden');
-        if(smartRefuelSheet) smartRefuelSheet.classList.add('hidden');
         clearRoute();
     } else {
         if(btnRoute) btnRoute.className = "py-2.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1 bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white shadow-sm focus:outline-none";
         if(btnLocal) btnLocal.className = "py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1 text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-white focus:outline-none";
         if(panelRoute) panelRoute.classList.remove('hidden');
         if(panelLocal) panelLocal.classList.add('hidden');
-        if(smartRefuelSheet) smartRefuelSheet.classList.remove('hidden');
         
         const scanContainer = document.getElementById('scan-area-container');
         if (scanContainer) {
@@ -881,14 +884,8 @@ function getIncidentSeverity(delay, category) {
 }
 
 window.renderLiveTrafficDashboard = function(incidents) {
-    const dash = document.getElementById('bottom-traffic-dashboard');
     const alertsViewport = document.getElementById('route-alerts-container');
     const ticker = document.getElementById('dash-metric-delay-ticker');
-    
-    if (dash) {
-        dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
-        dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
-    }
 
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     const isEV = fuelType === 'electric';
@@ -901,12 +898,15 @@ window.renderLiveTrafficDashboard = function(incidents) {
         return;
     }
 
+    // STRICT ROUTE FILTERING
     let processed = incidents.filter(i => {
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
         let coords = i.geometry?.coordinates;
         if (!coords) return false;
+        
         let checkPoint = i.geometry.type === 'Point' ? coords : coords[0];
-        return plottedRouteCoordinates.some(rc => computeDistanceVectorMiles(rc[0], rc[1], checkPoint[1], checkPoint[0]) <= 3.0);
+        // Note: TomTom Checkpoint is [Lon, Lat]
+        return plottedRouteCoordinates.some(rc => computeDistanceVectorMiles(rc[0], rc[1], checkPoint[1], checkPoint[0]) <= 2.0);
     });
 
     if (processed.length === 0) {
@@ -915,7 +915,7 @@ window.renderLiveTrafficDashboard = function(incidents) {
         return;
     }
 
-    // --- SORT A TO B ---
+    // SORT A TO B
     if (plottedRouteCoordinates && plottedRouteCoordinates.length > 0) {
         const sLat = plottedRouteCoordinates[0][0];
         const sLng = plottedRouteCoordinates[0][1];
@@ -1108,15 +1108,9 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         if (plottedRouteCoordinates.length > 0) {
             map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
             
-            // Set Loading UI state immediately
-            const dash = document.getElementById('bottom-traffic-dashboard');
             const statusBadge = document.getElementById('traffic-status-badge');
             const tickerContainer = document.getElementById('dash-metric-delay-ticker');
             
-            if (dash) {
-                dash.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
-                dash.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
-            }
             if (statusBadge) {
                 statusBadge.textContent = "SCANNING...";
                 statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
@@ -1125,12 +1119,18 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
                 tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[11px] font-medium text-zinc-500 truncate tracking-tight">Scanning route chunks for live telemetry...</div>`;
             }
 
-            // Fire the chunker!
+            // POP OUT THE RIGHT SIDEBAR
+            const rSidebar = document.getElementById('secondary-control-sidebar');
+            if (rSidebar) {
+                rSidebar.classList.remove('desktop-collapsed-right');
+                if (window.innerWidth < 768) {
+                    setMobileRightSidebarState('mid');
+                }
+            }
+
             const stitchedIncidents = await fetchAllRouteTraffic(plottedRouteCoordinates);
             renderLiveTrafficDashboard(stitchedIncidents);
         }
-        
-        // --- 4. UPDATE GRANULAR DASHBOARD METRICS (WITH EV SUPPORT) ---
         
         const travelTimeSeconds = currentActiveRoute.summary.travelTimeInSeconds || 0;
         const hours = Math.floor(travelTimeSeconds / 3600);
@@ -1147,7 +1147,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             const evEfficiencyMpkWh = parseFloat(document.getElementById('vehicle-mpg')?.value) || 3.5;
             const expectedKwh = globalRouteDistanceMiles / evEfficiencyMpkWh;
             consumptionString = `${expectedKwh.toFixed(1)} kWh`;
-            
             tripCost = expectedKwh * 0.75; 
         } else {
             const elab = document.getElementById('energy-label');
@@ -1163,7 +1162,7 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
                 });
             }
             
-            let averageFuelPricePence = 145.0; // Reliable fallback
+            let averageFuelPricePence = 145.0; 
             if (validPrices.length > 0) {
                 const sum = validPrices.reduce((total, p) => total + p, 0);
                 averageFuelPricePence = sum / validPrices.length;
@@ -1172,7 +1171,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             tripCost = expectedLitres * (averageFuelPricePence / 100);
         }
 
-        // Inject into UI
         const dMD = document.getElementById('dash-metric-distance');
         if (dMD) dMD.innerText = `${globalRouteDistanceMiles.toFixed(1)} mi`;
         const timeEl = document.getElementById('dash-metric-time');
@@ -1184,7 +1182,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         const costEl = document.getElementById('summary-cost');
         if (costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
 
-        // --- NEW PLACEMENT: UPDATE DYNAMIC ROUTE SPEED INDICATOR BADGE ---
         if (currentActiveRoute && currentActiveRoute.summary) {
             const summary = currentActiveRoute.summary;
             const routeMeters = summary.lengthInMeters || 0;
@@ -1192,7 +1189,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             const liveDelaySeconds = summary.trafficDelayInSeconds || 0;
 
             if (routeMeters > 0 && routeSeconds > 0) {
-                // Convert to mph: (meters/seconds) * 2.23694
                 const averageSpeedMph = Math.round((routeMeters / routeSeconds) * 2.23694);
                 const speedBadge = document.getElementById('dash-header-speed-badge');
                 
@@ -1227,7 +1223,7 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         if (window.innerWidth < 768) {
             setMobileSidebarState('peek');
         } else {
-            const sidebar = document.getElementById('sidebar') || document.getElementById('primary-control-sidebar');
+            const sidebar = document.getElementById('primary-control-sidebar');
             if (sidebar && !sidebar.classList.contains('desktop-collapsed')) {
                 sidebar.classList.add('desktop-collapsed');
             }
@@ -1393,10 +1389,9 @@ window.clearRoute = function() {
         addWaypointFieldInputRow();
     }
 
-    const dash = document.getElementById('bottom-traffic-dashboard');
-    if (dash) {
-        dash.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
-        dash.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+    const rSidebar = document.getElementById('secondary-control-sidebar');
+    if (rSidebar) {
+        rSidebar.classList.add('desktop-collapsed-right');
     }
 
     const crb = document.getElementById('cheapest-ranking-block');
@@ -1430,7 +1425,7 @@ document.addEventListener('click', (e) => {
 });
 
 function initializeClickIsolationBubbling() {
-    const structuralIDs = ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar', 'sidebar'];
+    const structuralIDs = ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar', 'secondary-control-sidebar'];
     structuralIDs.forEach(id => {
         const node = document.getElementById(id);
         if (node) {
@@ -1448,6 +1443,16 @@ function initializeGestureTrackEngine() {
             if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
             else if (currentMobileSidebarUIState === 'mid') setMobileSidebarState('full');
             else if (currentMobileSidebarUIState === 'full') setMobileSidebarState('peek');
+        });
+    }
+    
+    const rsh = document.getElementById('right-sidebar-drag-handle');
+    if (rsh) {
+        rsh.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentMobileRightSidebarUIState === 'peek') setMobileRightSidebarState('mid');
+            else if (currentMobileRightSidebarUIState === 'mid') setMobileRightSidebarState('full');
+            else if (currentMobileRightSidebarUIState === 'full') setMobileRightSidebarState('peek');
         });
     }
 
@@ -1597,7 +1602,6 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
     const blockTitle = document.getElementById('ranking-block-title');
     if (!block || !container) return;
 
-    // Standardize processing variable
     let validPool = pool.map(station => {
         let price = parseFloat(station[fuelVariant]);
         if (fuelVariant === 'electric' && (!price || isNaN(price))) {
@@ -1700,7 +1704,7 @@ function assignPricingTierColorStyles(valueRaw, variantKey) {
     if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
 
     if (variantKey === 'electric') {
-        if (numericVal <= 50) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+        if (numericVal <= 45) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
         if (numericVal <= 70) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
         return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
     }
@@ -1745,8 +1749,8 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
     let blueThreshold = 0;
 
     if (isEV) {
-        greenThreshold = 65;
-        blueThreshold = 75;
+        greenThreshold = 45;
+        blueThreshold = 70;
     } else if (globalPricesArray.length > 0) {
         const oneThirdIndex = Math.floor(globalPricesArray.length * 0.333);
         const twoThirdsIndex = Math.floor(globalPricesArray.length * 0.666);
@@ -2182,13 +2186,5 @@ window.clearFuelOptimizationState = function() {
     const savingsBlock = document.getElementById('smart-refuel-savings-block');
     if (savingsBlock) {
         savingsBlock.classList.add('hidden');
-    }
-};
-
-// Adds the collapse class so your CSS can hide the telemetry details
-window.toggleTrafficDashboard = function() {
-    const dashboard = document.getElementById('bottom-traffic-dashboard');
-    if(dashboard) {
-        dashboard.classList.toggle('dashboard-collapsed');
     }
 };
