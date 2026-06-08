@@ -215,3 +215,32 @@ body {
         left: calc(380px + (100vw - 380px) / 2); 
     }
 }
+
+/* --- FLOATING AI REFUEL SHEET PRESENTATION LAYER --- */
+#floating-smart-refuel-sheet {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+#floating-smart-refuel-sheet.panel-collapsed #refuel-panel-body {
+    max-height: 0px !important;
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+#floating-smart-refuel-sheet.panel-collapsed #refuel-panel-chevron {
+    transform: rotate(-180deg);
+}
+
+/* Ensure mobile map interaction clears the floating panel spacing */
+@media (max-width: 768px) {
+    #floating-smart-refuel-sheet {
+        bottom: 76px; /* Offset clear of standard iOS navigation controls and footer layouts */
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+}
