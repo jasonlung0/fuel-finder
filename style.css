@@ -1,11 +1,11 @@
 /* Core typography & Reset */
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 /* Custom Scrollbars */
 .custom-scrollbar::-webkit-scrollbar {
-    width: 5px;
+    width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
@@ -82,14 +82,14 @@ body {
 }
 
 /* --- PRECISE MOBILE DRAWER ARCHITECTURE (THE 3-STATE SNAP ENGINE) --- */
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
     .mobile-bottom-drawer {
         position: fixed;
         left: 0;
         right: 0;
         bottom: 0;
         height: auto;
-        max-height: calc(100vh - 85px);
+        max-height: calc(100vh - 120px);
         transform: translateY(100%);
         transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
         will-change: transform;
@@ -99,36 +99,39 @@ body {
         transition: none !important;
     }
     
-    /* Sidebar States */
+    /* Active Toggle Class for Mobile view switcher */
+    .mobile-active-sheet {
+        transform: translateY(0);
+    }
+    
+    /* State Modifiers */
     .mobile-bottom-drawer.drawer-hidden { transform: translateY(100%); }
     .mobile-bottom-drawer.drawer-peek { transform: translateY(calc(100% - 110px)); }
     .mobile-bottom-drawer.drawer-mid { transform: translateY(50%); }
     .mobile-bottom-drawer.drawer-full { transform: translateY(0); }
 
-    /* Sheet States */
-    .mobile-bottom-drawer.sheet-hidden { transform: translateY(100%); }
-    .mobile-bottom-drawer.sheet-mid { transform: translateY(45%); }
-    .mobile-bottom-drawer.sheet-full { transform: translateY(0); }
+    .mobile-bottom-drawer.sheet-hidden { display: none !important; transform: translateY(100%); }
+    .mobile-bottom-drawer.sheet-mid { display: flex !important; transform: translateY(45%); }
+    .mobile-bottom-drawer.sheet-full { display: flex !important; transform: translateY(0); }
 }
 
 /* --- DESKTOP SIDEBAR COLLAPSE --- */
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     #primary-control-sidebar {
         transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
     }
     #primary-control-sidebar.desktop-collapsed {
-        transform: translateX(calc(-100% - 16px));
+        transform: translateX(calc(-100% - 24px));
     }
     #primary-control-sidebar.desktop-collapsed #sidebar-chevron {
         transform: rotate(180deg);
     }
     
-    /* Right Sidebar styling */
     #secondary-control-sidebar {
         transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
     }
     #secondary-control-sidebar.desktop-collapsed-right {
-        transform: translateX(calc(100% + 16px));
+        transform: translateX(calc(100% + 24px));
     }
     #secondary-control-sidebar.desktop-collapsed-right #right-sidebar-chevron {
         transform: rotate(0deg);
