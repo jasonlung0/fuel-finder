@@ -209,17 +209,15 @@ function updateUIForMode(isEV) {
 
 // 1. Hide on initialization (Assuming you have a function to control the sheet/popup)
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize the map and core services
+    // Initialize the leaflet map canvas
     initMap(); 
-    
-    // 2. Bind the mobile swipe drawer to your handles
-    // This calls the logic we defined earlier to enable the 3-state UI
+
+    // --- DRAWER BINDING FIXED FOR YOUR ACTUAL ID ---
     try {
-        if (document.getElementById('sidebar-drag-handle') && document.getElementById('primary-control-sidebar')) {
-            bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
+        if (document.getElementById('sidebar-drag-handle') && document.getElementById('sidebar')) {
+            bindMobileSwipeDrawer('sidebar-drag-handle', 'sidebar');
         }
         
-        // If you have a separate bottom sheet (like the traffic dashboard), bind it too:
         if (document.getElementById('sheet-drag-handle') && document.getElementById('bottom-traffic-dashboard')) {
             bindMobileSwipeDrawer('sheet-drag-handle', 'bottom-traffic-dashboard');
         }
