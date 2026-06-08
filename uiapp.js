@@ -2184,3 +2184,11 @@ window.clearFuelOptimizationState = function() {
         savingsBlock.classList.add('hidden');
     }
 };
+
+// Adds the collapse class so your CSS can hide the telemetry details
+window.toggleTrafficDashboard = function() {
+    const dashboard = document.getElementById('bottom-traffic-dashboard');
+    if(dashboard) {
+        dashboard.classList.toggle('dashboard-collapsed');
+    }
+};
