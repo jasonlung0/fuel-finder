@@ -286,6 +286,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setMobileSidebarState('peek');
     }
 
+    // Force the 'Nearby' tab to be active on load
+    if (typeof switchSidebarTab === 'function') {
+        switchSidebarTab('nearby'); 
+    }
+
     console.log('UI Initialized successfully.');
 });
 
