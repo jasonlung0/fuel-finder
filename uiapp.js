@@ -286,11 +286,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setMobileSidebarState('peek');
     }
 
-    // Force the 'Nearby' tab to be active on load
-    if (typeof switchSidebarTab === 'function') {
-        switchSidebarTab('nearby'); 
-    }
-
     console.log('UI Initialized successfully.');
 });
 
@@ -1548,11 +1543,7 @@ window.executeStationDataFilteringPipeline = async function() {
                 address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
                 latitude: poi.AddressInfo?.Latitude,
                 longitude: poi.AddressInfo?.Longitude,
-                
-                // CRITICAL FIX: Injecting standard fallback prices so the Map UI rendering engine doesn't hide them
-                electric: poi.Connections?.[0]?.PowerKW || 50, // Keep kW for the sidebar
-                electric_price: 65.0, // Standard average price in pence per kWh to bypass `NaN` rendering filters
-                
+                electric: poi.Connections?.[0]?.PowerKW || 50, 
                 is_public: poi.UsageType?.IsPayAtLocation ?? true,
                 usage_title: poi.UsageType?.Title || 'Public Access',
                 operator_url: poi.OperatorInfo?.WebsiteURL || null,
@@ -1992,21 +1983,20 @@ window.triggerExternalMappingVectorRoute = function(event) {
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
     
-    window.open(`http://maps.google.com/maps?q=${lat},${lon}`, '_blank');
+    window.open(`http://maps.google.com/maps?q=$${lat},${lon}`, '_blank');
 };
 
 // -------------------------------------------------------------
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
 window.calculateOptimalRefuelStrategy = function() {
-    // 1. Get Values
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
+    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
     const capacity = parseFloat(document.getElementById('refuel-tank-size')?.value) || (isEV ? 60 : 55);
-    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 25;
-    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 10;
-    const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
+    const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
     
     const timeline = document.getElementById('refuel-timeline-output');
     const savingsBlock = document.getElementById('smart-refuel-savings-block');
@@ -2017,26 +2007,19 @@ window.calculateOptimalRefuelStrategy = function() {
         return; 
     }
 
-    // 2. The Core Fix: Split Math for EV vs ICE
-    let maxRangeMiles = 0;
+    let remainingRangeMiles = 0;
     let currentEnergyUnits = capacity * (currentPct / 100);
 
     if (isEV) {
-        // Average EV efficiency: ~3.5 miles per kWh
-        const evEfficiency = 3.5; 
-        maxRangeMiles = capacity * evEfficiency; 
+        const usableKwh = Math.max(0, currentEnergyUnits - safetyBuffer);
+        remainingRangeMiles = usableKwh * efficiency;
     } else {
-        // Standard ICE Math
-        const gallons = capacity / 4.54609; // Liters to Gallons
-        maxRangeMiles = gallons * userMpg;
+        const milesPerLiter = efficiency / 4.54609; 
+        const usableLiters = Math.max(0, currentEnergyUnits - (safetyBuffer / milesPerLiter));
+        remainingRangeMiles = usableLiters * milesPerLiter;
     }
-
-    // 3. Current Range Calculation
-    const currentRangeMiles = maxRangeMiles * (currentPct / 100);
-    const remainingUsableRange = currentRangeMiles - safetyBuffer;
-
-    // 4. Check if current range covers the trip
-    if (remainingUsableRange >= globalRouteDistanceMiles) {
+    
+    if (remainingRangeMiles >= globalRouteDistanceMiles) {
         if (timeline) {
             timeline.classList.remove('hidden');
             timeline.innerHTML = `<div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm"><div class="font-bold flex items-center gap-1">🎉 ${isEV ? 'Battery Charge' : 'Fuel Tank'} Sufficient!</div><p class="text-zinc-400 font-medium leading-normal">Your current range covers this ${globalRouteDistanceMiles.toFixed(1)} mi trip without stopping.</p></div>`;
@@ -2209,32 +2192,3 @@ window.toggleTrafficDashboard = function() {
         dashboard.classList.toggle('dashboard-collapsed');
     }
 };
-
-window.toggleRightSidebar = function(forceOpen = null) {
-    const rightSidebar = document.getElementById('right-telemetry-sidebar');
-    const leftSidebar = document.getElementById('desktop-sidebar'); // Check your actual left sidebar ID
-    
-    if (!rightSidebar) return;
-
-    const isCurrentlyClosed = rightSidebar.classList.contains('translate-x-full');
-    const shouldOpen = forceOpen !== null ? forceOpen : isCurrentlyClosed;
-
-    if (shouldOpen) {
-        // OPEN IT
-        rightSidebar.classList.remove('translate-x-full');
-        
-        // Mobile UX: If on mobile, push the left sidebar out of the way so they don't overlap
-        if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
-            setMobileSidebarState('hidden'); // Assuming you have a state to hide the left drawer
-        }
-    } else {
-        // CLOSE IT
-        rightSidebar.classList.add('translate-x-full');
-    }
-};
-
-// Automatically pop open the telemetry sidebar when a route finishes generating (Desktop only for better UX)
-// Add this line at the end of your executeRouteGenerationPipeline() function:
-if (window.innerWidth >= 768) {
-    toggleRightSidebar(true);
-}
