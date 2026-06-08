@@ -89,15 +89,12 @@ body {
         right: 0;
         bottom: 0;
         height: auto;
-        /* Constrain max height so it never blocks the top header completely */
         max-height: calc(100vh - 85px);
         transform: translateY(100%);
-        /* Faster, iOS-like spring curve */
         transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
         will-change: transform;
     }
     
-    /* Disable transitions ONLY when actively dragging via JS */
     .mobile-bottom-drawer.dragging {
         transition: none !important;
     }
@@ -204,14 +201,12 @@ body {
 #bottom-traffic-dashboard {
     left: 50%;
     transform: translateX(-50%);
-    /* Set explicitly to sit right above the peeked drawer on mobile */
     bottom: calc(115px + env(safe-area-inset-bottom, 16px));
 }
 
 @media (min-width: 1024px) {
     #bottom-traffic-dashboard {
         bottom: 24px;
-        /* Center in remaining space next to sidebar */
         left: calc(380px + (100vw - 380px) / 2); 
     }
 }
