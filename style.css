@@ -18,10 +18,10 @@ body {
     background: rgba(161, 161, 170, 0.5);
 }
 
-#traffic-alerts-viewport::-webkit-scrollbar {
+#route-alerts-container::-webkit-scrollbar {
     display: none;
 }
-#traffic-alerts-viewport {
+#route-alerts-container {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
@@ -100,6 +100,7 @@ body {
     }
     
     /* Sidebar States */
+    .mobile-bottom-drawer.drawer-hidden { transform: translateY(100%); }
     .mobile-bottom-drawer.drawer-peek { transform: translateY(calc(100% - 110px)); }
     .mobile-bottom-drawer.drawer-mid { transform: translateY(50%); }
     .mobile-bottom-drawer.drawer-full { transform: translateY(0); }
@@ -119,6 +120,20 @@ body {
         transform: translateX(calc(-100% - 16px));
     }
     #primary-control-sidebar.desktop-collapsed #sidebar-chevron {
+        transform: rotate(180deg);
+    }
+    
+    /* Right Sidebar styling */
+    #secondary-control-sidebar {
+        transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    #secondary-control-sidebar.desktop-collapsed-right {
+        transform: translateX(calc(100% + 16px));
+    }
+    #secondary-control-sidebar.desktop-collapsed-right #right-sidebar-chevron {
+        transform: rotate(0deg);
+    }
+    #secondary-control-sidebar:not(.desktop-collapsed-right) #right-sidebar-chevron {
         transform: rotate(180deg);
     }
 }
@@ -195,68 +210,4 @@ body {
     margin-top: 80px !important; 
     border: none !important;
     box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15) !important;
-}
-
-/* --- TRAFFIC DASHBOARD RESPONSIVE POSITIONING --- */
-#bottom-traffic-dashboard {
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(115px + env(safe-area-inset-bottom, 16px));
-}
-
-/* DASHBOARD COLLAPSE STATE */
-#bottom-traffic-dashboard.dashboard-collapsed #dashboard-collapsible-area {
-    max-height: 0px !important;
-    margin-top: 0px !important;
-    padding-top: 0px !important;
-    padding-bottom: 0px !important;
-    opacity: 0;
-    pointer-events: none;
-}
-
-#bottom-traffic-dashboard.dashboard-collapsed #dashboard-chevron {
-    transform: rotate(-180deg);
-}
-
-@media (min-width: 1024px) {
-    #bottom-traffic-dashboard {
-        bottom: 24px;
-        left: calc(380px + (100vw - 380px) / 2); 
-    }
-}
-
-/* --- FLOATING SMART REFUEL SHEET ADAPTIVE INTERFACE --- */
-#floating-smart-refuel-sheet {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-#floating-smart-refuel-sheet.panel-collapsed #refuel-panel-body {
-    max-height: 0px !important;
-    height: 0px !important;
-    padding-top: 0px !important;
-    padding-bottom: 0px !important;
-    margin: 0px !important;
-    overflow: hidden;
-    pointer-events: none;
-}
-
-#floating-smart-refuel-sheet.panel-collapsed #refuel-panel-chevron {
-    transform: rotate(-180deg);
-}
-
-@media (max-width: 1024px) {
-    #floating-smart-refuel-sheet {
-        bottom: 76px;
-        right: 12px;
-        left: 12px;
-        width: auto;
-    }
-}
-
-/* OVERLAP FIX FOR DESKTOP: Lift smart refuel ABOVE the traffic dashboard */
-@media (min-width: 1024px) {
-    #floating-smart-refuel-sheet {
-        bottom: 140px; 
-    }
 }
