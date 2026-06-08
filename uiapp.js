@@ -1987,7 +1987,7 @@ window.triggerExternalMappingVectorRoute = function(event) {
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
     
-    window.open(`http://maps.google.com/maps?q=$${lat},${lon}`, '_blank');
+    window.open(`http://maps.google.com/maps?q=${lat},${lon}`, '_blank');
 };
 
 // -------------------------------------------------------------
