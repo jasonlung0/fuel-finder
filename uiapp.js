@@ -2209,3 +2209,32 @@ window.toggleTrafficDashboard = function() {
         dashboard.classList.toggle('dashboard-collapsed');
     }
 };
+
+window.toggleRightSidebar = function(forceOpen = null) {
+    const rightSidebar = document.getElementById('right-telemetry-sidebar');
+    const leftSidebar = document.getElementById('desktop-sidebar'); // Check your actual left sidebar ID
+    
+    if (!rightSidebar) return;
+
+    const isCurrentlyClosed = rightSidebar.classList.contains('translate-x-full');
+    const shouldOpen = forceOpen !== null ? forceOpen : isCurrentlyClosed;
+
+    if (shouldOpen) {
+        // OPEN IT
+        rightSidebar.classList.remove('translate-x-full');
+        
+        // Mobile UX: If on mobile, push the left sidebar out of the way so they don't overlap
+        if (window.innerWidth < 768 && typeof setMobileSidebarState === 'function') {
+            setMobileSidebarState('hidden'); // Assuming you have a state to hide the left drawer
+        }
+    } else {
+        // CLOSE IT
+        rightSidebar.classList.add('translate-x-full');
+    }
+};
+
+// Automatically pop open the telemetry sidebar when a route finishes generating (Desktop only for better UX)
+// Add this line at the end of your executeRouteGenerationPipeline() function:
+if (window.innerWidth >= 768) {
+    toggleRightSidebar(true);
+}
