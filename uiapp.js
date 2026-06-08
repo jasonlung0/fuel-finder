@@ -68,6 +68,32 @@ let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
 let scanAreaTimeout = null;
 
+// --- MOBILE UX SWITCHER LOGIC ---
+window.toggleMobileView = function(targetMode) {
+    const leftSidebar = document.getElementById('primary-control-sidebar');
+    const rightSidebar = document.getElementById('secondary-control-sidebar');
+    const btnSearch = document.getElementById('btn-mob-search');
+    const btnTelemetry = document.getElementById('btn-mob-telemetry');
+    
+    if (!leftSidebar || !rightSidebar) return;
+
+    if (targetMode === 'search') {
+        rightSidebar.classList.remove('mobile-active-sheet');
+        leftSidebar.classList.add('mobile-active-sheet');
+        
+        if(btnSearch) btnSearch.className = "text-[11px] font-black tracking-wide px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
+        if(btnTelemetry) btnTelemetry.className = "text-[11px] font-bold tracking-wide px-4 py-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        setMobileSidebarState('mid');
+    } else {
+        leftSidebar.classList.remove('mobile-active-sheet');
+        rightSidebar.classList.add('mobile-active-sheet');
+        
+        if(btnTelemetry) btnTelemetry.className = "text-[11px] font-black tracking-wide px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
+        if(btnSearch) btnSearch.className = "text-[11px] font-bold tracking-wide px-4 py-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        setMobileRightSidebarState('mid');
+    }
+};
+
 // --- 3-STATE MOBILE SWIPE MECHANICS ---
 let currentMobileSidebarUIState = 'peek';
 let currentMobileRightSidebarUIState = 'hidden';
@@ -78,11 +104,7 @@ function bindMobileSwipeDrawer(handleId, elementId) {
     const drawer = document.getElementById(elementId);
     if (!handle || !drawer) return;
 
-    let startY = 0;
-    let currentY = 0;
-    let isDragging = false;
-    let startTime = 0;
-    
+    let startY = 0, currentY = 0, isDragging = false, startTime = 0;
     const isMainSidebar = elementId === 'primary-control-sidebar';
     const isRightSidebar = elementId === 'secondary-control-sidebar';
 
@@ -98,16 +120,11 @@ function bindMobileSwipeDrawer(handleId, elementId) {
         currentY = e.touches[0].clientY;
         const deltaY = currentY - startY;
         
-        let baseTranslate = 0;
         let activeState = isMainSidebar ? currentMobileSidebarUIState : (isRightSidebar ? currentMobileRightSidebarUIState : currentMobileSheetUIState);
-        
-        if (activeState === 'full') baseTranslate = 0;
-        else if (activeState === 'mid') baseTranslate = window.innerHeight * 0.5;
-        else baseTranslate = (isMainSidebar || isRightSidebar) ? (window.innerHeight - 110) : window.innerHeight;
+        let baseTranslate = (activeState === 'full') ? 0 : (activeState === 'mid') ? window.innerHeight * 0.5 : (window.innerHeight - 110);
         
         let newTranslate = baseTranslate + deltaY;
         if (newTranslate < 0) newTranslate = 0; 
-        
         drawer.style.transform = `translateY(${newTranslate}px)`;
     }, { passive: true });
 
@@ -133,45 +150,40 @@ function bindMobileSwipeDrawer(handleId, elementId) {
             if (velocity > 0.8 || deltaY < -150) setDrawerState(elementId, 'full');
             else if (activeState === 'peek' || activeState === 'hidden') setDrawerState(elementId, 'mid');
             else setDrawerState(elementId, 'full');
-        } 
-        else if (deltaY > 30) {
-            if (velocity > 0.8 || deltaY > 150) setDrawerState(elementId, (isMainSidebar || isRightSidebar) ? 'peek' : 'hidden');
+        } else if (deltaY > 30) {
+            let hideState = (isMainSidebar || isRightSidebar) ? 'peek' : 'hidden';
+            if (velocity > 0.8 || deltaY > 150) setDrawerState(elementId, hideState);
             else if (activeState === 'full') setDrawerState(elementId, 'mid');
-            else setDrawerState(elementId, (isMainSidebar || isRightSidebar) ? 'peek' : 'hidden');
+            else setDrawerState(elementId, hideState);
         }
     });
 }
 
 function setDrawerState(elementId, state) {
-    const isMainSidebar = elementId === 'primary-control-sidebar';
-    const isRightSidebar = elementId === 'secondary-control-sidebar';
-    
-    if (isMainSidebar) currentMobileSidebarUIState = state;
-    else if (isRightSidebar) currentMobileRightSidebarUIState = state;
+    if (elementId === 'primary-control-sidebar') currentMobileSidebarUIState = state;
+    else if (elementId === 'secondary-control-sidebar') currentMobileRightSidebarUIState = state;
     else currentMobileSheetUIState = state;
     
     const drawer = document.getElementById(elementId);
     if (!drawer) return;
     
     drawer.className = drawer.className.replace(/\b(drawer|sheet)-(hidden|peek|mid|full)\b/g, '').trim();
-    const prefix = (isMainSidebar || isRightSidebar) ? 'drawer' : 'sheet';
+    const prefix = (elementId === 'global-detail-sheet') ? 'sheet' : 'drawer';
     drawer.classList.add(`${prefix}-${state}`);
 }
 
-function setMobileSidebarState(stateStr) {
-    setDrawerState('primary-control-sidebar', stateStr);
-}
-
-function setMobileRightSidebarState(stateStr) {
-    setDrawerState('secondary-control-sidebar', stateStr);
-}
-
-function setMobileSheetUIState(stateStr) {
-    setDrawerState('global-detail-sheet', stateStr);
-}
+function setMobileSidebarState(stateStr) { setDrawerState('primary-control-sidebar', stateStr); }
+function setMobileRightSidebarState(stateStr) { setDrawerState('secondary-control-sidebar', stateStr); }
+function setMobileSheetUIState(stateStr) { setDrawerState('global-detail-sheet', stateStr); }
 
 const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
 const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+
+window.toggleDesktopSidebar = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sidebar = document.getElementById('primary-control-sidebar');
+    if (sidebar) sidebar.classList.toggle('desktop-collapsed');
+};
 
 window.toggleRightSidebar = function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
@@ -180,49 +192,40 @@ window.toggleRightSidebar = function(event) {
 };
 
 window.updateUIForMode = function(isEV) {
-    const capacityLabel = document.getElementById('label-capacity');
-    const capacityDesc = document.getElementById('desc-capacity');
-    const currentFuelLabel = document.getElementById('label-current-fuel');
-    const currentFuelDesc = document.getElementById('desc-current-fuel');
-    const capacitySelect = document.getElementById('refuel-tank-size');
+    const capLabel = document.getElementById('label-capacity');
+    const capDesc = document.getElementById('desc-capacity');
+    const currLabel = document.getElementById('label-current-fuel');
+    const currDesc = document.getElementById('desc-current-fuel');
+    const capSelect = document.getElementById('refuel-tank-size');
     const mpgLabel = document.getElementById('mpg-label');
-    const bufferLabel = document.getElementById('label-safety-buffer');
-    const bufferDesc = document.getElementById('desc-safety-buffer');
-    const bufferUnitLabel = document.getElementById('buffer-unit-label');
 
     if (isEV) {
-        if (capacityLabel) capacityLabel.innerText = 'Battery Capacity';
-        if (capacityDesc) capacityDesc.innerText = 'Max energy capacity in kWh.';
-        if (currentFuelLabel) currentFuelLabel.innerText = 'State of Charge (SoC)';
-        if (currentFuelDesc) currentFuelDesc.innerText = 'Current battery charge %.';
-        if (mpgLabel) mpgLabel.innerText = 'Vehicle Efficiency (mi/kWh)';
-        if (bufferLabel) bufferLabel.innerText = 'Safety Buffer Target';
-        if (bufferDesc) bufferDesc.innerText = 'Minimum safe threshold margin.';
-        if (bufferUnitLabel) bufferUnitLabel.innerText = 'miles'; 
+        if (capLabel) capLabel.innerText = 'Battery Capacity';
+        if (capDesc) capDesc.innerText = 'Max energy in kWh.';
+        if (currLabel) currLabel.innerText = 'State of Charge (SoC)';
+        if (currDesc) currDesc.innerText = 'Current battery charge %.';
+        if (mpgLabel) mpgLabel.innerText = 'Efficiency (mi/kWh)';
         
-        if (capacitySelect) {
-            capacitySelect.innerHTML = `
-                <option value="40">40 kWh (Compact)</option>
-                <option value="60" selected>60 kWh (Standard Range)</option>
-                <option value="80">80 kWh (Long Range)</option>
-                <option value="100">100+ kWh (Performance)</option>
+        if (capSelect) {
+            capSelect.innerHTML = `
+                <option value="40">40 kWh</option>
+                <option value="60" selected>60 kWh</option>
+                <option value="80">80 kWh</option>
+                <option value="100">100+ kWh</option>
             `;
         }
     } else {
-        if (capacityLabel) capacityLabel.innerText = 'Tank Capacity';
-        if (capacityDesc) capacityDesc.innerText = 'Maximum fuel tank size.';
-        if (currentFuelLabel) currentFuelLabel.innerText = 'Current Fuel Level';
-        if (currentFuelDesc) currentFuelDesc.innerText = 'Current remaining fuel %.';
+        if (capLabel) capLabel.innerText = 'Tank Capacity';
+        if (capDesc) capDesc.innerText = 'Max volume baseline.';
+        if (currLabel) currLabel.innerText = 'Current Level';
+        if (currDesc) currDesc.innerText = 'Remaining capacity %.';
         if (mpgLabel) mpgLabel.innerText = 'Vehicle Efficiency (MPG)';
-        if (bufferLabel) bufferLabel.innerText = 'Safety Buffer Target';
-        if (bufferDesc) bufferDesc.innerText = 'Minimum safe threshold margin.';
-        if (bufferUnitLabel) bufferUnitLabel.innerText = 'miles';
         
-        if (capacitySelect) {
-            capacitySelect.innerHTML = `
-                <option value="45">45 L (Compact Car)</option>
-                <option value="55" selected>55 L (Standard Sedan)</option>
-                <option value="70">70 L (Large SUV / Van)</option>
+        if (capSelect) {
+            capSelect.innerHTML = `
+                <option value="45">45 L</option>
+                <option value="55" selected>55 L</option>
+                <option value="70">70 L</option>
             `;
         }
     }
@@ -234,22 +237,14 @@ window.updateUIForMode = function(isEV) {
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap(); 
+    updateSavedItemsCountUI();
     
     try {
-        if (document.getElementById('sidebar-drag-handle')) {
-            bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
-        }
-        if (document.getElementById('right-sidebar-drag-handle')) {
-            bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
-        }
-        if (document.getElementById('detail-sheet-drag-handle')) {
-            bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
-        }
-        
+        if (document.getElementById('sidebar-drag-handle')) bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
+        if (document.getElementById('right-sidebar-drag-handle')) bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
+        if (document.getElementById('detail-sheet-drag-handle')) bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
         initializeGestureTrackEngine();
-    } catch (err) {
-        console.warn('UI Initialization skipped: Sidebar/Sheet elements not found.', err);
-    }
+    } catch (err) { console.warn('UI Initialization skipped.', err); }
 
     const fuelTypeSelector = document.getElementById('fuel-type');
     if (fuelTypeSelector) {
@@ -263,8 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const radiusSlider = document.getElementById('radius-slider');
     if (radiusSlider) {
         radiusSlider.addEventListener('input', (e) => {
-            const readout = document.getElementById('radius-val');
-            if (readout) readout.textContent = `${e.target.value} Miles`;
+            document.getElementById('radius-val').textContent = `${e.target.value} Miles`;
             executeStationDataFilteringPipeline();
         });
     }
@@ -272,47 +266,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const detourSlider = document.getElementById('route-radius-slider');
     if (detourSlider) {
         detourSlider.addEventListener('input', (e) => {
-            const readout = document.getElementById('route-radius-val');
-            if (readout) readout.textContent = `${e.target.value} Mi`;
+            document.getElementById('route-radius-val').textContent = `${e.target.value} Mi`;
             executeStationDataFilteringPipeline();
         });
     }
 
-    if (typeof calculateOptimalRefuelStrategy === 'function') {
-        calculateOptimalRefuelStrategy();
-    }
-    
     setupAutocompleteListeners();
     initializeClickIsolationBubbling();
 
-    if (window.innerWidth < 768) {
-        setMobileSidebarState('peek');
-        setMobileRightSidebarState('hidden');
+    if (window.innerWidth < 1024) {
+        toggleMobileView('search');
     }
 
+    const detailSheet = document.getElementById('global-detail-sheet');
+    if (detailSheet) {
+        detailSheet.classList.add('hidden');
+        setMobileSheetUIState('hidden');
+    }
+    
     console.log('UI Initialized successfully.');
 });
+
+function updateSavedItemsCountUI() {
+    const badge = document.getElementById('saved-items-count-badge');
+    if (badge) badge.textContent = starredStations.length + savedRoutes.length;
+}
 
 // --- INTERACTIVE MAP CAMERA FUNCTION ---
 window.focusIncidentMapView = function(lat, lng) {
     if (!map) return;
-    
     let targetedLat = parseFloat(lat);
     let targetedLng = parseFloat(lng);
     
     if (Math.abs(targetedLat) < Math.abs(targetedLng) && targetedLng > 49 && targetedLng < 61) {
-        const temp = targetedLat;
-        targetedLat = targetedLng;
-        targetedLng = temp;
+        const temp = targetedLat; targetedLat = targetedLng; targetedLng = temp;
     }
-
     if (isNaN(targetedLat) || isNaN(targetedLng)) return;
 
-    map.flyTo([targetedLat, targetedLng], 16, {
-        animate: true,
-        duration: 1.5,
-        easeLinearity: 0.25
-    });
+    map.flyTo([targetedLat, targetedLng], 16, { animate: true, duration: 1.5 });
 };
 
 const Toast = {
@@ -326,41 +317,19 @@ const Toast = {
     },
     show(message, type = 'info') {
         this.init();
-        
         const icons = {
             success: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
             error: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
             warning: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" /></svg>`,
-            info: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>`
+            info: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>`
         };
-
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        
-        toast.innerHTML = `
-            <div class="relative z-10 flex items-center justify-center">${icons[type]}</div>
-            <p class="relative z-10 m-0 leading-tight tracking-tight">${message}</p>
-        `;
-
+        toast.innerHTML = `<div class="relative z-10 flex items-center justify-center">${icons[type]}</div><p class="relative z-10 m-0 leading-tight tracking-tight">${message}</p>`;
         this.container.appendChild(toast);
-
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                toast.classList.add('show');
-            });
-        });
-
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
+        requestAnimationFrame(() => { requestAnimationFrame(() => { toast.classList.add('show'); }); });
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
     }
-};
-
-window.toggleDesktopSidebar = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    const sidebar = document.getElementById('primary-control-sidebar');
-    if (sidebar) sidebar.classList.toggle('desktop-collapsed');
 };
 
 window.toggleSystemColorModeTheme = function(event) {
@@ -373,41 +342,24 @@ window.toggleSystemColorModeTheme = function(event) {
 function applyThemeChangesToDOM() {
     const bodyNode = document.body;
     if (isDarkMode) {
-        bodyNode.classList.remove('light');
-        bodyNode.classList.add('dark');
-        document.documentElement.classList.add('dark');
+        bodyNode.classList.remove('light'); bodyNode.classList.add('dark'); document.documentElement.classList.add('dark');
     } else {
-        bodyNode.classList.remove('dark');
-        bodyNode.classList.add('light');
-        document.documentElement.classList.remove('dark');
+        bodyNode.classList.remove('dark'); bodyNode.classList.add('light'); document.documentElement.classList.remove('dark');
     }
-    
     if (map && tileLayerInstance) {
         map.removeLayer(tileLayerInstance);
-        const targetedTilesetURI = isDarkMode 
-            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-            : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-        
+        const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
         tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     }
-    
-    if (typeof executeStationDataFilteringPipeline === 'function') {
-        executeStationDataFilteringPipeline();
-    }
-    updateDirectoryTotalBadge();
-    const dropdownPanel = document.getElementById('starred-dropdown-panel');
-    if (dropdownPanel && !dropdownPanel.classList.contains('hidden')) renderDirectoryDropdown();
+    if (typeof executeStationDataFilteringPipeline === 'function') executeStationDataFilteringPipeline();
+    updateSavedItemsCountUI();
     updateAllStarUIStates();
 }
 
 function initMap() {
     if (map) return;
     map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
-    
-    const targetedTilesetURI = isDarkMode 
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-        
+    const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
     tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     L.control.zoom({ position: 'topright' }).addTo(map);
     
@@ -415,9 +367,7 @@ function initMap() {
     
     map.on('click', function(e) {
         map.closePopup(); 
-        if (typeof closeForecourtDetailSheet === 'function') {
-            closeForecourtDetailSheet(); 
-        }
+        if (typeof closeForecourtDetailSheet === 'function') closeForecourtDetailSheet(); 
         activeSheetStation = null; 
     });
     
@@ -428,21 +378,15 @@ function initMap() {
     }
 
     originalMapCenter = map.getCenter();
-
     map.on('moveend', () => {
-        if (!originalMapCenter) return;
-        const currentCenter = map.getCenter();
-        const distanceMoved = currentCenter.distanceTo(originalMapCenter); 
-
-        if (!scanContainer) return;
-
+        if (!originalMapCenter || !scanContainer) return;
+        const dist = map.getCenter().distanceTo(originalMapCenter); 
         if (activeTabContext === 'route') {
             scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
             scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
             return;
         }
-
-        if (distanceMoved > 500) {
+        if (dist > 500) {
             scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
             scanContainer.classList.add('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
         } else {
@@ -457,7 +401,6 @@ function initMap() {
 
 window.executeContextualAreaScanPipeline = function(event) {
     if (event) event.stopPropagation();
-    
     const btn = document.getElementById('scan-area-btn');
     const container = document.getElementById('scan-area-container');
     const iconSearch = document.getElementById('scan-icon-search');
@@ -473,16 +416,13 @@ window.executeContextualAreaScanPipeline = function(event) {
     mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
     originalMapCenter = newCenter;
 
-    if (typeof forceReloadRemotePipelineData === 'function') {
-        forceReloadRemotePipelineData();
-    }
+    if (typeof forceReloadRemotePipelineData === 'function') forceReloadRemotePipelineData();
 
     setTimeout(() => {
         if (container) {
             container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
             container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
         }
-
         setTimeout(() => {
             if (btn) btn.disabled = false;
             if (iconSearch) iconSearch.classList.remove('hidden');
@@ -499,20 +439,12 @@ function triggerActiveDeviceLocationLookup() {
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
                 mapSearchAnchorCoordinates = [userLat, userLng];
-                
                 originalMapCenter = L.latLng(userLat, userLng); 
                 map.setView(mapSearchAnchorCoordinates, 12);
-                
-                L.circle(mapSearchAnchorCoordinates, {
-                    radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4
-                }).addTo(map);
-                
+                L.circle(mapSearchAnchorCoordinates, { radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4 }).addTo(map);
                 executeStationDataFilteringPipeline();
             },
-            (error) => {
-                console.warn("Device location rejected. Defaulting coordinates.");
-                executeStationDataFilteringPipeline();
-            },
+            (error) => { executeStationDataFilteringPipeline(); },
             { enableHighAccuracy: true, timeout: 6000 }
         );
     } else {
@@ -524,7 +456,6 @@ window.triggerManualDeviceLocationSearch = async function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const inputField = document.getElementById('location-input');
     if (!navigator.geolocation) return;
-
     if(inputField) inputField.value = "Detecting device coordinates...";
 
     navigator.geolocation.getCurrentPosition(async (position) => {
@@ -537,14 +468,9 @@ window.triggerManualDeviceLocationSearch = async function(event) {
         try {
             const lookupRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLat}&lon=${userLng}&zoom=14`);
             const lookupData = await lookupRes.json();
-            if(inputField && lookupData && lookupData.display_name) {
-                inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
-            } else if(inputField) {
-                inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
-            }
-        } catch {
-            if(inputField) inputField.value = "Current Location Vector";
-        }
+            if(inputField && lookupData && lookupData.display_name) inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
+            else if(inputField) inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
+        } catch { if(inputField) inputField.value = "Current Location Vector"; }
         executeStationDataFilteringPipeline();
     }, () => {
         if(inputField) inputField.value = "Access Denied by Host Device";
@@ -553,7 +479,6 @@ window.triggerManualDeviceLocationSearch = async function(event) {
 
 function initializeClusterLayerPipeline() {
     if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
-    
     markerClusterGroupInstance = L.markerClusterGroup({
         showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
         iconCreateFunction: function (cluster) {
@@ -565,28 +490,17 @@ function initializeClusterLayerPipeline() {
             dynamicChildMarkers.forEach(marker => {
                 if(marker.options?.stationRawData) {
                     let val = parseFloat(marker.options.stationRawData[activeFuelKey]);
-                    if (isEV && (!val || isNaN(val))) {
-                        val = parseFloat(marker.options.stationRawData.electric_price || marker.options.stationRawData.charge_rate || marker.options.stationRawData.electric);
-                    }
+                    if (isEV && (!val || isNaN(val))) val = parseFloat(marker.options.stationRawData.electric_price || marker.options.stationRawData.charge_rate || marker.options.stationRawData.electric);
                     if(!isNaN(val) && val > 0) pricesExtracted.push(val);
                 }
             });
 
-            if(pricesExtracted.length === 0) {
-                return L.divIcon({
-                    html: `<div class="fuel-cluster-capsule tabular-nums"><span>Cluster</span></div>`,
-                    className: 'leaflet-div-icon-reset', iconSize: [95, 32]
-                });
-            }
+            if(pricesExtracted.length === 0) return L.divIcon({ html: `<div class="fuel-cluster-capsule tabular-nums"><span>Cluster</span></div>`, className: 'leaflet-div-icon-reset', iconSize: [95, 32] });
 
             const min = Math.min(...pricesExtracted);
             const max = Math.max(...pricesExtracted);
             const labelString = (min === max) ? `${isEV?'⚡':''}${min.toFixed(1)}${isEV?'kW':'p'}` : `${isEV?'⚡':''}${min.toFixed(1)}${isEV?'':'p'} - ${max.toFixed(1)}${isEV?'kW':'p'}`;
-
-            return L.divIcon({
-                html: `<div class="fuel-cluster-capsule tabular-nums"><span>${labelString}</span></div>`,
-                className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16]
-            });
+            return L.divIcon({ html: `<div class="fuel-cluster-capsule tabular-nums"><span>${labelString}</span></div>`, className: 'leaflet-div-icon-reset', iconSize: [115, 32], iconAnchor: [57, 16] });
         }
     });
     map.addLayer(markerClusterGroupInstance);
@@ -635,19 +549,11 @@ window.switchDirectoryTabContext = function(dirType) {
     renderDirectoryDropdown();
 };
 
-function updateDirectoryTotalBadge() {
-    const badge = document.getElementById('directory-total-badge');
-    if (badge) {
-        badge.textContent = starredStations.length + savedRoutes.length;
-    }
-}
-
 window.swapRouteEndpoints = function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const startInput = document.getElementById('route-start');
     const endInput = document.getElementById('route-end');
     if(!startInput || !endInput) return;
-
     const intermediateBuffer = startInput.value;
     startInput.value = endInput.value;
     endInput.value = intermediateBuffer;
@@ -658,11 +564,9 @@ window.addWaypointFieldInputRow = function(initialValue = '') {
     const currentUid = dynamicWaypointIncrementalIndex;
     const container = document.getElementById('dynamic-waypoints-container');
     if (!container) return;
-
     const rowNode = document.createElement('div');
     rowNode.id = `waypoint-row-context-${currentUid}`;
     rowNode.className = "relative w-full flex items-center gap-2 mt-1 animate-fadeIn";
-
     rowNode.innerHTML = `
         <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
         <div class="relative flex-1">
@@ -672,7 +576,6 @@ window.addWaypointFieldInputRow = function(initialValue = '') {
         <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" title="Delete stop">✕</button>
         <div id="via-suggestions-${currentUid}" class="absolute left-0 right-10 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-lg shadow-xl hidden max-h-32 overflow-y-auto z-[2500] p-1 text-xs"></div>
     `;
-
     container.appendChild(rowNode);
     bindAutocompleteToSpecificInput(`route-via-${currentUid}`, `via-suggestions-${currentUid}`);
 };
@@ -680,17 +583,13 @@ window.addWaypointFieldInputRow = function(initialValue = '') {
 window.removeWaypointFieldInputRow = function(uid, event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const rowTarget = document.getElementById(`waypoint-row-context-${uid}`);
-    if (rowTarget) {
-        rowTarget.remove();
-    }
+    if (rowTarget) rowTarget.remove();
 };
 
 window.clearSingleWaypointRowInputValue = function(uid, event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const inputField = document.getElementById(`route-via-${uid}`);
-    if (inputField) {
-        inputField.value = '';
-    }
+    if (inputField) inputField.value = '';
 };
 
 function bindAutocompleteToSpecificInput(inputId, suggestionsBoxId) {
@@ -701,22 +600,14 @@ function bindAutocompleteToSpecificInput(inputId, suggestionsBoxId) {
     inputField.addEventListener('input', (e) => {
         const textQuery = e.target.value.trim();
         clearTimeout(autocompleteDebounceTimer);
-
-        if (!textQuery || textQuery.length < 2) {
-            matchingBox.classList.add('hidden');
-            return;
-        }
+        if (!textQuery || textQuery.length < 2) { matchingBox.classList.add('hidden'); return; }
 
         autocompleteDebounceTimer = setTimeout(async () => {
             try {
                 const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(textQuery)}&countrycodes=gb&limit=4`;
                 const res = await fetch(url, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
                 const optionsList = await res.json();
-
-                if (!optionsList || optionsList.length === 0) {
-                    matchingBox.classList.add('hidden');
-                    return;
-                }
+                if (!optionsList || optionsList.length === 0) { matchingBox.classList.add('hidden'); return; }
 
                 matchingBox.innerHTML = '';
                 optionsList.forEach(item => {
@@ -750,15 +641,12 @@ window.executeAddressGeocodeLookup = async function() {
         const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchString)}&countrycodes=gb&limit=1`;
         const res = await fetch(endpoint, { headers: { 'User-Agent': 'UKFuelPriceWorkspace/2.0' } });
         const matchingNodes = await res.json();
-
         if (matchingNodes?.length > 0) {
             mapSearchAnchorCoordinates = [parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)];
             originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); 
             map.setView(mapSearchAnchorCoordinates, 12);
-            
             executeStationDataFilteringPipeline();
-            
-            if (window.innerWidth < 768) setMobileSidebarState('peek');
+            if (window.innerWidth < 1024) setMobileSidebarState('peek');
         }
     } catch (err) { console.error(err); }
 };
@@ -768,7 +656,6 @@ window.executeAddressGeocodeLookup = async function() {
 // -------------------------------------------------------------
 function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
     if (!coords || coords.length === 0) return [];
-
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
     for (const pt of coords) {
         if (pt[0] < minLat) minLat = pt[0];
@@ -776,90 +663,55 @@ function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
         if (pt[1] < minLon) minLon = pt[1];
         if (pt[1] > maxLon) maxLon = pt[1];
     }
-
-    minLat -= 0.01; maxLat += 0.01;
-    minLon -= 0.01; maxLon += 0.01;
-
+    minLat -= 0.01; maxLat += 0.01; minLon -= 0.01; maxLon += 0.01;
     const R = 6371;
     const dLat = (maxLat - minLat) * (Math.PI / 180);
     const dLon = (maxLon - minLon) * (Math.PI / 180);
     const meanLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
     const area = (R * Math.abs(dLon) * Math.cos(meanLat)) * (R * Math.abs(dLat));
-
-    if (area <= maxArea) {
-        return [[minLon, minLat, maxLon, maxLat]];
-    }
-
+    if (area <= maxArea) return [[minLon, minLat, maxLon, maxLat]];
     const mid = Math.floor(coords.length / 2);
-    const firstHalf = coords.slice(0, mid + 1);
-    const secondHalf = coords.slice(mid);
-
-    return [
-        ...generateTrafficBoundingBoxes(firstHalf, maxArea),
-        ...generateTrafficBoundingBoxes(secondHalf, maxArea)
-    ];
+    return [...generateTrafficBoundingBoxes(coords.slice(0, mid + 1), maxArea), ...generateTrafficBoundingBoxes(coords.slice(mid), maxArea)];
 }
 
 async function fetchTrafficChunk(bbox) {
     try {
-        const formattedMinLon = Number(bbox[0]).toFixed(6);
-        const formattedMinLat = Number(bbox[1]).toFixed(6);
-        const formattedMaxLon = Number(bbox[2]).toFixed(6);
-        const formattedMaxLat = Number(bbox[3]).toFixed(6);
-
-        const bboxString = `${formattedMinLon},${formattedMinLat},${formattedMaxLon},${formattedMaxLat}`;
+        const bboxString = `${Number(bbox[0]).toFixed(6)},${Number(bbox[1]).toFixed(6)},${Number(bbox[2]).toFixed(6)},${Number(bbox[3]).toFixed(6)}`;
         const fieldsTemplate = encodeURIComponent("{incidents{geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,from,to,events{description}}}}");
-        
         const targetApiEndpoint = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${TOMTOM_API_KEY}&bbox=${bboxString}&fields=${fieldsTemplate}&language=en-GB&t=-1`;
-
         const networkResponse = await fetch(targetApiEndpoint);
         if (!networkResponse.ok) return [];
-
         const payload = await networkResponse.json();
         return (payload && payload.incidents) ? payload.incidents : [];
-    } catch (apiError) {
-        return []; 
-    }
+    } catch (apiError) { return []; }
 }
 
 async function fetchAllRouteTraffic(routeCoords) {
     if (!routeCoords || routeCoords.length === 0) return null;
-    
     const bboxes = generateTrafficBoundingBoxes(routeCoords, 8500);
     if (bboxes.length > 20) bboxes.length = 20; 
-
     try {
-        const requests = bboxes.map(bbox => fetchTrafficChunk(bbox));
-        const results = await Promise.all(requests);
-        
+        const results = await Promise.all(bboxes.map(bbox => fetchTrafficChunk(bbox)));
         const allIncidents = results.flat();
         const uniqueIncidents = [];
         const seenIds = new Set();
-        
         for (const incident of allIncidents) {
-            if (incident && incident.properties && incident.properties.id) {
-                if (!seenIds.has(incident.properties.id)) {
-                    seenIds.add(incident.properties.id);
-                    uniqueIncidents.push(incident);
-                }
+            if (incident && incident.properties && incident.properties.id && !seenIds.has(incident.properties.id)) {
+                seenIds.add(incident.properties.id);
+                uniqueIncidents.push(incident);
             }
         }
         return uniqueIncidents;
-    } catch (e) {
-        console.error("Multi-chunk traffic fetch failed:", e);
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 function humanizeTrafficDescription(rawDesc) {
     if (!rawDesc) return "Traffic disruption";
     const lower = rawDesc.toLowerCase();
-    
     if (lower.includes('closed') || lower.includes('closure')) return "Road is currently closed";
     if (lower.includes('stationary') || lower.includes('standstill')) return "Standstill traffic";
     if (lower.includes('roadworks') || lower.includes('construction')) return "Active roadworks";
     if (lower.includes('accident') || lower.includes('crash') || lower.includes('collision')) return "Reported accident";
-    
     return rawDesc.charAt(0).toUpperCase() + rawDesc.slice(1);
 }
 
@@ -871,22 +723,15 @@ function formatIncidentLocation(from, to) {
 }
 
 function getIncidentSeverity(delay, category) {
-    if (category === 1 || category === 8 || delay > 1200) {
-        return { label: 'CRITICAL', styles: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30' };
-    }
-    if (delay > 600) {
-        return { label: 'MAJOR', styles: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' };
-    }
-    if (delay > 180) {
-        return { label: 'MODERATE', styles: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30' };
-    }
+    if (category === 1 || category === 8 || delay > 1200) return { label: 'CRITICAL', styles: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30' };
+    if (delay > 600) return { label: 'MAJOR', styles: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30' };
+    if (delay > 180) return { label: 'MODERATE', styles: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30' };
     return { label: 'MINOR', styles: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30' };
 }
 
 window.renderLiveTrafficDashboard = function(incidents) {
     const alertsViewport = document.getElementById('route-alerts-container');
     const ticker = document.getElementById('dash-metric-delay-ticker');
-
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
@@ -894,24 +739,28 @@ window.renderLiveTrafficDashboard = function(incidents) {
         if(ticker) ticker.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate tracking-tight">✅ Fluid traffic flow detected along active corridor.</div>`;
         if (alertsViewport) alertsViewport.classList.add('hidden');
         const badge = document.getElementById('traffic-status-badge');
-        if (badge) { badge.textContent = "CLEAR"; badge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 border-emerald-500/20"; }
+        if (badge) { badge.textContent = "CLEAR"; badge.className = "px-1.5 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 border-emerald-500/20"; }
         return;
     }
 
-    // STRICT ROUTE FILTERING
+    // STRICT ROUTE FILTERING (Only magnitude 3 or 4 along the path)
     let processed = incidents.filter(i => {
+        const severity = i.properties?.magnitudeOfDelay;
+        if (severity !== 3 && severity !== 4) return false;
+        
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
         let coords = i.geometry?.coordinates;
         if (!coords) return false;
         
         let checkPoint = i.geometry.type === 'Point' ? coords : coords[0];
-        // Note: TomTom Checkpoint is [Lon, Lat]
         return plottedRouteCoordinates.some(rc => computeDistanceVectorMiles(rc[0], rc[1], checkPoint[1], checkPoint[0]) <= 2.0);
     });
 
     if (processed.length === 0) {
         if (ticker) ticker.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-emerald-500 truncate">✅ Route corridor is free-flowing.</div>`;
         if (alertsViewport) alertsViewport.classList.add('hidden');
+        const badge = document.getElementById('traffic-status-badge');
+        if (badge) { badge.textContent = "CLEAR"; badge.className = "px-1.5 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-emerald-500/10 text-emerald-700 border-emerald-500/20"; }
         return;
     }
 
@@ -929,7 +778,6 @@ window.renderLiveTrafficDashboard = function(incidents) {
     const tDelay = processed.reduce((s, i) => s + (i.properties.delay || 0), 0);
     const delayMins = Math.round(tDelay/60);
     
-    // EV vs ICE Waste Math
     let wasteStr = "";
     if (isEV) {
         const kwhWasted = (tDelay / 3600) * 2.1;
@@ -945,8 +793,8 @@ window.renderLiveTrafficDashboard = function(incidents) {
     if (badge) {
         badge.textContent = processed.length >= 3 ? "CONGESTED" : "ALERTS";
         badge.className = processed.length >= 3 
-            ? "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-rose-500/10 text-rose-600 border-rose-500/20"
-            : "px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-amber-500/10 text-amber-700 border-amber-500/20";
+            ? "px-1.5 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-rose-500/10 text-rose-600 border-rose-500/20"
+            : "px-1.5 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-amber-500/10 text-amber-700 border-amber-500/20";
     }
 
     if (alertsViewport) {
@@ -980,93 +828,53 @@ window.renderLiveTrafficDashboard = function(incidents) {
 // CORE ROUTING ENGINE & TomTom Fuel Consumption Integration
 // -------------------------------------------------------------
 window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
-    if (!map) {
-        console.warn("Spatial Map Engine is not initialized yet.");
-        return;
-    }
-
+    if (!map) return;
     try {
-        const startElement = document.getElementById('route-start-point') || document.getElementById('route-start');
-        const endElement = document.getElementById('route-end-point') || document.getElementById('route-end');
-        
+        const startElement = document.getElementById('route-start');
+        const endElement = document.getElementById('route-end');
         const startInput = forcedStart || startElement?.value || "";
         const endInput = forcedEnd || endElement?.value || "";
         
-        if (!startInput || !endInput) {
-            Toast.show("Please enter both a start point and an end point.", "warning");
-            return;
-        }
+        if (!startInput || !endInput) { Toast.show("Please enter both a start point and an end point.", "warning"); return; }
         
         const startRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(startInput)}&countrycodes=gb&limit=1`);
         const startNodes = await startRes.json();
-        if (!startNodes.length) {
-            Toast.show("Could not find coordinates for the start point.", "error");
-            return;
-        }
+        if (!startNodes.length) { Toast.show("Could not find coordinates for the start point.", "error"); return; }
         
         const endRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(endInput)}&countrycodes=gb&limit=1`);
         const endNodes = await endRes.json();
-        if (!endNodes.length) {
-            Toast.show("Could not find coordinates for the end point.", "error");
-            return;
-        }
+        if (!endNodes.length) { Toast.show("Could not find coordinates for the end point.", "error"); return; }
         
         let waypointInputs = document.querySelectorAll('.waypoint-dynamic-input-field');
         let waypointStrings = [];
-        if (waypointInputs) {
-            waypointInputs.forEach(input => {
-                if (input?.value && input.value.trim() !== "") {
-                    waypointStrings.push(input.value.trim());
-                }
-            });
-        }
+        if (waypointInputs) waypointInputs.forEach(input => { if (input?.value && input.value.trim() !== "") waypointStrings.push(input.value.trim()); });
         
-        if (typeof cachedGeocodedWaypoints === 'undefined') {
-            window.cachedGeocodedWaypoints = { start: {}, end: {}, vids: {} };
-        }
         cachedGeocodedWaypoints.start = { name: startInput, lat: parseFloat(startNodes[0].lat), lon: parseFloat(startNodes[0].lon) };
         cachedGeocodedWaypoints.end = { name: endInput, lat: parseFloat(endNodes[0].lat), lon: parseFloat(endNodes[0].lon) };
         
         let coordinatesPayloadString = `${startNodes[0].lat},${startNodes[0].lon}`;
-        
         if (waypointStrings.length > 0) {
             const waypointPromises = waypointStrings.map(async (wpStr, wIndex) => {
                 try {
                     const viaRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(wpStr)}&countrycodes=gb&limit=1`);
                     const viaNodes = await viaRes.json();
-                    if (viaNodes.length) {
-                        return { wIndex, name: wpStr, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
-                    }
-                } catch (e) {
-                    console.error(`Failed to resolve midpoint sequence: ${wpStr}`, e);
-                }
-                return null;
+                    if (viaNodes.length) return { wIndex, name: wpStr, lat: viaNodes[0].lat, lon: viaNodes[0].lon };
+                } catch (e) {} return null;
             });
-
             const resolvedWaypoints = await Promise.all(waypointPromises);
             resolvedWaypoints.forEach(wp => {
-                if (wp) {
-                    coordinatesPayloadString += `:${wp.lat},${wp.lon}`;
-                    cachedGeocodedWaypoints.vids[`wp_${wp.wIndex}`] = { 
-                        name: wp.name, lat: parseFloat(wp.lat), lon: parseFloat(wp.lon) 
-                    };
-                }
+                if (wp) { coordinatesPayloadString += `:${wp.lat},${wp.lon}`; cachedGeocodedWaypoints.vids[`wp_${wp.wIndex}`] = { name: wp.name, lat: parseFloat(wp.lat), lon: parseFloat(wp.lon) }; }
             });
         }
         coordinatesPayloadString += `:${endNodes[0].lat},${endNodes[0].lon}`;
         
         const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
         const litersPer100km = (282.48 / userMpg).toFixed(2);
-        const consumptionCurve = `50,${litersPer100km}:120,${litersPer100km}`;
-        
-        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic&vehicleEngineType=combustion&constantSpeedConsumptionInLitersPerHundredkm=${consumptionCurve}`;
+        const tomtomUrl = `https://api.tomtom.com/routing/1/calculateRoute/${coordinatesPayloadString}/json?key=${TOMTOM_API_KEY}&traffic=true&routeType=fastest&sectionType=traffic&vehicleEngineType=combustion&constantSpeedConsumptionInLitersPerHundredkm=50,${litersPer100km}:120,${litersPer100km}`;
         
         const routeRes = await fetch(tomtomUrl);
-        if (!routeRes.ok) throw new Error(`TomTom API routing failure: Status ${routeRes.status}`);
-        
+        if (!routeRes.ok) throw new Error(`Routing failure`);
         const routeData = await routeRes.json();
-        if (!routeData.routes || !routeData.routes.length) throw new Error("No routes found.");
-        
         const currentActiveRoute = routeData.routes[0];
 
         globalActiveRoute = currentActiveRoute;
@@ -1074,33 +882,20 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         window.globalCalculatedFuelLiters = currentActiveRoute.summary.fuelConsumptionInLiters;
         
         plottedRouteCoordinates = [];
-        currentActiveRoute.legs.forEach(leg => {
-            leg.points.forEach(pt => {
-                plottedRouteCoordinates.push([pt.latitude, pt.longitude]);
-            });
-        });
+        currentActiveRoute.legs.forEach(leg => leg.points.forEach(pt => plottedRouteCoordinates.push([pt.latitude, pt.longitude])));
         
-        if (typeof routePolylineLayer !== 'undefined' && routePolylineLayer) {
-            map.removeLayer(routePolylineLayer);
-        }
+        if (routePolylineLayer) map.removeLayer(routePolylineLayer);
         routePolylineLayer = L.featureGroup().addTo(map);
         
-        L.polyline(plottedRouteCoordinates, {
-            color: '#10b981', weight: 4.5, opacity: 0.85, lineCap: 'round', lineJoin: 'round'
-        }).addTo(routePolylineLayer);
+        L.polyline(plottedRouteCoordinates, { color: '#10b981', weight: 4.5, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }).addTo(routePolylineLayer);
         
-        if (currentActiveRoute.sections && currentActiveRoute.sections.length > 0) {
+        if (currentActiveRoute.sections) {
             currentActiveRoute.sections.forEach(section => {
                 if (section.sectionType === 'TRAFFIC' || section.simpleCategory === 'JAM' || section.simpleCategory === 'SLOWDOWN') {
                     const sliceCoords = plottedRouteCoordinates.slice(section.startPointIndex, section.endPointIndex + 1);
                     if (sliceCoords.length < 2) return;
-                    
                     const isJam = section.simpleCategory === 'JAM' || (section.magnitudeOfDelay && section.magnitudeOfDelay >= 3);
-                    L.polyline(sliceCoords, {
-                        color: isJam ? '#ef4444' : '#f59e0b', 
-                        weight: isJam ? 6.5 : 5.0, 
-                        opacity: 1.0, lineCap: 'round', lineJoin: 'round'
-                    }).addTo(routePolylineLayer);
+                    L.polyline(sliceCoords, { color: isJam ? '#ef4444' : '#f59e0b', weight: isJam ? 6.5 : 5.0, opacity: 1.0, lineCap: 'round', lineJoin: 'round' }).addTo(routePolylineLayer);
                 }
             });
         }
@@ -1110,22 +905,13 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             
             const statusBadge = document.getElementById('traffic-status-badge');
             const tickerContainer = document.getElementById('dash-metric-delay-ticker');
-            
-            if (statusBadge) {
-                statusBadge.textContent = "SCANNING...";
-                statusBadge.className = "px-2 py-0.5 rounded text-[10px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse";
-            }
-            if(tickerContainer) {
-                tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[11px] font-medium text-zinc-500 truncate tracking-tight">Scanning route chunks for live telemetry...</div>`;
-            }
+            if (statusBadge) { statusBadge.textContent = "SCANNING..."; statusBadge.className = "px-1.5 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse"; }
+            if(tickerContainer) tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center px-2 text-[11px] font-medium text-zinc-500 truncate tracking-tight">Scanning route chunks for live telemetry...</div>`;
 
-            // POP OUT THE RIGHT SIDEBAR
             const rSidebar = document.getElementById('secondary-control-sidebar');
             if (rSidebar) {
                 rSidebar.classList.remove('desktop-collapsed-right');
-                if (window.innerWidth < 768) {
-                    setMobileRightSidebarState('mid');
-                }
+                if (window.innerWidth < 1024) toggleMobileView('telemetry');
             }
 
             const stitchedIncidents = await fetchAllRouteTraffic(plottedRouteCoordinates);
@@ -1133,106 +919,54 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         }
         
         const travelTimeSeconds = currentActiveRoute.summary.travelTimeInSeconds || 0;
-        const hours = Math.floor(travelTimeSeconds / 3600);
-        const minutes = Math.floor((travelTimeSeconds % 3600) / 60);
-        const timeString = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} m`;
+        const timeString = Math.floor(travelTimeSeconds / 3600) > 0 ? `${Math.floor(travelTimeSeconds / 3600)}h ${Math.floor((travelTimeSeconds % 3600) / 60)}m` : `${Math.floor((travelTimeSeconds % 3600) / 60)} m`;
 
         const activeFuelType = document.getElementById('fuel-type')?.value || 'E10';
-        let tripCost = 0;
-        let consumptionString = "--";
+        let tripCost = 0; let consumptionString = "--";
         
         if (activeFuelType === 'electric') {
-            const elab = document.getElementById('energy-label');
-            if (elab) elab.innerText = "ENERGY";
+            const elab = document.getElementById('energy-label'); if(elab) elab.innerText = "ENERGY";
             const evEfficiencyMpkWh = parseFloat(document.getElementById('vehicle-mpg')?.value) || 3.5;
             const expectedKwh = globalRouteDistanceMiles / evEfficiencyMpkWh;
             consumptionString = `${expectedKwh.toFixed(1)} kWh`;
             tripCost = expectedKwh * 0.75; 
         } else {
-            const elab = document.getElementById('energy-label');
-            if (elab) elab.innerText = "FUEL";
+            const elab = document.getElementById('energy-label'); if(elab) elab.innerText = "FUEL";
             const expectedLitres = (globalRouteDistanceMiles / userMpg) * 4.54609;
             consumptionString = `${expectedLitres.toFixed(1)} L`;
-            
             let validPrices = [];
-            if (currentlyVisibleStations && currentlyVisibleStations.length > 0) {
-                currentlyVisibleStations.forEach(station => {
-                    const price = parseFloat(station[activeFuelType]);
-                    if (!isNaN(price) && price > 0) validPrices.push(price);
-                });
-            }
-            
+            if (currentlyVisibleStations) currentlyVisibleStations.forEach(s => { const price = parseFloat(s[activeFuelType]); if (!isNaN(price) && price > 0) validPrices.push(price); });
             let averageFuelPricePence = 145.0; 
-            if (validPrices.length > 0) {
-                const sum = validPrices.reduce((total, p) => total + p, 0);
-                averageFuelPricePence = sum / validPrices.length;
-            }
-            
+            if (validPrices.length > 0) averageFuelPricePence = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
             tripCost = expectedLitres * (averageFuelPricePence / 100);
         }
 
-        const dMD = document.getElementById('dash-metric-distance');
-        if (dMD) dMD.innerText = `${globalRouteDistanceMiles.toFixed(1)} mi`;
-        const timeEl = document.getElementById('dash-metric-time');
-        if (timeEl) timeEl.innerText = timeString;
-        
-        const litresEl = document.getElementById('dash-metric-litres');
-        if (litresEl) litresEl.innerText = consumptionString;
-        
-        const costEl = document.getElementById('summary-cost');
-        if (costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
+        const dMD = document.getElementById('dash-metric-distance'); if(dMD) dMD.innerText = `${globalRouteDistanceMiles.toFixed(1)} mi`;
+        const timeEl = document.getElementById('dash-metric-time'); if(timeEl) timeEl.innerText = timeString;
+        const litresEl = document.getElementById('dash-metric-litres'); if(litresEl) litresEl.innerText = consumptionString;
+        const costEl = document.getElementById('summary-cost'); if(costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
 
-        if (currentActiveRoute && currentActiveRoute.summary) {
-            const summary = currentActiveRoute.summary;
-            const routeMeters = summary.lengthInMeters || 0;
-            const routeSeconds = summary.travelTimeInSeconds || 0;
-            const liveDelaySeconds = summary.trafficDelayInSeconds || 0;
-
-            if (routeMeters > 0 && routeSeconds > 0) {
-                const averageSpeedMph = Math.round((routeMeters / routeSeconds) * 2.23694);
-                const speedBadge = document.getElementById('dash-header-speed-badge');
-                
-                if (speedBadge) {
-                    speedBadge.innerText = `${averageSpeedMph} mph`;
-                    
-                    if (liveDelaySeconds > 300) { 
-                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40";
-                    } else if (liveDelaySeconds > 60) {
-                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40";
-                    } else { 
-                        speedBadge.className = "ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40";
-                    }
-                }
+        if (currentActiveRoute.summary) {
+            const avgSpeedMph = Math.round((currentActiveRoute.summary.lengthInMeters / currentActiveRoute.summary.travelTimeInSeconds) * 2.23694);
+            const speedBadge = document.getElementById('dash-header-speed-badge');
+            if (speedBadge) {
+                speedBadge.innerText = `${avgSpeedMph} mph`;
+                const delay = currentActiveRoute.summary.trafficDelayInSeconds || 0;
+                if (delay > 300) speedBadge.className = "ml-1 px-1 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40";
+                else if (delay > 60) speedBadge.className = "ml-1 px-1 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40";
+                else speedBadge.className = "ml-1 px-1 py-0.5 rounded text-[8px] font-black tracking-tight border uppercase bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40";
             }
         }
         
         executeStationDataFilteringPipeline();
+        try { if (typeof triggerRouteWeatherFetchPipeline === 'function') await triggerRouteWeatherFetchPipeline(); } catch (e) {}
+        if (typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy();
         
-        try {
-            if (typeof triggerRouteWeatherFetchPipeline === 'function') {
-                await triggerRouteWeatherFetchPipeline();
-            }
-        } catch (weatherErr) {
-            console.warn("Weather API unreachable.", weatherErr);
-        }
-        
-        if (typeof calculateOptimalRefuelStrategy === 'function') {
-            calculateOptimalRefuelStrategy();
-        }
-
-        if (window.innerWidth < 768) {
-            setMobileSidebarState('peek');
-        } else {
+        if (window.innerWidth >= 1024) {
             const sidebar = document.getElementById('primary-control-sidebar');
-            if (sidebar && !sidebar.classList.contains('desktop-collapsed')) {
-                sidebar.classList.add('desktop-collapsed');
-            }
+            if (sidebar && !sidebar.classList.contains('desktop-collapsed')) sidebar.classList.add('desktop-collapsed');
         }
-        
-    } catch (err) {
-        console.error("Pipeline Engine Broken:", err);
-        Toast.show(`Failed to trace route: ${err.message}`, "error");
-    }
+    } catch (err) { Toast.show(`Failed to trace route: ${err.message}`, "error"); }
 };
 
 function lookupWeatherIconEmoji(code) {
@@ -1250,35 +984,22 @@ function lookupWeatherIconEmoji(code) {
 async function triggerRouteWeatherFetchPipeline() {
     const locationsToFetch = [];
     if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
-    
-    Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-        locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] });
-    });
-
+    Object.keys(cachedGeocodedWaypoints.vids).forEach(key => locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] }));
     if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
 
     for (const loc of locationsToFetch) {
         try {
             const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
             const weatherData = await weatherRes.json();
-
             if (weatherData && weatherData.daily) {
                 const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[0]);
                 const highTemp = Math.round(weatherData.daily.temperature_2m_max[0]);
-
                 const weatherIcon = L.divIcon({
                     className: 'leaflet-div-icon-reset',
-                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200">
-                            <span class="text-sm">${conditionEmoji}</span>
-                            <span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span>
-                           </div>`,
-                    iconSize: [60, 28],
-                    iconAnchor: [30, 45] 
+                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200"><span class="text-sm">${conditionEmoji}</span><span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span></div>`,
+                    iconSize: [60, 28], iconAnchor: [30, 45] 
                 });
-                
-                if (routePolylineLayer) {
-                    L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
-                }
+                if (routePolylineLayer) L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
             }
         } catch (weatherErr) { console.error(weatherErr); }
     }
@@ -1289,31 +1010,15 @@ window.saveActiveRouteCorridor = function() {
     const endVal = document.getElementById('route-end')?.value.trim();
     const currentMpg = document.getElementById('vehicle-mpg')?.value;
     const currentDev = document.getElementById('route-radius-slider')?.value;
-
     if (!startVal || !endVal) return;
 
-    const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field'))
-                                .map(input => input.value.trim())
-                                .filter(val => val.length > 0);
-
-    const routePayload = {
-        id: 'route_' + Date.now(),
-        name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`,
-        start: startVal,
-        waypoints: waypointNodes,
-        end: endVal,
-        mpg: currentMpg,
-        radius: currentDev
-    };
-
-    savedRoutes.push(routePayload);
+    const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field')).map(input => input.value.trim()).filter(val => val.length > 0);
+    savedRoutes.push({ id: 'route_' + Date.now(), name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`, start: startVal, waypoints: waypointNodes, end: endVal, mpg: currentMpg, radius: currentDev });
     localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-    updateDirectoryTotalBadge();
+    updateSavedItemsCountUI();
     
     const dp = document.getElementById('starred-dropdown-panel');
     if (dp && !dp.classList.contains('hidden')) renderDirectoryDropdown();
-    
-    if (window.innerWidth < 768) setMobileSidebarState('peek');
     Toast.show("Corridor routing successfully saved.", "success");
 };
 
@@ -1321,7 +1026,7 @@ window.deleteSavedRouteCorridor = function(routeId, event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     savedRoutes = savedRoutes.filter(r => r.id !== routeId);
     localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-    updateDirectoryTotalBadge();
+    updateSavedItemsCountUI();
     renderDirectoryDropdown();
 };
 
@@ -1330,7 +1035,6 @@ window.loadSavedRouteCorridorDataIntoWorkspace = function(routeId) {
     if (!matchedRoute) return;
 
     switchWorkflowTabContext('route');
-    
     const sr = document.getElementById('route-start'); if (sr) sr.value = matchedRoute.start;
     const er = document.getElementById('route-end'); if (er) er.value = matchedRoute.end;
     const mr = document.getElementById('vehicle-mpg'); if (mr) mr.value = matchedRoute.mpg;
@@ -1340,13 +1044,8 @@ window.loadSavedRouteCorridorDataIntoWorkspace = function(routeId) {
     const container = document.getElementById('dynamic-waypoints-container');
     if (container) {
         container.innerHTML = '';
-        if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) {
-            matchedRoute.waypoints.forEach(wpStr => {
-                addWaypointFieldInputRow(wpStr);
-            });
-        } else {
-            addWaypointFieldInputRow();
-        }
+        if(matchedRoute.waypoints && matchedRoute.waypoints.length > 0) matchedRoute.waypoints.forEach(wpStr => addWaypointFieldInputRow(wpStr));
+        else addWaypointFieldInputRow();
     }
 
     executeRouteGenerationPipeline();
@@ -1357,18 +1056,12 @@ window.loadSavedRouteCorridorDataIntoWorkspace = function(routeId) {
 window.clearRoute = function() {
     if (routePolylineLayer) { map.removeLayer(routePolylineLayer); routePolylineLayer = null; }
     if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) { refuelMarkersGroup?.clearLayers(); }
-
     if (typeof map !== 'undefined' && map) {
         map.eachLayer((layer) => {
             if (layer instanceof L.Marker) {
                 const popup = layer.getPopup();
                 const popupContent = popup ? popup.getContent() : '';
-                if (
-                    layer.options.title === 'Start' || layer.options.title === 'End' ||
-                    layer.options.icon?.options?.className === 'custom-refuel-marker-node' || 
-                    layer.options.icon?.options?.className === 'custom-fuel-icon' ||
-                    (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))
-                ) {
+                if (layer.options.title === 'Start' || layer.options.title === 'End' || layer.options.icon?.options?.className === 'custom-refuel-marker-node' || layer.options.icon?.options?.className === 'custom-fuel-icon' || (typeof popupContent === 'string' && (popupContent.includes('Optimal') || popupContent.includes('Refuel')))) {
                     map.removeLayer(layer);
                 }
             }
@@ -1379,21 +1072,12 @@ window.clearRoute = function() {
     cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
     window.globalCalculatedFuelLiters = null;
     
-    const sr = document.getElementById('route-start'); if(sr) sr.value = '';
-    const er = document.getElementById('route-end'); if(er) er.value = '';
-    const li = document.getElementById('location-input'); if(li) li.value = '';
-
+    ['route-start', 'route-end', 'location-input'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
     const container = document.getElementById('dynamic-waypoints-container');
-    if (container) {
-        container.innerHTML = '';
-        addWaypointFieldInputRow();
-    }
+    if (container) { container.innerHTML = ''; addWaypointFieldInputRow(); }
 
     const rSidebar = document.getElementById('secondary-control-sidebar');
-    if (rSidebar) {
-        rSidebar.classList.add('desktop-collapsed-right');
-    }
-
+    if (rSidebar) rSidebar.classList.add('desktop-collapsed-right');
     const crb = document.getElementById('cheapest-ranking-block');
     if (crb) crb.classList.add('hidden');
 
@@ -1410,83 +1094,32 @@ function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
 function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
     let minimumTrackSeparationMiles = Infinity;
     for (let i = 0; i < plottedRouteCoordinates.length; i++) {
-        const node = plottedRouteCoordinates[i];
-        const distanceEstimate = computeDistanceVectorMiles(node[0], node[1], pointLat, pointLon);
+        const distanceEstimate = computeDistanceVectorMiles(plottedRouteCoordinates[i][0], plottedRouteCoordinates[i][1], pointLat, pointLon);
         if (distanceEstimate < minimumTrackSeparationMiles) minimumTrackSeparationMiles = distanceEstimate;
     }
     return minimumTrackSeparationMiles;
 }
 
 document.addEventListener('click', (e) => {
-    const suggestionBoxes = document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]');
-    suggestionBoxes.forEach(box => {
-        if (!box.contains(e.target)) box.classList.add('hidden');
-    });
+    document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]').forEach(box => { if (!box.contains(e.target)) box.classList.add('hidden'); });
 });
 
 function initializeClickIsolationBubbling() {
-    const structuralIDs = ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar', 'secondary-control-sidebar'];
-    structuralIDs.forEach(id => {
+    ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar', 'secondary-control-sidebar'].forEach(id => {
         const node = document.getElementById(id);
-        if (node) {
-            node.addEventListener('click', (e) => { e.stopPropagation(); });
-            node.addEventListener('dblclick', (e) => { e.stopPropagation(); });
-        }
+        if (node) { node.addEventListener('click', (e) => { e.stopPropagation(); }); node.addEventListener('dblclick', (e) => { e.stopPropagation(); }); }
     });
-}
-
-function initializeGestureTrackEngine() {
-    const sh = document.getElementById('sidebar-drag-handle');
-    if(sh) {
-        sh.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (currentMobileSidebarUIState === 'peek') setMobileSidebarState('mid');
-            else if (currentMobileSidebarUIState === 'mid') setMobileSidebarState('full');
-            else if (currentMobileSidebarUIState === 'full') setMobileSidebarState('peek');
-        });
-    }
-    
-    const rsh = document.getElementById('right-sidebar-drag-handle');
-    if (rsh) {
-        rsh.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (currentMobileRightSidebarUIState === 'peek') setMobileRightSidebarState('mid');
-            else if (currentMobileRightSidebarUIState === 'mid') setMobileRightSidebarState('full');
-            else if (currentMobileRightSidebarUIState === 'full') setMobileRightSidebarState('peek');
-        });
-    }
-
-    const dh = document.getElementById('detail-sheet-drag-handle');
-    if (dh) {
-        dh.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (currentMobileSheetUIState === 'peek') setMobileSheetUIState('mid');
-            else if (currentMobileSheetUIState === 'mid') setMobileSheetUIState('full');
-            else if (currentMobileSheetUIState === 'full') setMobileSheetUIState('hidden');
-        });
-    }
 }
 
 async function forceReloadRemotePipelineData() {
     try {
         const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
         const data = await response.json();
-        
-        rawGlobalStationsPool = data.map(s => {
-            const baseDiesel = parseFloat(s.B7);
-            return {
-                ...s,
-                PremiumDiesel: (baseDiesel && !isNaN(baseDiesel)) ? (baseDiesel + 14.2).toFixed(1) : null
-            };
-        });
-        
-        const liveClock = new Date();
+        rawGlobalStationsPool = data.map(s => { return { ...s, PremiumDiesel: (parseFloat(s.B7) && !isNaN(parseFloat(s.B7))) ? (parseFloat(s.B7) + 14.2).toFixed(1) : null }; });
         const lbl = document.getElementById('live-timestamp-label');
-        if (lbl) lbl.innerHTML = `Prices Updated At ${liveClock.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        
+        if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         executeStationDataFilteringPipeline();
     } catch (error) {
-        console.error(error);
         const lbl = document.getElementById('live-timestamp-label');
         if (lbl) lbl.textContent = "Offline Data Buffer Frame";
     }
@@ -1495,13 +1128,8 @@ async function forceReloadRemotePipelineData() {
 window.focusAndHighlightMapMarker = function(lat, lon) {
     if (isNaN(lat) || isNaN(lon)) return;
     map.setView([lat, lon], 14, { animate: true, duration: 0.5 });
-    
-    const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) ||
-                           rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
-    
-    if (selectedStation) {
-        setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 300);
-    }
+    const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) || rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
+    if (selectedStation) setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 300);
 };
 
 // -------------------------------------------------------------
@@ -1509,90 +1137,65 @@ window.focusAndHighlightMapMarker = function(lat, lon) {
 // -------------------------------------------------------------
 window.executeStationDataFilteringPipeline = async function() {
     if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type')?.value !== 'electric') return;
-    
     const targetFuelType = document.getElementById('fuel-type')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
     const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
-    
     let dynamicBoundedStations = [];
 
-    // --- NEW: EV CHARGING STATION FETCH PIPELINE ---
+    // --- EV CHARGING STATION FETCH PIPELINE ---
     if (targetFuelType === 'electric') {
         const timelineContainer = document.getElementById('refuel-timeline-output');
         if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
-        
         try {
             let ocmUrl = '';
-    
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 12 === 0);
-                const lats = sampledWaypoints.map(c => c[0]);
-                const lngs = sampledWaypoints.map(c => c[1]);
-                const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-                const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-    
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=60&verbose=false`;
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&distanceunit=Miles&maxresults=100&verbose=false`;
             } else {
                 const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][0] : mapSearchAnchorCoordinates[0]);
                 const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][1] : mapSearchAnchorCoordinates[1]);
-                const rad = targetLocalRadiusThreshold;
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&latitude=${searchLat}&longitude=${searchLon}&distance=${rad}&distanceunit=Miles&maxresults=50`;
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=50`;
             }
-    
             const res = await fetch(ocmUrl);
             const data = await res.json();
-    
+            
             currentlyVisibleStations = data.map(poi => ({
-                id: poi.ID,
-                brand_name: poi.OperatorInfo?.Title || 'Independent Charger',
-                address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
-                latitude: poi.AddressInfo?.Latitude,
-                longitude: poi.AddressInfo?.Longitude,
-                electric: poi.Connections?.[0]?.PowerKW || 50, 
-                is_public: poi.UsageType?.IsPayAtLocation ?? true,
-                usage_title: poi.UsageType?.Title || 'Public Access',
-                operator_url: poi.OperatorInfo?.WebsiteURL || null,
-                isEV: true
+                id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
+                is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
             }));
-    
+
+            // Filter points strictly along route corridor if in route mode
+            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+                currentlyVisibleStations = currentlyVisibleStations.filter(s => {
+                    return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold;
+                });
+            }
+
             paintMarkerCanvasLayersToMap(currentlyVisibleStations, 'electric', currentlyVisibleStations.length, globalRouteDistanceMiles);
             generateCheapestRankingListDeck(currentlyVisibleStations, 'electric');
-            
             if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
-    
-        } catch (err) {
-            console.error("OpenChargeMap engine processing failure:", err);
-            Toast.show("Failed to fetch live EV locations from OpenChargeMap", "error");
-        }
+        } catch (err) { Toast.show("Failed to fetch live EV locations", "error"); }
         return;
     }
-    // --- EXISTING: COMBUSTION FUEL PIPELINE ---
+    // --- COMBUSTION FUEL PIPELINE ---
     else {
         if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
             dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
                 if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-                const dist = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
-                return dist <= targetLocalRadiusThreshold;
+                return computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetLocalRadiusThreshold;
             });
         } else {
             dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
                 if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-                const dist = computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
-                return dist <= targetCorridorRadiusThreshold;
+                return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetCorridorRadiusThreshold;
             });
         }
     }
 
     currentlyVisibleStations = dynamicBoundedStations;
-    
-    let distanceContext = null;
-    if (activeTabContext === 'route' && typeof globalRouteDistanceMiles !== 'undefined') {
-        distanceContext = globalRouteDistanceMiles;
-    }
-    
+    let distanceContext = (activeTabContext === 'route' && typeof globalRouteDistanceMiles !== 'undefined') ? globalRouteDistanceMiles : null;
     paintMarkerCanvasLayersToMap(currentlyVisibleStations.slice(0, 250), targetFuelType, currentlyVisibleStations.length, distanceContext);
     generateCheapestRankingListDeck(currentlyVisibleStations, targetFuelType);
-    
     if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
 };
 
@@ -1604,9 +1207,7 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
 
     let validPool = pool.map(station => {
         let price = parseFloat(station[fuelVariant]);
-        if (fuelVariant === 'electric' && (!price || isNaN(price))) {
-            price = parseFloat(station.electric_price || station.charge_rate || station.electric || 42.8);
-        }
+        if (fuelVariant === 'electric' && (!price || isNaN(price))) price = parseFloat(station.electric_price || station.charge_rate || station.electric || 42.8);
         return { ...station, processedPrice: price };
     }).filter(s => s.processedPrice && !isNaN(s.processedPrice) && s.processedPrice > 0);
 
@@ -1616,68 +1217,46 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
 
     if (activeTabContext === 'route' && cachedGeocodedWaypoints.start && cachedGeocodedWaypoints.end) {
         blockTitle.textContent = "3 Optimal Stations On Your Route";
-        
         const milestoneLocationsList = [];
         milestoneLocationsList.push({ label: "Start", node: cachedGeocodedWaypoints.start });
-        
-        Object.keys(cachedGeocodedWaypoints.vids).forEach(key => {
-            milestoneLocationsList.push({ label: `Stopover`, node: cachedGeocodedWaypoints.vids[key] });
-        });
-        
+        Object.keys(cachedGeocodedWaypoints.vids).forEach(key => milestoneLocationsList.push({ label: `Stopover`, node: cachedGeocodedWaypoints.vids[key] }));
         milestoneLocationsList.push({ label: "Destination", node: cachedGeocodedWaypoints.end });
 
         milestoneLocationsList.forEach(milestone => {
             let rawMilestonePool = validPool.map(station => {
                 let distanceToNode = computeDistanceVectorMiles(milestone.node.lat, milestone.node.lon, parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
                 return { station, distanceToNode };
-            });
-
-            rawMilestonePool = rawMilestonePool.filter(item => item.distanceToNode <= 12);
-            rawMilestonePool.sort((a, b) => a.station.processedPrice - b.station.processedPrice);
+            }).filter(item => item.distanceToNode <= 12).sort((a, b) => a.station.processedPrice - b.station.processedPrice);
 
             let slicedTopThree = rawMilestonePool.slice(0, 3);
             if (slicedTopThree.length > 0) {
                 const subGroupWrapper = document.createElement('div');
                 subGroupWrapper.className = "space-y-1.5 p-2 bg-zinc-50/70 dark:bg-zinc-900/40 rounded-xl border border-zinc-100 dark:border-zinc-800/60";
-                
-                const subGroupHeader = document.createElement('div');
-                subGroupHeader.className = "flex justify-between items-center px-1 text-[9px] font-black tracking-tight text-zinc-400 dark:text-zinc-500 uppercase";
-                subGroupHeader.innerHTML = `<span>📍 ${milestone.label}: <span class="text-zinc-700 dark:text-zinc-300 font-black">${milestone.node.name.split(',')[0]}</span></span>`;
-                subGroupWrapper.appendChild(subGroupHeader);
+                subGroupWrapper.innerHTML = `<div class="flex justify-between items-center px-1 text-[9px] font-black tracking-tight text-zinc-400 dark:text-zinc-500 uppercase"><span>📍 ${milestone.label}: <span class="text-zinc-700 dark:text-zinc-300 font-black">${milestone.node.name.split(',')[0]}</span></span></div>`;
 
                 slicedTopThree.forEach((item, idx) => {
-                    const station = item.station;
-                    const lat = parseFloat(station.latitude || station.lat);
-                    const lon = parseFloat(station.longitude || station.lng);
-                    const val = parseFloat(station.processedPrice).toFixed(1);
-
-                    const card = document.createElement('div');
-                    card.className = "flex items-center justify-between p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg hover:border-emerald-500 transition shadow-xs cursor-pointer";
-                    card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-                    card.innerHTML = `
-                        <div class="flex items-center gap-2 min-w-0">
-                            <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
-                            <div class="min-w-0">
-                                <div class="text-xs font-bold text-zinc-900 dark:text-white truncate">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                                <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${station.address || ''} • <span class="font-bold text-emerald-700 dark:text-emerald-500">${item.distanceToNode.toFixed(1)} mi away</span></div>
+                    const lat = parseFloat(item.station.latitude || item.station.lat);
+                    const lon = parseFloat(item.station.longitude || item.station.lng);
+                    subGroupWrapper.innerHTML += `
+                        <div onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="flex items-center justify-between p-2.5 bg-white dark:bg-zinc-950 border border-zinc-200/60 dark:border-zinc-800 rounded-lg hover:border-emerald-500 transition shadow-xs cursor-pointer">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-bold text-zinc-900 dark:text-white truncate">${(item.station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                                    <div class="text-[8px] font-medium text-zinc-400 dark:text-zinc-500 truncate block">${item.station.address || ''} • <span class="font-bold text-emerald-700 dark:text-emerald-500">${item.distanceToNode.toFixed(1)} mi away</span></div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${isEV?'⚡':''}${val}${isEV?'kW':'p'}</div></div>
-                    `;
-                    subGroupWrapper.appendChild(card);
+                            <div class="text-right shrink-0"><div class="text-[11px] font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${isEV?'⚡':''}${parseFloat(item.station.processedPrice).toFixed(1)}${isEV?'kW':'p'}</div></div>
+                        </div>`;
                 });
                 container.appendChild(subGroupWrapper);
             }
         });
     } else {
         blockTitle.textContent = "Optimal Stations Nearby";
-        validPool.sort((a, b) => a.processedPrice - b.processedPrice);
-        
-        validPool.slice(0, 3).forEach((station, idx) => {
+        validPool.sort((a, b) => a.processedPrice - b.processedPrice).slice(0, 3).forEach((station, idx) => {
             const lat = parseFloat(station.latitude || station.lat);
             const lon = parseFloat(station.longitude || station.lng);
-            const val = parseFloat(station.processedPrice).toFixed(1);
-            
             const card = document.createElement('div');
             card.className = "flex items-center justify-between p-3 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition shadow-sm cursor-pointer";
             card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
@@ -1689,7 +1268,7 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
                         <div class="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${station.address || ''}</div>
                     </div>
                 </div>
-                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${isEV?'⚡':''}${val}${isEV?'kW':'p'}</div></div>
+                <div class="text-right shrink-0"><div class="text-xs font-black text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-md tabular-nums">${isEV?'⚡':''}${parseFloat(station.processedPrice).toFixed(1)}${isEV?'kW':'p'}</div></div>
             `;
             container.appendChild(card);
         });
@@ -1698,27 +1277,27 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
 };
 
 function assignPricingTierColorStyles(valueRaw, variantKey) {
-    const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
-    if (!valueRaw) return fallbackClasses;
-    const numericVal = parseFloat(valueRaw);
-    if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
+    const fC = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
+    if (!valueRaw) return fC;
+    const n = parseFloat(valueRaw);
+    if (isNaN(n) || n <= 0) return fC;
 
     if (variantKey === 'electric') {
-        if (numericVal <= 45) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
-        if (numericVal <= 70) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
+        if (n <= 55) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+        if (n <= 75) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
         return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
     }
 
-    const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
-    if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-blue-400";
+    const rPool = currentlyVisibleStations.map(i => parseFloat(i[variantKey])).filter(p => !isNaN(p) && p > 0);
+    if (rPool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-blue-400";
 
-    const min = Math.min(...referencePool);
-    const delta = Math.max(...referencePool) - min;
+    const min = Math.min(...rPool);
+    const delta = Math.max(...rPool) - min;
     if (delta <= 0) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-600";
 
     const step = delta / 3;
-    if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
-    if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
+    if (n <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+    if (n <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
     return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
 }
 
@@ -1740,22 +1319,12 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
         if (costNode && !isEV) costNode.textContent = `${minPrice.toFixed(1)}p`;
     }
 
-    const globalPricesArray = rawGlobalStationsPool
-        .map(s => parseFloat(s[variant]))
-        .filter(p => !isNaN(p) && p > 0)
-        .sort((a, b) => a - b);
-        
-    let greenThreshold = 0;
-    let blueThreshold = 0;
-
-    if (isEV) {
-        greenThreshold = 45;
-        blueThreshold = 70;
-    } else if (globalPricesArray.length > 0) {
-        const oneThirdIndex = Math.floor(globalPricesArray.length * 0.333);
-        const twoThirdsIndex = Math.floor(globalPricesArray.length * 0.666);
-        greenThreshold = globalPricesArray[oneThirdIndex];
-        blueThreshold = globalPricesArray[twoThirdsIndex];
+    let gT = 0, bT = 0;
+    if (isEV) { gT = 55; bT = 75; }
+    else if (pricesArray.length > 0) {
+        pricesArray.sort((a, b) => a - b);
+        gT = pricesArray[Math.floor(pricesArray.length * 0.333)];
+        bT = pricesArray[Math.floor(pricesArray.length * 0.666)];
     }
 
     stationsList.forEach((station) => {
@@ -1764,137 +1333,19 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
         if (!numericPrice || isNaN(numericPrice)) return;
         
         let tierBgClassColor = 'bg-fuel-blue';
-
-        if (isEV || globalPricesArray.length > 0) {
-            if (numericPrice <= greenThreshold) tierBgClassColor = 'bg-fuel-green';
-            else if (numericPrice <= blueThreshold) tierBgClassColor = 'bg-fuel-blue';
-            else tierBgClassColor = 'bg-fuel-red';
-        }
+        if (numericPrice <= gT) tierBgClassColor = 'bg-fuel-green';
+        else if (numericPrice <= bT) tierBgClassColor = 'bg-fuel-blue';
+        else tierBgClassColor = 'bg-fuel-red';
 
         const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
             stationRawData: station,
-            icon: L.divIcon({
-                html: `<div class="leaflet-div-icon-reset"><div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-lg flex items-center justify-center text-white font-black text-[10px] rounded-full px-2 py-0.5 whitespace-nowrap">${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}</div></div>`,
-                className: 'leaflet-div-icon-reset', iconSize: [50, 24], iconAnchor: [25, 12]
-            })
+            icon: L.divIcon({ html: `<div class="leaflet-div-icon-reset"><div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-lg flex items-center justify-center text-white font-black text-[10px] rounded-full px-2 py-0.5 whitespace-nowrap">${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}</div></div>`, className: 'leaflet-div-icon-reset', iconSize: [50, 24], iconAnchor: [25, 12] })
         });
         
-        markerInstance.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            openForecourtDetailSheet(station);
-        });
+        markerInstance.on('click', (e) => { L.DomEvent.stopPropagation(e); openForecourtDetailSheet(station); });
         markerClusterGroupInstance.addLayer(markerInstance);
     });
-
-    const cNode = document.getElementById('station-counter');
-    if (cNode) cNode.textContent = `Stations: ${fallbackTotalCount}`;
 };
-
-window.toggleCurrentStationStar = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    if (!activeSheetStation) return;
-    const stationKey = getStationUniqueSignature(activeSheetStation);
-    const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
-
-    if (matchingIndex > -1) starredStations.splice(matchingIndex, 1);
-    else starredStations.push(activeSheetStation);
-
-    localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
-    updateDirectoryTotalBadge();
-    updateAllStarUIStates();
-};
-
-function updateAllStarUIStates() {
-    if (!activeSheetStation) return;
-    const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
-    
-    const sheetBtn = document.getElementById('sheet-star-btn');
-    if (sheetBtn) {
-        sheetBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
-        sheetBtn.className = isStarred 
-            ? "p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8"
-            : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
-    }
-
-    const dPanel = document.getElementById('starred-dropdown-panel');
-    if (dPanel && !dPanel.classList.contains('hidden')) renderDirectoryDropdown();
-}
-
-window.toggleStarredDropdownDashboardPanel = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    const panel = document.getElementById('starred-dropdown-panel');
-    if (!panel) return;
-    
-    if (panel.classList.contains('hidden')) { 
-        closeForecourtDetailSheet();
-        panel.classList.remove('hidden'); 
-        renderDirectoryDropdown(); 
-    } else { 
-        panel.classList.add('hidden'); 
-    }
-};
-
-function renderDirectoryDropdown() {
-    const container = document.getElementById('starred-list-container');
-    if (!container) return;
-
-    starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
-    savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
-
-    if (activeDirectoryTab === 'stations') {
-        if (starredStations.length === 0) {
-            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
-            return;
-        }
-        container.innerHTML = '';
-        starredStations.forEach(station => {
-            const cardRow = document.createElement('div');
-            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
-            cardRow.onclick = (event) => {
-                event.stopPropagation();
-                focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
-                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
-            };
-
-            cardRow.innerHTML = `
-                <div class="min-w-0">
-                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
-                    <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
-                </div>
-                <div class="grid grid-cols-2 gap-1 pt-0.5">
-                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.E10, 'E10')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div></div>
-                    <div class="border p-1 rounded-lg text-center tabular-nums ${assignPricingTierColorStyles(station.B7, 'B7')}"><div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div></div>
-                </div>`;
-            container.appendChild(cardRow);
-        });
-    } else {
-        if (savedRoutes.length === 0) {
-            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No custom routes found.</div>`;
-            return;
-        }
-        container.innerHTML = '';
-        savedRoutes.forEach(route => {
-            const cardRow = document.createElement('div');
-            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-blue-500 transition cursor-pointer active:scale-[0.99] shadow-sm flex items-center justify-between gap-2";
-            cardRow.onclick = (event) => {
-                event.stopPropagation();
-                loadSavedRouteCorridorDataIntoWorkspace(route.id);
-                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
-            };
-
-            cardRow.innerHTML = `
-                <div class="min-w-0 flex-1">
-                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
-                    <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1 tabular-nums">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
-                </div>
-                <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition focus:outline-none focus:ring-1 focus:ring-rose-500" title="Delete Saved Corridor">
-                    ✕
-                </button>
-            `;
-            container.appendChild(cardRow);
-        });
-    }
-}
 
 window.openForecourtDetailSheet = function(stationData) {
     const sheet = document.getElementById('global-detail-sheet');
@@ -1904,7 +1355,6 @@ window.openForecourtDetailSheet = function(stationData) {
     if (sp) sp.classList.add('hidden');
     
     activeSheetStation = stationData;
-
     document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
     document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
 
@@ -1912,33 +1362,18 @@ window.openForecourtDetailSheet = function(stationData) {
 
     if (isEVPipe) {
         ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
-
         let evCard = document.getElementById('card-wrap-ev');
-        if (!evCard) {
-            evCard = document.createElement('div');
-            evCard.id = 'card-wrap-ev';
-            const e10Card = document.getElementById('card-wrap-e10');
-            if (e10Card) e10Card.parentElement.appendChild(evCard);
-        }
-        
+        if (!evCard) { evCard = document.createElement('div'); evCard.id = 'card-wrap-ev'; document.getElementById('card-wrap-e10')?.parentElement.appendChild(evCard); }
         let pRate = parseFloat(stationData.electric_price || stationData.charge_rate || stationData.electric || 50);
-
         if(evCard) {
             evCard.style.display = 'block';
             evCard.className = `border p-3 rounded-xl text-center transition-all duration-200 col-span-2 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm`;
-            evCard.innerHTML = `
-                <span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span>
-                <span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>
-            `;
+            evCard.innerHTML = `<span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span><span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>`;
         }
-
         document.getElementById('sheet-brand-title').textContent = `⚡ ${(stationData.brand_name || 'EV Charger').replace(/['"]/g, '')}`;
-
     } else {
         ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
-        
-        const evCard = document.getElementById('card-wrap-ev');
-        if (evCard) evCard.style.display = 'none';
+        const evCard = document.getElementById('card-wrap-ev'); if (evCard) evCard.style.display = 'none';
 
         const ce10 = document.getElementById('card-wrap-e10'); if(ce10) ce10.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
         const ce5 = document.getElementById('card-wrap-e5'); if(ce5) ce5.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
@@ -1952,42 +1387,10 @@ window.openForecourtDetailSheet = function(stationData) {
     }
 
     updateAllStarUIStates();
-
     sheet.classList.remove('hidden'); 
     
-    if (window.innerWidth < 768) {
-        setMobileSheetUIState('full'); 
-    } else {
-        sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full');
-    }
-};
-
-window.closeForecourtDetailSheet = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    
-    const sheet = document.getElementById('global-detail-sheet');
-    if (!sheet) return;
-
-    if (window.innerWidth < 768) {
-        setMobileSheetUIState('hidden');
-    } else {
-        sheet.classList.add('hidden');
-    }
-    activeSheetStation = null;
-};
-
-function getStationUniqueSignature(s) {
-    if (!s) return '';
-    return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
-}
-
-window.triggerExternalMappingVectorRoute = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
-    if (!activeSheetStation) return;
-    const lat = activeSheetStation.latitude || activeSheetStation.lat;
-    const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    
-    window.open(`http://maps.google.com/maps?q=$${lat},${lon}`, '_blank');
+    if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
+    else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
 
 // -------------------------------------------------------------
@@ -2015,7 +1418,8 @@ window.calculateOptimalRefuelStrategy = function() {
     let currentEnergyUnits = capacity * (currentPct / 100);
 
     if (isEV) {
-        const usableKwh = Math.max(0, currentEnergyUnits - safetyBuffer);
+        const bufferKwh = safetyBuffer / efficiency;
+        const usableKwh = Math.max(0, currentEnergyUnits - bufferKwh);
         remainingRangeMiles = usableKwh * efficiency;
     } else {
         const milesPerLiter = efficiency / 4.54609; 
@@ -2081,11 +1485,6 @@ window.calculateOptimalRefuelStrategy = function() {
         }
     }
 
-    if (currentPct === 10) {
-        const overrideStation = validStations.find(s => s.address && s.address.toLowerCase().includes('blackpool road'));
-        if (overrideStation) { bestStation = overrideStation; isEmergencyMode = true; }
-    }
-    
     if (!bestStation) return;
 
     const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
