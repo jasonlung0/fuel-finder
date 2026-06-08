@@ -216,17 +216,17 @@ body {
     }
 }
 
-/* --- FLOATING AI REFUEL SHEET PRESENTATION LAYER --- */
+/* --- FLOATING SMART REFUEL SHEET ADAPTIVE INTERFACE --- */
 #floating-smart-refuel-sheet {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #floating-smart-refuel-sheet.panel-collapsed #refuel-panel-body {
     max-height: 0px !important;
     padding-top: 0px !important;
     padding-bottom: 0px !important;
+    margin: 0px !important;
     overflow: hidden;
     pointer-events: none;
 }
@@ -235,10 +235,9 @@ body {
     transform: rotate(-180deg);
 }
 
-/* Ensure mobile map interaction clears the floating panel spacing */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     #floating-smart-refuel-sheet {
-        bottom: 76px; /* Offset clear of standard iOS navigation controls and footer layouts */
+        bottom: 76px; /* Positions perfectly above bottom mobile layout tabs */
         right: 12px;
         left: 12px;
         width: auto;
