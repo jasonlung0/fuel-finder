@@ -200,6 +200,11 @@
         </div>
     </aside>
 
+    <button onclick="toggleRightSidebar()" class="fixed top-24 right-4 z-[1100] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl p-3 rounded-xl flex items-center gap-2 hover:border-emerald-500 transition-all cursor-pointer active:scale-95">
+        <span class="text-base animate-pulse">📡</span>
+        <span class="text-xs font-black text-zinc-800 dark:text-zinc-200 hidden md:inline">Telemetry</span>
+    </button>
+    
     <!-- The Right-Hand Telemetry Sidebar -->
     <aside id="right-telemetry-sidebar" class="absolute top-0 right-0 h-full w-full md:w-[400px] bg-white dark:bg-zinc-950 shadow-2xl z-[1500] flex flex-col transition-transform duration-300 translate-x-full shadow-[-10px_0_30px_rgba(0,0,0,0.1)]">
     
@@ -382,13 +387,6 @@
             <button onclick="triggerExternalMappingVectorRoute(event)" class="text-emerald-600 dark:text-emerald-400 font-black tracking-tight hover:underline cursor-pointer focus:outline-none">Open in Maps ↗</button>
         </div>
     </div>
-
-    <button onclick="toggleRightSidebar(true)" class="absolute top-24 right-4 z-[900] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg p-3 rounded-xl flex items-center gap-2 hover:border-blue-500 transition-all">
-        <span class="text-lg">📡</span>
-        <span class="text-xs font-bold hidden md:block dark:text-white">Telemetry</span>
-    </button>
-
-    
 
     <script src="uiapp.js" defer></script>
 </body>
