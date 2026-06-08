@@ -21,7 +21,8 @@
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 select-none">
 
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
-
+    
+    <!-- Scan Map Area Button -->
     <div id="scan-area-container" class="absolute top-20 left-1/2 -translate-x-1/2 z-[4000] transition-all duration-300 transform scale-90 translate-y-2 opacity-0 pointer-events-none">
         <button id="scan-area-btn" onclick="executeContextualAreaScanPipeline(event)" class="flex items-center gap-2 px-4 py-2.5 rounded-full border bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-xl cursor-pointer font-bold tracking-tight text-xs active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-600">
             <svg id="scan-icon-search" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400">
@@ -35,6 +36,7 @@
         </button>
     </div>
 
+    <!-- Brand Logo Header -->
     <header class="absolute top-4 left-4 right-4 z-[4500] flex items-center justify-between pointer-events-none gap-2">
         <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pl-1.5 pr-4 py-1.5 rounded-full border border-zinc-200/80 dark:border-zinc-800/80 shadow-lg flex items-center gap-2.5 pointer-events-auto transition-colors duration-300">
             <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white text-[11px] shadow-sm">⛽</div>
@@ -44,12 +46,14 @@
             </div>
         </div>
 
+        <!-- Light / Dark Theme Toggle -->
         <div class="flex items-center gap-2 pointer-events-auto">
             <button onclick="toggleSystemColorModeTheme(event)" class="w-10 h-10 bg-white dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800/80 text-zinc-700 dark:text-zinc-300 rounded-full shadow-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer active:scale-90 flex items-center justify-center transition-all duration-200 focus:outline-none">
                 <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden text-zinc-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
                 <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M14.5 12a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg>
             </button>
 
+            <!-- Saved Items Button -->
             <button id="saved-items-main-btn" onclick="toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 h-10 px-3 md:px-4 rounded-full flex items-center justify-center gap-2 transition cursor-pointer shadow-lg border border-zinc-800 dark:border-zinc-200 font-bold active:scale-90 focus:outline-none">
                 <span class="hidden md:block text-xs">Saved Items</span>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 md:hidden"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>
@@ -58,6 +62,7 @@
         </div>
     </header>
 
+    <!-- Your Bookmark Popup -->
     <div id="starred-dropdown-panel" class="absolute top-16 right-4 w-[calc(100%-32px)] sm:w-80 bg-white/98 dark:bg-zinc-950/98 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl shadow-2xl hidden max-h-[440px] flex flex-col overflow-hidden z-[4800] transition-colors duration-300">
         <div class="p-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/80 flex flex-col gap-2">
             <div class="flex items-center justify-between px-1">
@@ -72,56 +77,7 @@
         <div id="starred-list-container" class="p-3 overflow-y-auto space-y-2 custom-scrollbar flex-1 tabular-nums"></div>
     </div>
 
-    <div id="bottom-traffic-dashboard" class="absolute z-[3000] transition-all duration-500 translate-y-10 opacity-0 pointer-events-none flex flex-col gap-2 shadow-2xl w-[calc(100%-2rem)] md:w-[480px]">
-        <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-zinc-800/60 rounded-3xl p-3.5 flex flex-col pointer-events-auto transition-all duration-300">
-            
-            <div class="flex items-center justify-between cursor-pointer group" onclick="toggleTrafficDashboard()">
-                <div class="flex items-center gap-2">
-                    <span class="flex h-2.5 w-2.5 relative">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <h3 class="text-[11px] font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Telemetry</h3>
-                    
-                    <span id="dash-header-speed-badge" class="ml-1 px-1.5 py-0.5 rounded flex items-center justify-center text-[9px] font-black tracking-tight border uppercase transition-colors duration-300 bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 tabular-nums">
-                        -- MPH
-                    </span>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
-                    <svg id="dashboard-chevron" class="w-4 h-4 text-zinc-400 transition-transform duration-300 group-hover:text-zinc-900 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-            </div>
-
-            <div id="dashboard-collapsible-area" class="flex flex-col gap-3 overflow-hidden transition-all duration-300 max-h-[500px] mt-3">
-                <div class="grid grid-cols-4 gap-2 p-2 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-center">
-                    <div>
-                        <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Dist.</span>
-                        <span id="dash-metric-distance" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Time</span>
-                        <span id="dash-metric-time" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5" id="energy-label">Fuel</span>
-                        <span id="dash-metric-litres" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span class="block text-[8px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Cost</span>
-                        <span id="summary-cost" class="text-xs font-black text-emerald-600 block tabular-nums">--</span>
-                    </div>
-                </div>
-                
-                <div id="dash-metric-delay-ticker" class="w-full overflow-hidden h-7 relative bg-zinc-100 dark:bg-zinc-800/50 rounded-lg px-2">
-                    <div class="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 truncate tracking-tight">Awaiting route data...</div>
-                </div>
-
-                <div id="route-alerts-container" class="flex flex-col gap-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1 hidden border-t border-zinc-200/50 dark:border-zinc-800/50 pt-2"></div>
-            </div>
-        </div>
-    </div>
-
+    <!-- Left Sidebar -->
     <aside id="primary-control-sidebar" class="mobile-bottom-drawer drawer-peek md:absolute md:top-20 md:left-4 z-[2000] w-full md:w-[380px] h-[calc(100vh-100px)] md:h-auto max-h-[85vh] md:max-h-[calc(100vh-110px)] bg-white/80 dark:bg-zinc-950/85 backdrop-blur-2xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col transition-all duration-400 pt-5">
         
         <button onclick="toggleDesktopSidebar(event)" class="hidden md:flex absolute top-1/2 -right-10 -translate-y-1/2 w-10 h-20 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-[4px_0_15px_rgba(0,0,0,0.1)] rounded-r-2xl border-y border-r border-zinc-200/50 dark:border-zinc-800/50 items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors z-[2001] focus:outline-none">
@@ -159,6 +115,7 @@
                 </div>
             </div>
 
+            <!-- Tab 1: Local Search -->
             <div id="panel-tab-local" class="space-y-6 hidden">
                 <div class="space-y-2 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Search Anchor</label>
@@ -183,6 +140,7 @@
                 </div>
             </div>
 
+            <!-- Tab 2: Route Planner -->
             <div id="panel-tab-route" class="space-y-6">
                 <div class="relative flex flex-col gap-4 pl-8 pr-1 border-l-2 border-dashed border-zinc-200 dark:border-zinc-800 ml-3">
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[14px] top-[28px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer focus:outline-none">
@@ -242,6 +200,148 @@
         </div>
     </aside>
 
+    <!-- The Right-Hand Telemetry Sidebar -->
+    <aside id="right-telemetry-sidebar" class="absolute top-0 right-0 h-full w-full md:w-[400px] bg-white dark:bg-zinc-950 shadow-2xl z-[1500] flex flex-col transition-transform duration-300 translate-x-full shadow-[-10px_0_30px_rgba(0,0,0,0.1)]">
+    
+        <div class="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
+            <h2 class="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <span>📡</span> Route Telemetry
+            </h2>
+            <button onclick="toggleRightSidebar(false)" class="p-2 bg-zinc-200/50 dark:bg-zinc-800 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    
+        <div id="telemetry-scroll-area" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
+            
+            <!-- Smart Refuel -->
+            <div id="smart-refuel-wrapper">
+                <div id="floating-smart-refuel-sheet" class="fixed bottom-20 right-4 left-4 md:left-auto md:w-[380px] bg-white/95 dark:bg-zinc-950/95 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl z-[4500] transition-all duration-300 transform translate-y-0 opacity-100 flex flex-col overflow-hidden backdrop-blur-xl hidden">
+                    <div onclick="toggleSmartRefuelPanel()" class="w-full px-4 py-3 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between cursor-pointer select-none active:bg-zinc-100 dark:active:bg-zinc-800">
+                        <div class="flex items-center gap-2">
+                            <span class="text-emerald-500 text-sm">✨</span>
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">AI Optimal Refuel Strategy</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div id="smart-refuel-savings-block" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight border bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse">
+                                SAVING <span id="refuel-savings-value">£0.00</span>
+                            </div>
+                            <span id="refuel-panel-chevron" class="text-zinc-400 text-xs transition-transform duration-200">▼</span>
+                        </div>
+                    </div>
+                    
+                    <div id="refuel-panel-body" class="p-4 space-y-4 transition-all duration-300 h-[320px] overflow-y-auto custom-scrollbar">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label id="label-current-fuel" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Current Level</label>
+                                <div class="relative">
+                                    <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                                        <option value="10">10% (Critically Low)</option>
+                                        <option value="20">20%</option>
+                                        <option value="25" selected>25%</option>
+                                        <option value="30">30%</option>
+                                        <option value="40">40%</option>
+                                        <option value="50">50%</option>
+                                        <option value="60">60%</option>
+                                        <option value="75">75%</option>
+                                        <option value="90">90%</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
+                                </div>
+                                <p id="desc-current-fuel" class="text-[9px] font-medium text-zinc-500 mt-1">Remaining capacity.</p>
+                            </div>
+                            <div>
+                                <label id="label-capacity" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Tank Capacity</label>
+                                <div class="relative">
+                                    <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                                        <option value="45">45 L (Compact Car)</option>
+                                        <option value="55" selected>55 L (Standard Sedan)</option>
+                                        <option value="70">70 L (Large SUV / Van)</option>
+                                    </select>
+                                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
+                                </div>
+                                <p id="desc-capacity" class="text-[9px] font-medium text-zinc-500 mt-1">Maximum volume baseline.</p>
+                            </div>
+                        </div>
+            
+                        <div>
+                            <label id="label-safety-buffer" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Safety Buffer Target</label>
+                            <div class="relative">
+                                <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                                    <option value="10">10 Miles</option>
+                                    <option value="20">20 Miles</option>
+                                    <option value="30" selected>30 Miles</option>
+                                    <option value="40">40 Miles</option>
+                                    <option value="50">50 Miles</option>
+                                    <option value="75">75 Miles</option>
+                                </select>
+                                <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
+                            </div>
+                            <p id="desc-safety-buffer" class="text-[9px] font-medium text-zinc-500 mt-1">Minimum safe threshold margin before triggering alert stops.</p>
+                        </div>
+            
+                        <div id="refuel-timeline-output" class="pt-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Traffic Dashboard -->
+            <div id="live-traffic-wrapper">
+                <div id="bottom-traffic-dashboard" class="absolute z-[3000] transition-all duration-500 translate-y-10 opacity-0 pointer-events-none flex flex-col gap-2 shadow-2xl w-[calc(100%-2rem)] md:w-[480px]">
+                    <div class="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-zinc-800/60 rounded-3xl p-3.5 flex flex-col pointer-events-auto transition-all duration-300">
+                        
+                        <div class="flex items-center justify-between cursor-pointer group" onclick="toggleTrafficDashboard()">
+                            <div class="flex items-center gap-2">
+                                <span class="flex h-2.5 w-2.5 relative">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                </span>
+                                <h3 class="text-[11px] font-black text-zinc-900 dark:text-white tracking-tight uppercase">Live Telemetry</h3>
+                                
+                                <span id="dash-header-speed-badge" class="ml-1 px-1.5 py-0.5 rounded flex items-center justify-center text-[9px] font-black tracking-tight border uppercase transition-colors duration-300 bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 tabular-nums">
+                                    -- MPH
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[9px] font-black tracking-tight border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                                <svg id="dashboard-chevron" class="w-4 h-4 text-zinc-400 transition-transform duration-300 group-hover:text-zinc-900 dark:group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+            
+                        <div id="dashboard-collapsible-area" class="flex flex-col gap-3 overflow-hidden transition-all duration-300 max-h-[500px] mt-3">
+                            <div class="grid grid-cols-4 gap-2 p-2 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 text-center">
+                                <div>
+                                    <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Dist.</span>
+                                    <span id="dash-metric-distance" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5">Time</span>
+                                    <span id="dash-metric-time" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[8px] font-bold text-zinc-500 uppercase tracking-wider mb-0.5" id="energy-label">Fuel</span>
+                                    <span id="dash-metric-litres" class="text-xs font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                                </div>
+                                <div>
+                                    <span class="block text-[8px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Cost</span>
+                                    <span id="summary-cost" class="text-xs font-black text-emerald-600 block tabular-nums">--</span>
+                                </div>
+                            </div>
+                            
+                            <div id="dash-metric-delay-ticker" class="w-full overflow-hidden h-7 relative bg-zinc-100 dark:bg-zinc-800/50 rounded-lg px-2">
+                                <div class="absolute inset-0 flex items-center px-2 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 truncate tracking-tight">Awaiting route data...</div>
+                            </div>
+            
+                            <div id="route-alerts-container" class="flex flex-col gap-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1 hidden border-t border-zinc-200/50 dark:border-zinc-800/50 pt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+        </div>
+    </aside>
+
+    <!-- Fuel Price Popup -->
     <div id="global-detail-sheet" class="hidden mobile-bottom-drawer sheet-hidden md:absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-white/40 dark:border-zinc-800/60 shadow-2xl p-5 flex flex-col gap-4 md:w-[400px] md:top-20 md:bottom-auto md:left-auto md:right-4 z-[6000] md:rounded-3xl transition-all duration-400 pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
         <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-grab active:cursor-grabbing -mt-5 -mx-5 rounded-t-3xl">
             <div class="w-12 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
@@ -283,73 +383,12 @@
         </div>
     </div>
 
-    <div id="floating-smart-refuel-sheet" class="fixed bottom-20 right-4 left-4 md:left-auto md:w-[380px] bg-white/95 dark:bg-zinc-950/95 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl z-[4500] transition-all duration-300 transform translate-y-0 opacity-100 flex flex-col overflow-hidden backdrop-blur-xl hidden">
-        <div onclick="toggleSmartRefuelPanel()" class="w-full px-4 py-3 bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between cursor-pointer select-none active:bg-zinc-100 dark:active:bg-zinc-800">
-            <div class="flex items-center gap-2">
-                <span class="text-emerald-500 text-sm">✨</span>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">AI Optimal Refuel Strategy</h3>
-            </div>
-            <div class="flex items-center gap-2">
-                <div id="smart-refuel-savings-block" class="hidden px-2 py-0.5 rounded text-[10px] font-black tracking-tight border bg-emerald-500/10 text-emerald-500 border-emerald-500/20 animate-pulse">
-                    SAVING <span id="refuel-savings-value">£0.00</span>
-                </div>
-                <span id="refuel-panel-chevron" class="text-zinc-400 text-xs transition-transform duration-200">▼</span>
-            </div>
-        </div>
-        
-        <div id="refuel-panel-body" class="p-4 space-y-4 transition-all duration-300 h-[320px] overflow-y-auto custom-scrollbar">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label id="label-current-fuel" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Current Level</label>
-                    <div class="relative">
-                        <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                            <option value="10">10% (Critically Low)</option>
-                            <option value="20">20%</option>
-                            <option value="25" selected>25%</option>
-                            <option value="30">30%</option>
-                            <option value="40">40%</option>
-                            <option value="50">50%</option>
-                            <option value="60">60%</option>
-                            <option value="75">75%</option>
-                            <option value="90">90%</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                    </div>
-                    <p id="desc-current-fuel" class="text-[9px] font-medium text-zinc-500 mt-1">Remaining capacity.</p>
-                </div>
-                <div>
-                    <label id="label-capacity" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Tank Capacity</label>
-                    <div class="relative">
-                        <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-2.5 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                            <option value="45">45 L (Compact Car)</option>
-                            <option value="55" selected>55 L (Standard Sedan)</option>
-                            <option value="70">70 L (Large SUV / Van)</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                    </div>
-                    <p id="desc-capacity" class="text-[9px] font-medium text-zinc-500 mt-1">Maximum volume baseline.</p>
-                </div>
-            </div>
+    <button onclick="toggleRightSidebar(true)" class="absolute top-24 right-4 z-[900] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg p-3 rounded-xl flex items-center gap-2 hover:border-blue-500 transition-all">
+        <span class="text-lg">📡</span>
+        <span class="text-xs font-bold hidden md:block dark:text-white">Telemetry</span>
+    </button>
 
-            <div>
-                <label id="label-safety-buffer" class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Safety Buffer Target</label>
-                <div class="relative">
-                    <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                        <option value="10">10 Miles</option>
-                        <option value="20">20 Miles</option>
-                        <option value="30" selected>30 Miles</option>
-                        <option value="40">40 Miles</option>
-                        <option value="50">50 Miles</option>
-                        <option value="75">75 Miles</option>
-                    </select>
-                    <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                </div>
-                <p id="desc-safety-buffer" class="text-[9px] font-medium text-zinc-500 mt-1">Minimum safe threshold margin before triggering alert stops.</p>
-            </div>
-
-            <div id="refuel-timeline-output" class="pt-1"></div>
-        </div>
-    </div>
+    
 
     <script src="uiapp.js" defer></script>
 </body>
