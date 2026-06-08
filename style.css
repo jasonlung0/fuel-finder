@@ -204,6 +204,20 @@ body {
     bottom: calc(115px + env(safe-area-inset-bottom, 16px));
 }
 
+/* DASHBOARD COLLAPSE STATE */
+#bottom-traffic-dashboard.dashboard-collapsed #dashboard-collapsible-area {
+    max-height: 0px !important;
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#bottom-traffic-dashboard.dashboard-collapsed #dashboard-chevron {
+    transform: rotate(-180deg);
+}
+
 @media (min-width: 1024px) {
     #bottom-traffic-dashboard {
         bottom: 24px;
@@ -219,6 +233,7 @@ body {
 
 #floating-smart-refuel-sheet.panel-collapsed #refuel-panel-body {
     max-height: 0px !important;
+    height: 0px !important;
     padding-top: 0px !important;
     padding-bottom: 0px !important;
     margin: 0px !important;
@@ -232,9 +247,16 @@ body {
 
 @media (max-width: 1024px) {
     #floating-smart-refuel-sheet {
-        bottom: 76px; /* Positions perfectly above bottom mobile layout tabs */
+        bottom: 76px;
         right: 12px;
         left: 12px;
         width: auto;
+    }
+}
+
+/* OVERLAP FIX FOR DESKTOP: Lift smart refuel ABOVE the traffic dashboard */
+@media (min-width: 1024px) {
+    #floating-smart-refuel-sheet {
+        bottom: 140px; 
     }
 }
