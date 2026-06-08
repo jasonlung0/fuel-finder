@@ -1543,7 +1543,11 @@ window.executeStationDataFilteringPipeline = async function() {
                 address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
                 latitude: poi.AddressInfo?.Latitude,
                 longitude: poi.AddressInfo?.Longitude,
-                electric: poi.Connections?.[0]?.PowerKW || 50, 
+                
+                // CRITICAL FIX: Injecting standard fallback prices so the Map UI rendering engine doesn't hide them
+                electric: poi.Connections?.[0]?.PowerKW || 50, // Keep kW for the sidebar
+                electric_price: 65.0, // Standard average price in pence per kWh to bypass `NaN` rendering filters
+                
                 is_public: poi.UsageType?.IsPayAtLocation ?? true,
                 usage_title: poi.UsageType?.Title || 'Public Access',
                 operator_url: poi.OperatorInfo?.WebsiteURL || null,
@@ -1990,13 +1994,14 @@ window.triggerExternalMappingVectorRoute = function(event) {
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
 window.calculateOptimalRefuelStrategy = function() {
+    // 1. Get Values
     const fuelType = document.getElementById('fuel-type')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
-    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
-    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
     const capacity = parseFloat(document.getElementById('refuel-tank-size')?.value) || (isEV ? 60 : 55);
-    const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
+    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 25;
+    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 10;
+    const userMpg = parseFloat(document.getElementById('vehicle-mpg')?.value) || 45;
     
     const timeline = document.getElementById('refuel-timeline-output');
     const savingsBlock = document.getElementById('smart-refuel-savings-block');
@@ -2007,19 +2012,26 @@ window.calculateOptimalRefuelStrategy = function() {
         return; 
     }
 
-    let remainingRangeMiles = 0;
+    // 2. The Core Fix: Split Math for EV vs ICE
+    let maxRangeMiles = 0;
     let currentEnergyUnits = capacity * (currentPct / 100);
 
     if (isEV) {
-        const usableKwh = Math.max(0, currentEnergyUnits - safetyBuffer);
-        remainingRangeMiles = usableKwh * efficiency;
+        // Average EV efficiency: ~3.5 miles per kWh
+        const evEfficiency = 3.5; 
+        maxRangeMiles = capacity * evEfficiency; 
     } else {
-        const milesPerLiter = efficiency / 4.54609; 
-        const usableLiters = Math.max(0, currentEnergyUnits - (safetyBuffer / milesPerLiter));
-        remainingRangeMiles = usableLiters * milesPerLiter;
+        // Standard ICE Math
+        const gallons = capacity / 4.54609; // Liters to Gallons
+        maxRangeMiles = gallons * userMpg;
     }
-    
-    if (remainingRangeMiles >= globalRouteDistanceMiles) {
+
+    // 3. Current Range Calculation
+    const currentRangeMiles = maxRangeMiles * (currentPct / 100);
+    const remainingUsableRange = currentRangeMiles - safetyBuffer;
+
+    // 4. Check if current range covers the trip
+    if (remainingUsableRange >= globalRouteDistanceMiles) {
         if (timeline) {
             timeline.classList.remove('hidden');
             timeline.innerHTML = `<div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm"><div class="font-bold flex items-center gap-1">🎉 ${isEV ? 'Battery Charge' : 'Fuel Tank'} Sufficient!</div><p class="text-zinc-400 font-medium leading-normal">Your current range covers this ${globalRouteDistanceMiles.toFixed(1)} mi trip without stopping.</p></div>`;
