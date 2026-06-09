@@ -2,18 +2,10 @@
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
 
-// Tailwind Design Tokens & Safelist Configuration Layer
 if (window.tailwind) {
     window.tailwind.config = {
         darkMode: 'class',
-        theme: {
-            extend: {
-                colors: {
-                    zinc: { 950: '#040405', 1000: '#000000' },
-                    fuel: { green: '#10b981', blue: '#3b82f6', red: '#ef4444' }
-                }
-            }
-        },
+        theme: { extend: { colors: { zinc: { 950: '#040405', 1000: '#000000' }, fuel: { green: '#10b981', blue: '#3b82f6', red: '#ef4444' } } } },
         safelist: ['bg-fuel-green', 'bg-fuel-blue', 'bg-fuel-red']
     };
 }
@@ -50,12 +42,9 @@ let globalActiveRoute = null;
 let globalRouteDistanceMiles = 0;
 
 let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
-
 let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
 let dynamicWaypointIncrementalIndex = 0;
-
 let originalMapCenter = null;
-let scanAreaTimeout = null;
 
 // --- MOBILE UX SWITCHER LOGIC ---
 window.toggleMobileView = function(targetMode) {
@@ -70,15 +59,16 @@ window.toggleMobileView = function(targetMode) {
         rightSidebar.classList.remove('mobile-active-sheet');
         leftSidebar.classList.add('mobile-active-sheet');
         
-        if(btnSearch) btnSearch.className = "text-[11px] font-black tracking-wide px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
-        if(btnTelemetry) btnTelemetry.className = "text-[11px] font-bold tracking-wide px-4 py-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        if(btnSearch) btnSearch.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
+        if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
         setMobileSidebarState('mid');
     } else {
         leftSidebar.classList.remove('mobile-active-sheet');
+        rightSidebar.classList.remove('hidden');
         rightSidebar.classList.add('mobile-active-sheet');
         
-        if(btnTelemetry) btnTelemetry.className = "text-[11px] font-black tracking-wide px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
-        if(btnSearch) btnSearch.className = "text-[11px] font-bold tracking-wide px-4 py-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
+        if(btnSearch) btnSearch.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
         setMobileRightSidebarState('mid');
     }
 };
@@ -188,7 +178,6 @@ window.updateUIForMode = function(isEV) {
     const capSelect = document.getElementById('refuel-tank-size');
     const mpgLabel = document.getElementById('mpg-label');
 
-    // Force Revert text copy safely depending on state switch
     if (isEV) {
         if (capLabel) capLabel.innerText = 'Battery Capacity';
         if (capDesc) capDesc.innerText = 'Max energy in kWh.';
@@ -197,12 +186,7 @@ window.updateUIForMode = function(isEV) {
         if (mpgLabel) mpgLabel.innerText = 'Efficiency (mi/kWh)';
         
         if (capSelect) {
-            capSelect.innerHTML = `
-                <option value="40">40 kWh</option>
-                <option value="60" selected>60 kWh</option>
-                <option value="80">80 kWh</option>
-                <option value="100">100+ kWh</option>
-            `;
+            capSelect.innerHTML = `<option value="40">40 kWh</option><option value="60" selected>60 kWh</option><option value="80">80 kWh</option><option value="100">100+ kWh</option>`;
         }
     } else {
         if (capLabel) capLabel.innerText = 'Tank Capacity';
@@ -212,11 +196,7 @@ window.updateUIForMode = function(isEV) {
         if (mpgLabel) mpgLabel.innerText = 'Efficiency (MPG)';
         
         if (capSelect) {
-            capSelect.innerHTML = `
-                <option value="45">45 L</option>
-                <option value="55" selected>55 L</option>
-                <option value="70">70 L</option>
-            `;
+            capSelect.innerHTML = `<option value="45">45 L</option><option value="55" selected>55 L</option><option value="70">70 L</option>`;
         }
     }
     
@@ -282,7 +262,6 @@ function updateSavedItemsCountUI() {
     if (badge) badge.textContent = starredStations.length + savedRoutes.length;
 }
 
-// --- INTERACTIVE MAP CAMERA FUNCTION ---
 window.focusIncidentMapView = function(lat, lng) {
     if (!map) return;
     let targetedLat = parseFloat(lat);
@@ -556,11 +535,11 @@ window.addWaypointFieldInputRow = function(initialValue = '') {
     if (!container) return;
     const rowNode = document.createElement('div');
     rowNode.id = `waypoint-row-context-${currentUid}`;
-    rowNode.className = "relative flex items-center w-full gap-2 mt-1 animate-fadeIn";
+    rowNode.className = "relative flex items-center w-full gap-3 mt-1 animate-fadeIn";
     rowNode.innerHTML = `
-        <div class="w-4 flex justify-center z-10 shrink-0"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm outline outline-2 outline-white dark:outline-zinc-950"></div></div>
+        <div class="w-6 flex justify-center z-10 shrink-0"><div class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm outline outline-2 outline-white dark:outline-zinc-950"></div></div>
         <div class="relative flex-1">
-            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field shadow-sm" />
+            <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field shadow-sm" />
             <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-600">Clear</button>
         </div>
         <button onclick="removeWaypointFieldInputRow(${currentUid}, event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-500 border border-zinc-200 dark:border-zinc-800 rounded-lg transition cursor-pointer flex items-center justify-center h-8 w-8 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" title="Delete stop">✕</button>
@@ -730,13 +709,12 @@ window.renderLiveTrafficDashboard = function(incidents) {
         return;
     }
 
-    // STRICT ROUTE FILTERING (Only delays > 0s mapped along corridor)
     let processed = incidents.filter(i => {
         const severity = i.properties?.magnitudeOfDelay;
         const delay = i.properties?.delay || 0;
         
-        // Remove completely 0 second delay entries unless actively closed
-        if (severity !== 3 && severity !== 4 && delay <= 0 && i.properties?.iconCategory !== 1) return false;
+        // Strict Delay Check: ONLY map points that ADD time to route
+        if (delay <= 0 && severity !== 3 && severity !== 4 && i.properties?.iconCategory !== 1) return false;
         
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
         let coords = i.geometry?.coordinates;
@@ -754,7 +732,6 @@ window.renderLiveTrafficDashboard = function(incidents) {
         return;
     }
 
-    // SORT A TO B
     if (plottedRouteCoordinates && plottedRouteCoordinates.length > 0) {
         const sLat = plottedRouteCoordinates[0][0];
         const sLng = plottedRouteCoordinates[0][1];
@@ -814,9 +791,6 @@ window.renderLiveTrafficDashboard = function(incidents) {
     }
 };
 
-// -------------------------------------------------------------
-// CORE ROUTING ENGINE & TomTom Fuel Consumption Integration
-// -------------------------------------------------------------
 window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
     if (!map) return;
     try {
@@ -958,6 +932,42 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         }
     } catch (err) { Toast.show(`Failed to trace route: ${err.message}`, "error"); }
 };
+
+function lookupWeatherIconEmoji(code) {
+    if (code === 0) return "☀️";
+    if ([1, 2, 3].includes(code)) return "⛅";
+    if ([45, 48].includes(code)) return "🌫️";
+    if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
+    if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return "🌨️";
+    if ([80, 81, 82].includes(code)) return "🌧️";
+    if ([95, 96, 99].includes(code)) return "⛈️";
+    return "☁️";
+}
+
+async function triggerRouteWeatherFetchPipeline() {
+    const locationsToFetch = [];
+    if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
+    Object.keys(cachedGeocodedWaypoints.vids).forEach(key => locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] }));
+    if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
+
+    for (const loc of locationsToFetch) {
+        try {
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
+            const weatherData = await weatherRes.json();
+            if (weatherData && weatherData.daily) {
+                const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[0]);
+                const highTemp = Math.round(weatherData.daily.temperature_2m_max[0]);
+                const weatherIcon = L.divIcon({
+                    className: 'leaflet-div-icon-reset',
+                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200"><span class="text-sm">${conditionEmoji}</span><span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span></div>`,
+                    iconSize: [60, 28], iconAnchor: [30, 45] 
+                });
+                if (routePolylineLayer) L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
+            }
+        } catch (weatherErr) { console.error(weatherErr); }
+    }
+}
 
 window.saveActiveRouteCorridor = function() {
     const startVal = document.getElementById('route-start')?.value.trim();
@@ -1102,12 +1112,19 @@ window.executeStationDataFilteringPipeline = async function() {
         if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
         try {
             let ocmUrl = '';
+            // STRICT BOUNDING BOX FOR ROUTES (UK LIMIT)
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&distanceunit=Miles&maxresults=100&verbose=false`;
+                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 10 === 0);
+                const lats = sampledWaypoints.map(c => c[0]);
+                const lngs = sampledWaypoints.map(c => c[1]);
+                const minLat = Math.min(...lats) - 0.05, maxLat = Math.max(...lats) + 0.05;
+                const minLng = Math.min(...lngs) - 0.05, maxLng = Math.max(...lngs) + 0.05;
+
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=150&verbose=false`;
             } else {
                 const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][0] : mapSearchAnchorCoordinates[0]);
                 const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][1] : mapSearchAnchorCoordinates[1]);
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=50`;
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
             }
             const res = await fetch(ocmUrl);
             const data = await res.json();
@@ -1229,31 +1246,6 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
     block.classList.remove('hidden');
 };
 
-function assignPricingTierColorStyles(valueRaw, variantKey) {
-    const fC = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
-    if (!valueRaw) return fC;
-    const n = parseFloat(valueRaw);
-    if (isNaN(n) || n <= 0) return fC;
-
-    if (variantKey === 'electric') {
-        if (n <= 55) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
-        if (n <= 75) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
-        return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
-    }
-
-    const rPool = currentlyVisibleStations.map(i => parseFloat(i[variantKey])).filter(p => !isNaN(p) && p > 0);
-    if (rPool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-blue-400";
-
-    const min = Math.min(...rPool);
-    const delta = Math.max(...rPool) - min;
-    if (delta <= 0) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-600";
-
-    const step = delta / 3;
-    if (n <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
-    if (n <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
-    return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
-}
-
 window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
     if(!markerClusterGroupInstance) return;
     markerClusterGroupInstance.clearLayers();
@@ -1299,6 +1291,117 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
         markerClusterGroupInstance.addLayer(markerInstance);
     });
 };
+
+window.toggleCurrentStationStar = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    if (!activeSheetStation) return;
+    const stationKey = getStationUniqueSignature(activeSheetStation);
+    const matchingIndex = starredStations.findIndex(s => getStationUniqueSignature(s) === stationKey);
+
+    if (matchingIndex > -1) starredStations.splice(matchingIndex, 1);
+    else starredStations.push(activeSheetStation);
+
+    localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
+    updateSavedItemsCountUI();
+    updateAllStarUIStates();
+    Toast.show('Item saved to your bookmarks!', 'success');
+};
+
+function updateAllStarUIStates() {
+    if (!activeSheetStation) return;
+    const isStarred = starredStations.some(s => getStationUniqueSignature(s) === getStationUniqueSignature(activeSheetStation));
+    
+    const sheetBtn = document.getElementById('sheet-star-btn');
+    if (sheetBtn) {
+        sheetBtn.innerHTML = isStarred ? ACTIVE_STAR_SVG : INACTIVE_STAR_SVG;
+        sheetBtn.className = isStarred 
+            ? "p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8"
+            : "p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 text-zinc-400 hover:text-amber-500 rounded-xl cursor-pointer flex items-center justify-center w-8 h-8";
+    }
+
+    const dPanel = document.getElementById('starred-dropdown-panel');
+    if (dPanel && !dPanel.classList.contains('hidden')) renderDirectoryDropdown();
+}
+
+window.toggleStarredDropdownDashboardPanel = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const panel = document.getElementById('starred-dropdown-panel');
+    if (!panel) return;
+    
+    if (panel.classList.contains('hidden')) { 
+        closeForecourtDetailSheet();
+        panel.classList.remove('hidden'); 
+        renderDirectoryDropdown(); 
+    } else { 
+        panel.classList.add('hidden'); 
+    }
+};
+
+function renderDirectoryDropdown() {
+    const container = document.getElementById('starred-list-container');
+    if (!container) return;
+
+    starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
+    savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
+
+    if (activeDirectoryTab === 'stations') {
+        if (starredStations.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No monitored terminals.</div>`;
+            return;
+        }
+        container.innerHTML = '';
+        starredStations.forEach(station => {
+            const cardRow = document.createElement('div');
+            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-emerald-500 transition cursor-pointer active:scale-[0.99] shadow-sm space-y-2";
+            cardRow.onclick = (event) => {
+                event.stopPropagation();
+                focusAndHighlightMapMarker(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng));
+                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+            };
+
+            const isEVSave = station.isEV || station.electric;
+            let p1 = isEVSave ? `<div class="text-[7px] font-bold uppercase tracking-tight opacity-75">kW Rate</div><div class="text-[10px] font-black mt-0.5">${station.electric ? `${parseFloat(station.electric).toFixed(1)}` : 'N/A'}</div>` : `<div class="text-[7px] font-bold uppercase tracking-tight opacity-75">E10</div><div class="text-[10px] font-black mt-0.5">${station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A'}</div>`;
+            let p2 = isEVSave ? `<div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Access</div><div class="text-[10px] font-black mt-0.5">Public</div>` : `<div class="text-[7px] font-bold uppercase tracking-tight opacity-75">Diesel</div><div class="text-[10px] font-black mt-0.5">${station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A'}</div>`;
+
+            cardRow.innerHTML = `
+                <div class="min-w-0">
+                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">${(station.brand_name || 'Independent').replace(/['"]/g, '')}</div>
+                    <div class="text-[9px] font-semibold text-zinc-400 dark:text-zinc-500 truncate mt-0.5">${(station.address || '').replace(/['"]/g, '')}</div>
+                </div>
+                <div class="grid grid-cols-2 gap-1 pt-0.5">
+                    <div class="border p-1 rounded-lg text-center tabular-nums bg-zinc-50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">${p1}</div>
+                    <div class="border p-1 rounded-lg text-center tabular-nums bg-zinc-50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">${p2}</div>
+                </div>`;
+            container.appendChild(cardRow);
+        });
+    } else {
+        if (savedRoutes.length === 0) {
+            container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-xs font-semibold">No custom routes found.</div>`;
+            return;
+        }
+        container.innerHTML = '';
+        savedRoutes.forEach(route => {
+            const cardRow = document.createElement('div');
+            cardRow.className = "p-2.5 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl hover:border-blue-500 transition cursor-pointer active:scale-[0.99] shadow-sm flex items-center justify-between gap-2";
+            cardRow.onclick = (event) => {
+                event.stopPropagation();
+                loadSavedRouteCorridorDataIntoWorkspace(route.id);
+                if (window.innerWidth < 768) document.getElementById('starred-dropdown-panel').classList.add('hidden');
+            };
+
+            cardRow.innerHTML = `
+                <div class="min-w-0 flex-1">
+                    <div class="text-xs font-black text-zinc-900 dark:text-white truncate flex items-center gap-1">🛣️ ${route.name}</div>
+                    <div class="text-[8px] font-bold text-zinc-400 dark:text-zinc-500 tracking-wide uppercase mt-1 tabular-nums">MPG: ${route.mpg} • Stops: ${route.waypoints ? route.waypoints.length : 0}</div>
+                </div>
+                <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 cursor-pointer rounded-lg hover:bg-rose-500/10 transition focus:outline-none focus:ring-1 focus:ring-rose-500" title="Delete Saved Corridor">
+                    ✕
+                </button>
+            `;
+            container.appendChild(cardRow);
+        });
+    }
+}
 
 window.openForecourtDetailSheet = function(stationData) {
     const sheet = document.getElementById('global-detail-sheet');
@@ -1381,6 +1484,8 @@ window.calculateOptimalRefuelStrategy = function() {
     const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
     
     const timeline = document.getElementById('refuel-timeline-output');
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    if (savingsBlock) savingsBlock.classList.add('hidden');
     
     if (!globalRouteDistanceMiles || globalRouteDistanceMiles === 0 || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
         if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock AI Refuel Strategy.</p>'; }
@@ -1390,7 +1495,7 @@ window.calculateOptimalRefuelStrategy = function() {
     let remainingRangeMiles = 0;
     let currentEnergyUnits = capacity * (currentPct / 100);
 
-    // FIX: Distinct math blocks for EV vs ICE to accurately parse buffers
+    // FIX: EV Math using kWh vs ICE math using Litres
     if (isEV) {
         const bufferKwh = safetyBuffer / efficiency;
         const usableKwh = Math.max(0, currentEnergyUnits - bufferKwh);
@@ -1458,7 +1563,7 @@ window.calculateOptimalRefuelStrategy = function() {
             bestStation = reachableStations[0];
         }
     }
-
+    
     if (!bestStation) return;
 
     const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
@@ -1480,9 +1585,14 @@ window.calculateOptimalRefuelStrategy = function() {
     
     const savingsPence = (averagePrice - bestPrice) * energyToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
+
+    if (savingsGBP > 0 && document.getElementById('refuel-savings-value')) {
+        document.getElementById('refuel-savings-value').textContent = `£${savingsGBP.toFixed(2)}`;
+        if (savingsBlock) savingsBlock.classList.remove('hidden');
+    }
+    
     const distToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
 
-    // UI Rework: Prominent Savings and Price Layout Block
     if (timeline) {
         timeline.classList.remove('hidden');
         timeline.innerHTML = `
@@ -1557,5 +1667,10 @@ window.clearFuelOptimizationState = function() {
     if (timelineContainer) {
         timelineContainer.innerHTML = '';
         timelineContainer.classList.add('hidden');
+    }
+
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    if (savingsBlock) {
+        savingsBlock.classList.add('hidden');
     }
 };
