@@ -47,26 +47,34 @@ let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
 
 // --- MOBILE UX SWITCHER LOGIC ---
-window.toggleMobileView = function(targetMode) {
+window.setActiveMobileSheet = function(targetType) {
     const leftSidebar = document.getElementById('primary-control-sidebar');
     const rightSidebar = document.getElementById('secondary-control-sidebar');
     const btnSearch = document.getElementById('btn-mob-search');
     const btnTelemetry = document.getElementById('btn-mob-telemetry');
-    
-    if (!leftSidebar || !rightSidebar) return;
 
-    if (targetMode === 'search') {
-        rightSidebar.classList.remove('mobile-active-sheet');
-        leftSidebar.classList.add('mobile-active-sheet');
-        
+    if (targetType === 'search') {
+        if (rightSidebar) {
+            rightSidebar.classList.remove('mobile-active-sheet');
+            rightSidebar.style.zIndex = "1900"; 
+        }
+        if (leftSidebar) {
+            leftSidebar.classList.add('mobile-active-sheet');
+            leftSidebar.style.zIndex = "2000";
+        }
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
         setMobileSidebarState('mid');
-    } else {
-        leftSidebar.classList.remove('mobile-active-sheet');
-        rightSidebar.classList.remove('hidden');
-        rightSidebar.classList.add('mobile-active-sheet');
-        
+    } else if (targetType === 'telemetry') {
+        if (leftSidebar) {
+            leftSidebar.classList.remove('mobile-active-sheet');
+            leftSidebar.style.zIndex = "1900";
+        }
+        if (rightSidebar) {
+            rightSidebar.classList.remove('hidden');
+            rightSidebar.classList.add('mobile-active-sheet');
+            rightSidebar.style.zIndex = "2000";
+        }
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
         setMobileRightSidebarState('mid');
@@ -155,8 +163,8 @@ function setMobileSidebarState(stateStr) { setDrawerState('primary-control-sideb
 function setMobileRightSidebarState(stateStr) { setDrawerState('secondary-control-sidebar', stateStr); }
 function setMobileSheetUIState(stateStr) { setDrawerState('global-detail-sheet', stateStr); }
 
-const INACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499c.151-.326.621-.326.772 0l2.035 4.392 4.752.693c.353.051.495.492.239.743l-3.438 3.35 1.022 4.718c.076.351-.29.616-.598.442L12 15.617l-4.283 2.272c-.308.174-.674-.09-.598-.442l1.022-4.718-3.438-3.35c-.256-.251-.114-.692.239-.743l4.752-.693 2.035-4.393Z" /></svg>`;
-const ACTIVE_STAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-amber-500"><path fill-rule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z" clip-rule="evenodd" /></svg>`;
+const INACTIVE_STAR_SVG = `☆`;
+const ACTIVE_STAR_SVG = `⭐`;
 
 window.toggleDesktopSidebar = function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
@@ -165,24 +173,47 @@ window.toggleDesktopSidebar = function(event) {
 };
 
 window.toggleRightSidebar = function(event) {
-    if(event) { event.stopPropagation(); event.preventDefault(); }
+    if(event && event.type !== 'boolean') { event.stopPropagation(); event.preventDefault(); }
     const sidebar = document.getElementById('secondary-control-sidebar');
-    if (sidebar) sidebar.classList.toggle('desktop-collapsed-right');
+    if (sidebar) {
+        if (event === true) sidebar.classList.remove('desktop-collapsed-right');
+        else if (event === false) sidebar.classList.add('desktop-collapsed-right');
+        else sidebar.classList.toggle('desktop-collapsed-right');
+    }
+};
+
+window.setGlobalFuelSelectionType = function(type) {
+    const iconEl = document.getElementById('active-fuel-icon');
+    const labelEl = document.getElementById('active-fuel-label');
+    const hiddenFuelInput = document.getElementById('fuel-type');
+    
+    if(iconEl) iconEl.innerText = type === 'electric' ? '⚡' : '⛽';
+    if(labelEl) labelEl.innerText = type === 'E10' ? 'Unleaded E10' : type === 'E5' ? 'Super E5' : type === 'B7' ? 'Diesel B7' : type === 'PremiumDiesel' ? 'Prem. Diesel' : 'EV Chargers';
+    if(hiddenFuelInput) hiddenFuelInput.value = type;
+    
+    document.getElementById('fuel-dropdown-options')?.classList.add('hidden');
+    updateUIForMode(type === 'electric');
+    executeStationDataFilteringPipeline();
+};
+
+window.togglePropulsionEngineMode = function() {
+    const currentFuel = document.getElementById('fuel-type')?.value || 'E10';
+    if (currentFuel === 'electric') {
+        window.setGlobalFuelSelectionType('E10');
+    } else {
+        window.setGlobalFuelSelectionType('electric');
+    }
 };
 
 window.updateUIForMode = function(isEV) {
     const capLabel = document.getElementById('label-capacity');
-    const capDesc = document.getElementById('desc-capacity');
-    const currLabel = document.getElementById('label-current-fuel');
-    const currDesc = document.getElementById('desc-current-fuel');
     const capSelect = document.getElementById('refuel-tank-size');
+    const currLabel = document.getElementById('label-current-fuel');
     const mpgLabel = document.getElementById('mpg-label');
 
     if (isEV) {
         if (capLabel) capLabel.innerText = 'Battery Capacity';
-        if (capDesc) capDesc.innerText = 'Max energy in kWh.';
         if (currLabel) currLabel.innerText = 'State of Charge (SoC)';
-        if (currDesc) currDesc.innerText = 'Current battery charge %.';
         if (mpgLabel) mpgLabel.innerText = 'Efficiency (mi/kWh)';
         
         if (capSelect) {
@@ -190,9 +221,7 @@ window.updateUIForMode = function(isEV) {
         }
     } else {
         if (capLabel) capLabel.innerText = 'Tank Capacity';
-        if (capDesc) capDesc.innerText = 'Max volume baseline.';
         if (currLabel) currLabel.innerText = 'Current Level';
-        if (currDesc) currDesc.innerText = 'Remaining capacity %.';
         if (mpgLabel) mpgLabel.innerText = 'Efficiency (MPG)';
         
         if (capSelect) {
@@ -215,15 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('detail-sheet-drag-handle')) bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
     } catch (err) { console.warn('UI Initialization skipped.', err); }
 
-    const fuelTypeSelector = document.getElementById('fuel-type');
-    if (fuelTypeSelector) {
-        fuelTypeSelector.addEventListener('change', (e) => {
-            const isEV = e.target.value === 'electric';
-            updateUIForMode(isEV);
-            executeStationDataFilteringPipeline();
-        });
-    }
-
     const radiusSlider = document.getElementById('radius-slider');
     if (radiusSlider) {
         radiusSlider.addEventListener('input', (e) => {
@@ -244,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeClickIsolationBubbling();
 
     if (window.innerWidth < 1024) {
-        toggleMobileView('search');
+        setActiveMobileSheet('search');
     }
 
     const detailSheet = document.getElementById('global-detail-sheet');
@@ -252,8 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         detailSheet.classList.add('hidden');
         setMobileSheetUIState('hidden');
     }
-    
-    console.log('UI Initialized successfully.');
 });
 
 function updateSavedItemsCountUI() {
@@ -293,14 +311,11 @@ const Toast = {
     show(message, type = 'info') {
         this.init();
         const icons = {
-            success: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
-            error: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
-            warning: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3Z" /></svg>`,
-            info: `<svg fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>`
+            success: `✅`, error: `❌`, warning: `⚠️`, info: `ℹ️`
         };
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.innerHTML = `<div class="relative z-10 flex items-center justify-center">${icons[type]}</div><p class="relative z-10 m-0 leading-tight tracking-tight">${message}</p>`;
+        toast.innerHTML = `<div class="relative z-10 flex items-center justify-center">${icons[type]}</div><p class="relative z-10 m-0 leading-tight tracking-tight text-xs">${message}</p>`;
         this.container.appendChild(toast);
         requestAnimationFrame(() => { requestAnimationFrame(() => { toast.classList.add('show'); }); });
         setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
@@ -385,7 +400,7 @@ window.executeContextualAreaScanPipeline = function(event) {
     if (btn) btn.disabled = true;
     if (iconSearch) iconSearch.classList.add('hidden');
     if (iconSpinner) iconSpinner.classList.remove('hidden');
-    if (btnText) btnText.textContent = "Updating viewport matrix...";
+    if (btnText) btnText.textContent = "Updating viewport...";
 
     const newCenter = map.getCenter();
     mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
@@ -402,7 +417,7 @@ window.executeContextualAreaScanPipeline = function(event) {
             if (btn) btn.disabled = false;
             if (iconSearch) iconSearch.classList.remove('hidden');
             if (iconSpinner) iconSpinner.classList.add('hidden');
-            if (btnText) btnText.textContent = "Search this map area";
+            if (btnText) btnText.textContent = "Search this area";
         }, 300);
     }, 1000);
 };
@@ -416,7 +431,6 @@ function triggerActiveDeviceLocationLookup() {
                 mapSearchAnchorCoordinates = [userLat, userLng];
                 originalMapCenter = L.latLng(userLat, userLng); 
                 map.setView(mapSearchAnchorCoordinates, 12);
-                L.circle(mapSearchAnchorCoordinates, { radius: 200, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.4 }).addTo(map);
                 executeStationDataFilteringPipeline();
             },
             (error) => { executeStationDataFilteringPipeline(); },
@@ -431,7 +445,7 @@ window.triggerManualDeviceLocationSearch = async function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
     const inputField = document.getElementById('location-input');
     if (!navigator.geolocation) return;
-    if(inputField) inputField.value = "Detecting device coordinates...";
+    if(inputField) inputField.value = "Detecting location...";
 
     navigator.geolocation.getCurrentPosition(async (position) => {
         const userLat = position.coords.latitude;
@@ -445,10 +459,10 @@ window.triggerManualDeviceLocationSearch = async function(event) {
             const lookupData = await lookupRes.json();
             if(inputField && lookupData && lookupData.display_name) inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
             else if(inputField) inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
-        } catch { if(inputField) inputField.value = "Current Location Vector"; }
+        } catch { if(inputField) inputField.value = "Current Location"; }
         executeStationDataFilteringPipeline();
     }, () => {
-        if(inputField) inputField.value = "Access Denied by Host Device";
+        if(inputField) inputField.value = "Access Denied";
     }, { enableHighAccuracy: true, timeout: 8000 });
 };
 
@@ -515,13 +529,13 @@ window.switchDirectoryTabContext = function(dirType) {
     const tabRoutes = document.getElementById('dir-tab-routes');
     
     if (dirType === 'stations') {
-        if(tabStations) tabStations.className = "py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs focus:outline-none";
-        if(tabRoutes) tabRoutes.className = "py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none";
+        if(tabStations) tabStations.className = "flex-1 py-1.5 rounded-md text-[10px] font-black bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm focus:outline-none";
+        if(tabRoutes) tabRoutes.className = "flex-1 py-1.5 rounded-md text-[10px] font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none transition";
     } else {
-        if(tabRoutes) tabRoutes.className = "py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-xs focus:outline-none";
-        if(tabStations) tabStations.className = "py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none";
+        if(tabRoutes) tabRoutes.className = "flex-1 py-1.5 rounded-md text-[10px] font-black bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm focus:outline-none";
+        if(tabStations) tabStations.className = "flex-1 py-1.5 rounded-md text-[10px] font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none transition";
     }
-    renderDirectoryDropdown();
+    renderStarredDropdownList();
 };
 
 window.swapRouteEndpoints = function(event) {
@@ -719,7 +733,7 @@ window.renderLiveTrafficDashboard = function(incidents) {
         const severity = i.properties?.magnitudeOfDelay || 0;
         const delay = i.properties?.delay || 0;
         
-        // Strict High Priority Check: Only map Major (3), Overwhelming (4), or delays > 5 mins
+        // Strict High Priority Check: Only map Major (3), Overwhelming (4), or delays >= 5 mins (300s)
         if (severity < 3 && delay < 300) return false;
         
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
@@ -881,7 +895,7 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             const rSidebar = document.getElementById('secondary-control-sidebar');
             if (rSidebar) {
                 rSidebar.classList.remove('desktop-collapsed-right');
-                if (window.innerWidth < 1024) toggleMobileView('telemetry');
+                if (window.innerWidth < 1024) setActiveMobileSheet('telemetry');
             }
 
             const stitchedIncidents = await fetchAllRouteTraffic(plottedRouteCoordinates);
@@ -928,12 +942,10 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             }
         }
         
-        // Ensure we properly await the API calls so OpenChargeMap populates *before* refuel calc runs
+        // Wait for fetching to complete before applying strategy
         if (typeof executeStationDataFilteringPipeline === 'function') {
             await executeStationDataFilteringPipeline();
         }
-        
-        try { if (typeof triggerRouteWeatherFetchPipeline === 'function') await triggerRouteWeatherFetchPipeline(); } catch (e) {}
         
         if (typeof calculateOptimalRefuelStrategy === 'function') {
             calculateOptimalRefuelStrategy();
@@ -945,42 +957,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         }
     } catch (err) { Toast.show(`Failed to trace route: ${err.message}`, "error"); }
 };
-
-function lookupWeatherIconEmoji(code) {
-    if (code === 0) return "☀️";
-    if ([1, 2, 3].includes(code)) return "⛅";
-    if ([45, 48].includes(code)) return "🌫️";
-    if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
-    if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
-    if ([71, 73, 75, 77, 85, 86].includes(code)) return "🌨️";
-    if ([80, 81, 82].includes(code)) return "🌧️";
-    if ([95, 96, 99].includes(code)) return "⛈️";
-    return "☁️";
-}
-
-async function triggerRouteWeatherFetchPipeline() {
-    const locationsToFetch = [];
-    if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
-    Object.keys(cachedGeocodedWaypoints.vids).forEach(key => locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] }));
-    if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
-
-    for (const loc of locationsToFetch) {
-        try {
-            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
-            const weatherData = await weatherRes.json();
-            if (weatherData && weatherData.daily) {
-                const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[0]);
-                const highTemp = Math.round(weatherData.daily.temperature_2m_max[0]);
-                const weatherIcon = L.divIcon({
-                    className: 'leaflet-div-icon-reset',
-                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200"><span class="text-sm">${conditionEmoji}</span><span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span></div>`,
-                    iconSize: [60, 28], iconAnchor: [30, 45] 
-                });
-                if (routePolylineLayer) L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
-            }
-        } catch (weatherErr) { console.error(weatherErr); }
-    }
-}
 
 window.saveActiveRouteCorridor = function() {
     const startVal = document.getElementById('route-start')?.value.trim();
@@ -995,7 +971,7 @@ window.saveActiveRouteCorridor = function() {
     
     updateSavedItemsCountUI();
     const dp = document.getElementById('starred-dropdown-panel');
-    if (dp && !dp.classList.contains('hidden')) renderDirectoryDropdown();
+    if (dp && !dp.classList.contains('hidden')) renderStarredDropdownList();
     Toast.show("Corridor routing successfully saved.", "success");
 };
 
@@ -1004,7 +980,7 @@ window.deleteSavedRouteCorridor = function(routeId, event) {
     savedRoutes = savedRoutes.filter(r => r.id !== routeId);
     localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
     updateSavedItemsCountUI();
-    renderDirectoryDropdown();
+    renderStarredDropdownList();
 };
 
 window.loadSavedRouteCorridorDataIntoWorkspace = function(routeId) {
@@ -1117,34 +1093,47 @@ window.executeStationDataFilteringPipeline = async function() {
         const timelineContainer = document.getElementById('refuel-timeline-output');
         if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
         try {
-            let ocmUrl = '';
-            // STRICT BOUNDING BOX FOR ROUTES (UK LIMIT)
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 10 === 0);
-                const lats = sampledWaypoints.map(c => c[0]);
-                const lngs = sampledWaypoints.map(c => c[1]);
-                const minLat = Math.min(...lats) - 0.05, maxLat = Math.max(...lats) + 0.05;
-                const minLng = Math.min(...lngs) - 0.05, maxLng = Math.max(...lngs) + 0.05;
+                // INCREASE SAMPLING: Check points every 8km (~5 miles) instead of long intervals
+                const sampleInterval = Math.max(1, Math.floor(plottedRouteCoordinates.length / 25)); 
+                const sampledCoords = [];
+                for (let i = 0; i < plottedRouteCoordinates.length; i += sampleInterval) sampledCoords.push(plottedRouteCoordinates[i]);
+                sampledCoords.push(plottedRouteCoordinates[plottedRouteCoordinates.length - 1]);
 
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=150&verbose=false`;
+                let combinedStations = [];
+                for (const coord of sampledCoords) {
+                    const lat = coord[0];
+                    const lon = coord[1];
+                    try {
+                        const url = `https://api.openchargemap.io/v3/poi/?key=${OCM_KEY}&output=json&latitude=${lat}&longitude=${lon}&distance=15&distanceunit=Miles&maxresults=40&compact=true&verbose=false`;
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        if (Array.isArray(data)) combinedStations = combinedStations.concat(data);
+                    } catch (err) {}
+                }
+
+                const uniqueMap = new Map();
+                combinedStations.forEach(item => { if (item.ID) uniqueMap.set(item.ID, item); });
+
+                currentlyVisibleStations = Array.from(uniqueMap.values()).map(poi => ({
+                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
+                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
+                }));
+
+                currentlyVisibleStations = currentlyVisibleStations.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold);
             } else {
-                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][0] : mapSearchAnchorCoordinates[0]);
-                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][1] : mapSearchAnchorCoordinates[1]);
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
-            }
-            const res = await fetch(ocmUrl);
-            const data = await res.json();
-            
-            currentlyVisibleStations = data.map(poi => ({
-                id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
-                latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
-                is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
-            }));
-
-            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                currentlyVisibleStations = currentlyVisibleStations.filter(s => {
-                    return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold;
-                });
+                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : mapSearchAnchorCoordinates[0];
+                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : mapSearchAnchorCoordinates[1];
+                let ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
+                
+                const res = await fetch(ocmUrl);
+                const data = await res.json();
+                currentlyVisibleStations = data.map(poi => ({
+                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
+                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
+                }));
             }
 
             paintMarkerCanvasLayersToMap(currentlyVisibleStations, 'electric', currentlyVisibleStations.length, globalRouteDistanceMiles);
@@ -1252,7 +1241,7 @@ window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
     block.classList.remove('hidden');
 };
 
-function assignPricingTierColorStyles(valueRaw, variantKey) {
+window.assignPricingTierColorStyles = function(valueRaw, variantKey) {
     const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
     if (!valueRaw) return fallbackClasses;
     const numericVal = parseFloat(valueRaw);
@@ -1275,7 +1264,7 @@ function assignPricingTierColorStyles(valueRaw, variantKey) {
     if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
     if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
     return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
-}
+};
 
 window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
     if(!markerClusterGroupInstance) return;
@@ -1438,9 +1427,20 @@ window.calculateOptimalRefuelStrategy = function() {
     const savingsPence = (averagePrice - bestPrice) * energyToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
 
-    if (savingsGBP > 0 && document.getElementById('refuel-savings-value')) {
-        document.getElementById('refuel-savings-value').textContent = `£${savingsGBP.toFixed(2)}`;
-        if (savingsBlock) savingsBlock.classList.remove('hidden');
+    if (savingsGBP > 0 && savingsBlock) {
+        savingsBlock.classList.remove('hidden');
+        savingsBlock.innerHTML = `
+            <div class="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Strategy Savings</p>
+                    <p class="text-xl font-black text-emerald-700 dark:text-emerald-400">£${savingsGBP.toFixed(2)}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Target Rate</p>
+                    <p class="text-sm font-black text-zinc-800 dark:text-zinc-100">${bestPrice.toFixed(1)}${isEV?'p/kWh':'p'}</p>
+                </div>
+            </div>
+        `;
     }
     
     const distToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
@@ -1448,21 +1448,6 @@ window.calculateOptimalRefuelStrategy = function() {
     if (timeline) {
         timeline.classList.remove('hidden');
         timeline.innerHTML = `
-            <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl p-4 flex items-center justify-between mt-2 mb-4">
-                <div class="flex flex-col">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-500 mb-0.5">Strategy Savings</span>
-                    <span class="text-3xl font-black text-emerald-700 dark:text-emerald-400">£${savingsGBP.toFixed(2)}</span>
-                </div>
-                <div class="h-10 w-px bg-emerald-200 dark:bg-emerald-800/50 mx-4"></div>
-                <div class="flex flex-col text-right">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">Target Price</span>
-                    <div class="flex items-baseline justify-end gap-1">
-                        <span class="text-xl font-black text-zinc-900 dark:text-white">${bestPrice.toFixed(1)}</span>
-                        <span class="text-xs font-bold text-zinc-500">${isEV?'p/kWh':'p/L'}</span>
-                    </div>
-                </div>
-            </div>
-
             <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
                 <div class="relative border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 ml-4 pl-6 py-2 space-y-6">
                     <div class="relative">
@@ -1555,4 +1540,62 @@ window.clearFuelOptimizationState = function() {
     if (savingsBlock) {
         savingsBlock.classList.add('hidden');
     }
+};
+
+window.openForecourtDetailSheet = function(station) {
+    if (!station) return;
+    if (typeof station === 'string' || typeof station === 'number') {
+        const found = rawGlobalStationsPool.find(s => String(s.id) === String(station));
+        if (found) station = found; else return;
+    }
+
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+
+    const sp = document.getElementById('starred-dropdown-panel');
+    if (sp) sp.classList.add('hidden');
+    
+    activeSheetStation = station;
+    const titleEl = document.getElementById('sheet-station-name');
+    const brandEl = document.getElementById('sheet-station-brand');
+    
+    if (titleEl) titleEl.textContent = (station.brand_name || station.name || 'Independent Hub').replace(/['"]/g, '');
+    if (brandEl) brandEl.textContent = (station.address || 'Information Available').replace(/['"]/g, '');
+
+    const isEVPipe = station.isEV || document.getElementById('fuel-type')?.value === 'electric';
+
+    if (isEVPipe) {
+        ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        let evCard = document.getElementById('card-wrap-ev');
+        if (!evCard) { evCard = document.createElement('div'); evCard.id = 'card-wrap-ev'; document.getElementById('sheet-prices-grid')?.appendChild(evCard); }
+        
+        let pRate = parseFloat(station.electric_price || station.charge_rate || station.electric || 50);
+        let maxPwr = station.maxPower || pRate;
+
+        if(evCard) {
+            evCard.style.display = 'block';
+            evCard.className = `border p-3 rounded-xl text-center transition-all duration-200 col-span-2 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm`;
+            evCard.innerHTML = `<span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span><span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>`;
+        }
+        if (titleEl) titleEl.textContent = `⚡ ${(station.brand_name || station.name || 'EV Charger').replace(/['"]/g, '')}`;
+    } else {
+        ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
+        const evCard = document.getElementById('card-wrap-ev'); if (evCard) evCard.style.display = 'none';
+
+        const ce10 = document.getElementById('card-wrap-e10'); if(ce10) ce10.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E10, 'E10')}`;
+        const ce5 = document.getElementById('card-wrap-e5'); if(ce5) ce5.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E5, 'E5')}`;
+        const cb7 = document.getElementById('card-wrap-b7'); if(cb7) cb7.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.B7, 'B7')}`;
+        const cpd = document.getElementById('card-wrap-premiumdiesel'); if(cpd) cpd.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.PremiumDiesel, 'PremiumDiesel')}`;
+
+        const se10 = document.getElementById('sheet-price-e10'); if(se10) se10.textContent = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A';
+        const se5 = document.getElementById('sheet-price-e5'); if(se5) se5.textContent = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A';
+        const sb7 = document.getElementById('sheet-price-b7'); if(sb7) sb7.textContent = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A';
+        const spd = document.getElementById('sheet-price-premiumdiesel'); if(spd) spd.textContent = station.PremiumDiesel ? `${parseFloat(station.PremiumDiesel).toFixed(1)}p` : 'N/A';
+    }
+
+    updateAllStarUIStates();
+    sheet.classList.remove('hidden'); 
+    
+    if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
+    else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
