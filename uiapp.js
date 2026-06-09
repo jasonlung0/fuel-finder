@@ -1652,6 +1652,21 @@ window.calculateOptimalRefuelStrategy = function() {
     L.marker([lat, lon], { icon: customFuelIcon }).addTo(window.refuelMarkersGroup);
 };
 
+window.renderOptimalRefuelStopMarkerOnMap = function(lat, lon, isEV, isEmergencyMode) {
+    if (typeof window.refuelMarkersGroup === 'undefined' || !window.refuelMarkersGroup) {
+        window.refuelMarkersGroup = L.layerGroup().addTo(map);
+    }
+    window.refuelMarkersGroup.clearLayers();
+
+    const customFuelIcon = L.divIcon({
+        className: 'custom-fuel-icon',
+        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-emerald-500 border-emerald-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">${isEV ? '⚡' : '⛽'}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 32]
+    });
+    
+    L.marker([lat, lon], { icon: customFuelIcon }).addTo(window.refuelMarkersGroup);
+};
+
 window.clearFuelOptimizationState = function() {
     const inputTank = document.getElementById('refuel-tank-size');
     const inputStarting = document.getElementById('refuel-current-level');
@@ -1674,3 +1689,5 @@ window.clearFuelOptimizationState = function() {
         savingsBlock.classList.add('hidden');
     }
 };
+
+
