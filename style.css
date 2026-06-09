@@ -26,6 +26,14 @@ body {
     scrollbar-width: none;
 }
 
+#starred-list-items-container::-webkit-scrollbar {
+    width: 4px;
+}
+#starred-list-items-container::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 4px;
+}
+
 /* Map Markers Styling Structure */
 .leaflet-div-icon-reset {
     background: transparent !important;
@@ -115,11 +123,15 @@ body {
     .mobile-bottom-drawer.sheet-full { display: flex !important; transform: translateY(0); height: calc(100dvh - 120px); }
 }
 
-/* --- DESKTOP SIDEBAR COLLAPSE --- */
+/* --- DESKTOP SIDEBAR COLLAPSE & LAYER MANAGEMENT --- */
+#primary-control-sidebar {
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), z-index 0.1s linear;
+}
+#secondary-control-sidebar {
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), z-index 0.1s linear;
+}
+
 @media (min-width: 1024px) {
-    #primary-control-sidebar {
-        transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-    }
     #primary-control-sidebar.desktop-collapsed {
         transform: translateX(calc(-100% - 24px));
     }
@@ -127,9 +139,6 @@ body {
         transform: rotate(180deg);
     }
     
-    #secondary-control-sidebar {
-        transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-    }
     #secondary-control-sidebar.desktop-collapsed-right {
         transform: translateX(calc(100% + 24px));
     }
@@ -139,6 +148,28 @@ body {
     #secondary-control-sidebar:not(.desktop-collapsed-right) #right-sidebar-chevron {
         transform: rotate(180deg);
     }
+}
+
+/* UI OVERLAP & COMPACT HEADER RESPONSIVENESS FIXES */
+@media (max-width: 639px) {
+    header {
+        height: 52px !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+    
+    #fuel-dropdown-options, #starred-dropdown-panel {
+        top: 44px !important;
+    }
+
+    .leaflet-control-zoom {
+        margin-top: 130px !important; 
+    }
+}
+
+.leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15) !important;
 }
 
 /* Leaflet Popups Glassmorphism */
@@ -207,10 +238,3 @@ body {
 .dark .toast-error { background: rgba(69, 10, 10, 0.95); border-color: rgba(239, 68, 68, 0.3); color: #f87171; }
 .toast-warning { background: rgba(255, 251, 235, 0.95); border-color: rgba(245, 158, 11, 0.3); color: #b45309; }
 .dark .toast-warning { background: rgba(66, 32, 6, 0.95); border-color: rgba(245, 158, 11, 0.3); color: #fbbf24; }
-
-/* UI OVERLAP & POSITIONING FIXES */
-.leaflet-control-zoom {
-    margin-top: 80px !important; 
-    border: none !important;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.15) !important;
-}
