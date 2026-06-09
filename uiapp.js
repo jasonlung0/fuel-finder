@@ -9,23 +9,12 @@ if (window.tailwind) {
         theme: {
             extend: {
                 colors: {
-                    zinc: {
-                        950: '#040405',
-                        1000: '#000000'
-                    },
-                    fuel: {
-                        green: '#10b981', 
-                        blue: '#3b82f6',  
-                        red: '#ef4444'    
-                    }
+                    zinc: { 950: '#040405', 1000: '#000000' },
+                    fuel: { green: '#10b981', blue: '#3b82f6', red: '#ef4444' }
                 }
             }
         },
-        safelist: [
-            'bg-fuel-green',
-            'bg-fuel-blue',
-            'bg-fuel-red'
-        ]
+        safelist: ['bg-fuel-green', 'bg-fuel-blue', 'bg-fuel-red']
     };
 }
 
@@ -199,6 +188,7 @@ window.updateUIForMode = function(isEV) {
     const capSelect = document.getElementById('refuel-tank-size');
     const mpgLabel = document.getElementById('mpg-label');
 
+    // Force Revert text copy safely depending on state switch
     if (isEV) {
         if (capLabel) capLabel.innerText = 'Battery Capacity';
         if (capDesc) capDesc.innerText = 'Max energy in kWh.';
@@ -219,7 +209,7 @@ window.updateUIForMode = function(isEV) {
         if (capDesc) capDesc.innerText = 'Max volume baseline.';
         if (currLabel) currLabel.innerText = 'Current Level';
         if (currDesc) currDesc.innerText = 'Remaining capacity %.';
-        if (mpgLabel) mpgLabel.innerText = 'Vehicle Efficiency (MPG)';
+        if (mpgLabel) mpgLabel.innerText = 'Efficiency (MPG)';
         
         if (capSelect) {
             capSelect.innerHTML = `
@@ -566,9 +556,9 @@ window.addWaypointFieldInputRow = function(initialValue = '') {
     if (!container) return;
     const rowNode = document.createElement('div');
     rowNode.id = `waypoint-row-context-${currentUid}`;
-    rowNode.className = "relative w-full flex items-center gap-2 mt-1 animate-fadeIn";
+    rowNode.className = "relative flex items-center w-full gap-2 mt-1 animate-fadeIn";
     rowNode.innerHTML = `
-        <div class="absolute -left-[37px] top-[14px] w-1.5 h-1.5 rounded-full bg-amber-500/80 shadow-xs"></div>
+        <div class="w-4 flex justify-center z-10 shrink-0"><div class="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm outline outline-2 outline-white dark:outline-zinc-950"></div></div>
         <div class="relative flex-1">
             <input id="route-via-${currentUid}" type="text" value="${initialValue}" placeholder="Midway stop point..." class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg pl-2.5 pr-14 py-2 text-xs text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent waypoint-dynamic-input-field shadow-sm" />
             <button onclick="clearSingleWaypointRowInputValue(${currentUid}, event)" class="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-zinc-200 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-rose-500 rounded text-[9px] font-bold tracking-tight transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-emerald-600">Clear</button>
@@ -651,9 +641,6 @@ window.executeAddressGeocodeLookup = async function() {
     } catch (err) { console.error(err); }
 };
 
-// -------------------------------------------------------------
-// Live Traffic Incident Polling & Stacking Pipeline
-// -------------------------------------------------------------
 function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
     if (!coords || coords.length === 0) return [];
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -743,10 +730,13 @@ window.renderLiveTrafficDashboard = function(incidents) {
         return;
     }
 
-    // STRICT ROUTE FILTERING (Only magnitude 3 or 4 along the path)
+    // STRICT ROUTE FILTERING (Only delays > 0s mapped along corridor)
     let processed = incidents.filter(i => {
         const severity = i.properties?.magnitudeOfDelay;
-        if (severity !== 3 && severity !== 4) return false;
+        const delay = i.properties?.delay || 0;
+        
+        // Remove completely 0 second delay entries unless actively closed
+        if (severity !== 3 && severity !== 4 && delay <= 0 && i.properties?.iconCategory !== 1) return false;
         
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
         let coords = i.geometry?.coordinates;
@@ -969,42 +959,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
     } catch (err) { Toast.show(`Failed to trace route: ${err.message}`, "error"); }
 };
 
-function lookupWeatherIconEmoji(code) {
-    if (code === 0) return "☀️";
-    if ([1, 2, 3].includes(code)) return "⛅";
-    if ([45, 48].includes(code)) return "🌫️";
-    if ([51, 53, 55, 56, 57].includes(code)) return "🌦️";
-    if ([61, 63, 65, 66, 67].includes(code)) return "🌧️";
-    if ([71, 73, 75, 77, 85, 86].includes(code)) return "🌨️";
-    if ([80, 81, 82].includes(code)) return "🌧️";
-    if ([95, 96, 99].includes(code)) return "⛈️";
-    return "☁️";
-}
-
-async function triggerRouteWeatherFetchPipeline() {
-    const locationsToFetch = [];
-    if (cachedGeocodedWaypoints.start) locationsToFetch.push({ label: "Start", data: cachedGeocodedWaypoints.start });
-    Object.keys(cachedGeocodedWaypoints.vids).forEach(key => locationsToFetch.push({ label: "Stopover", data: cachedGeocodedWaypoints.vids[key] }));
-    if (cachedGeocodedWaypoints.end) locationsToFetch.push({ label: "Destination", data: cachedGeocodedWaypoints.end });
-
-    for (const loc of locationsToFetch) {
-        try {
-            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.data.lat}&longitude=${loc.data.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Europe%2FLondon`);
-            const weatherData = await weatherRes.json();
-            if (weatherData && weatherData.daily) {
-                const conditionEmoji = lookupWeatherIconEmoji(weatherData.daily.weathercode[0]);
-                const highTemp = Math.round(weatherData.daily.temperature_2m_max[0]);
-                const weatherIcon = L.divIcon({
-                    className: 'leaflet-div-icon-reset',
-                    html: `<div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full px-2 py-1 flex items-center justify-center gap-1 border border-zinc-200/80 dark:border-zinc-700/80 w-[60px] h-[28px] pointer-events-none hover:scale-105 transition-transform duration-200"><span class="text-sm">${conditionEmoji}</span><span class="text-[11px] font-black text-zinc-800 dark:text-zinc-100 tabular-nums">${highTemp}°</span></div>`,
-                    iconSize: [60, 28], iconAnchor: [30, 45] 
-                });
-                if (routePolylineLayer) L.marker([loc.data.lat, loc.data.lon], { icon: weatherIcon, interactive: false }).addTo(routePolylineLayer);
-            }
-        } catch (weatherErr) { console.error(weatherErr); }
-    }
-}
-
 window.saveActiveRouteCorridor = function() {
     const startVal = document.getElementById('route-start')?.value.trim();
     const endVal = document.getElementById('route-end')?.value.trim();
@@ -1015,8 +969,8 @@ window.saveActiveRouteCorridor = function() {
     const waypointNodes = Array.from(document.querySelectorAll('.waypoint-dynamic-input-field')).map(input => input.value.trim()).filter(val => val.length > 0);
     savedRoutes.push({ id: 'route_' + Date.now(), name: `${startVal.split(',')[0]} ➔ ${endVal.split(',')[0]}`, start: startVal, waypoints: waypointNodes, end: endVal, mpg: currentMpg, radius: currentDev });
     localStorage.setItem('uk_fuel_saved_v2_routes', JSON.stringify(savedRoutes));
-    updateSavedItemsCountUI();
     
+    updateSavedItemsCountUI();
     const dp = document.getElementById('starred-dropdown-panel');
     if (dp && !dp.classList.contains('hidden')) renderDirectoryDropdown();
     Toast.show("Corridor routing successfully saved.", "success");
@@ -1164,7 +1118,6 @@ window.executeStationDataFilteringPipeline = async function() {
                 is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
             }));
 
-            // Filter points strictly along route corridor if in route mode
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
                 currentlyVisibleStations = currentlyVisibleStations.filter(s => {
                     return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold;
@@ -1393,6 +1346,28 @@ window.openForecourtDetailSheet = function(stationData) {
     else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
 
+window.closeForecourtDetailSheet = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+    if (window.innerWidth < 1024) { setMobileSheetUIState('hidden'); } 
+    else { sheet.classList.add('hidden'); }
+    activeSheetStation = null;
+};
+
+function getStationUniqueSignature(s) {
+    if (!s) return '';
+    return `${s.latitude || s.lat}_${s.longitude || s.lng}_${s.brand_name || ''}`.replace(/\s+/g, '');
+}
+
+window.triggerExternalMappingVectorRoute = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    if (!activeSheetStation) return;
+    const lat = activeSheetStation.latitude || activeSheetStation.lat;
+    const lon = activeSheetStation.longitude || activeSheetStation.lng;
+    window.open(`http://maps.google.com/maps?q=$${lat},${lon}`, '_blank');
+};
+
 // -------------------------------------------------------------
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
@@ -1406,8 +1381,6 @@ window.calculateOptimalRefuelStrategy = function() {
     const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
     
     const timeline = document.getElementById('refuel-timeline-output');
-    const savingsBlock = document.getElementById('smart-refuel-savings-block');
-    if (savingsBlock) savingsBlock.classList.add('hidden');
     
     if (!globalRouteDistanceMiles || globalRouteDistanceMiles === 0 || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
         if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock AI Refuel Strategy.</p>'; }
@@ -1417,6 +1390,7 @@ window.calculateOptimalRefuelStrategy = function() {
     let remainingRangeMiles = 0;
     let currentEnergyUnits = capacity * (currentPct / 100);
 
+    // FIX: Distinct math blocks for EV vs ICE to accurately parse buffers
     if (isEV) {
         const bufferKwh = safetyBuffer / efficiency;
         const usableKwh = Math.max(0, currentEnergyUnits - bufferKwh);
@@ -1506,22 +1480,28 @@ window.calculateOptimalRefuelStrategy = function() {
     
     const savingsPence = (averagePrice - bestPrice) * energyToFill;
     const savingsGBP = Math.max(0, savingsPence / 100);
-
-    if (savingsGBP > 0 && document.getElementById('refuel-savings-value')) {
-        document.getElementById('refuel-savings-value').textContent = `£${savingsGBP.toFixed(2)}`;
-        if (savingsBlock) savingsBlock.classList.remove('hidden');
-    }
-    
     const distToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
 
+    // UI Rework: Prominent Savings and Price Layout Block
     if (timeline) {
         timeline.classList.remove('hidden');
         timeline.innerHTML = `
-            <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums mt-2">
-                <div class="flex justify-between border-b border-zinc-800 pb-2">
-                    <span class="text-zinc-500 font-medium">Start to Destination</span>
-                    <span class="font-bold text-white">${globalRouteDistanceMiles.toFixed(1)} miles</span>
+            <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl p-4 flex items-center justify-between mt-2 mb-4">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-500 mb-0.5">Strategy Savings</span>
+                    <span class="text-3xl font-black text-emerald-700 dark:text-emerald-400">£${savingsGBP.toFixed(2)}</span>
                 </div>
+                <div class="h-10 w-px bg-emerald-200 dark:bg-emerald-800/50 mx-4"></div>
+                <div class="flex flex-col text-right">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">Target Price</span>
+                    <div class="flex items-baseline justify-end gap-1">
+                        <span class="text-xl font-black text-zinc-900 dark:text-white">${bestPrice.toFixed(1)}</span>
+                        <span class="text-xs font-bold text-zinc-500">${isEV?'p/kWh':'p/L'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
                 <div class="flex justify-between border-b border-zinc-800 pb-2">
                     <span class="text-zinc-500 font-medium pt-1">${isEmergencyMode ? 'Nearest Stop' : 'Optimal Stop'}</span>
                     <div class="text-right">
@@ -1541,7 +1521,6 @@ window.calculateOptimalRefuelStrategy = function() {
                     <span class="text-zinc-500 font-medium">Est. Cost</span>
                     <div class="text-right">
                         <span class="font-black text-white text-base">£${totalCost.toFixed(2)}</span>
-                        <span class="text-[9px] text-zinc-500 block">@ ${bestPrice.toFixed(1)}${isEV?'kW':'p'}</span>
                     </div>
                 </div>
                 <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-2 bg-white text-zinc-950 hover:bg-zinc-200 text-[11px] font-bold py-2.5 rounded-lg transition active:scale-95 shadow-sm">View on Map</button>
@@ -1572,18 +1551,11 @@ window.clearFuelOptimizationState = function() {
     if (inputStarting) inputStarting.value = "25";
     if (inputReserve) inputReserve.value = "30";
 
-    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) {
-        refuelMarkersGroup.clearLayers();
-    }
+    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
 
     const timelineContainer = document.getElementById('refuel-timeline-output');
     if (timelineContainer) {
         timelineContainer.innerHTML = '';
         timelineContainer.classList.add('hidden');
-    }
-
-    const savingsBlock = document.getElementById('smart-refuel-savings-block');
-    if (savingsBlock) {
-        savingsBlock.classList.add('hidden');
     }
 };
