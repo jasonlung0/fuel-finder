@@ -71,7 +71,7 @@
             </button>
 
             <div class="relative">
-                <button onclick="window.toggleStarredDropdownDashboardPanel()" class="p-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-rose-500 rounded-lg text-xs font-extrabold flex items-center gap-1 focus:outline-none">
+                <button onclick="window.toggleStarredDropdownDashboardPanel(event)" class="p-2 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-rose-500 rounded-lg text-xs font-extrabold flex items-center gap-1 focus:outline-none">
                     ⭐ <span class="hidden sm:inline text-[11px] text-zinc-700 dark:text-zinc-300">Saved</span>
                     <span id="saved-items-count-badge" class="bg-emerald-600 text-white font-black text-[9px] px-1.5 rounded-full tabular-nums ml-1">0</span>
                 </button>
@@ -337,7 +337,7 @@
             </div>
         </div>
 
-        <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl p-2.5 border border-zinc-200/60 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-500 transition-colors">
+        <div class="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl p-2.5 border border-zinc-200/60 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-semibold text-zinc-500 transition-colors mt-4">
             <span class="flex items-center gap-1.5">🧭 Navigation</span>
             <button onclick="triggerExternalMappingVectorRoute(event)" class="text-emerald-600 dark:text-emerald-400 font-black tracking-tight hover:underline cursor-pointer focus:outline-none">Open Maps ↗</button>
         </div>
