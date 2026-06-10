@@ -89,7 +89,7 @@
             <div>
                 <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1.5">Fuel Type Filter</label>
                 <div class="relative">
-                    <select id="fuel-type-select" onchange="window.setGlobalFuelSelectionType(this.value)" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
+                    <select id="fuel-type-select" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
                         <option value="E10">Petrol Unleaded (E10)</option>
                         <option value="E5">Super Unleaded (E5)</option>
                         <option value="B7">Diesel (B7)</option>
@@ -212,7 +212,7 @@
                 <div class="flex items-center justify-between select-none">
                     <div class="flex items-center gap-1.5">
                         <span class="text-emerald-500 text-sm">✨</span>
-                        <h3 class="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">AI Refuel Strategy</h3>
+                        <h3 class="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Smart Refuel</h3>
                     </div>
                 </div>
                 
@@ -291,7 +291,7 @@
                         <span id="dash-metric-litres" class="text-[11px] font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
                     </div>
                     <div>
-                        <span class="block text-[7px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Cost</span>
+                        <span id="telemetry-cost-label" class="block text-[7px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Price</span>
                         <span id="summary-cost" class="text-[11px] font-black text-emerald-600 block tabular-nums">--</span>
                     </div>
                 </div>
