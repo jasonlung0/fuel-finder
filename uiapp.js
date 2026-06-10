@@ -1,7 +1,16 @@
 // --- GLOBAL CONFIGURATION CREDENTIALS ---
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
-const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf'; // <--- REPLACE THIS IF DESIRED
+const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf'; 
+
+// --- UNIVERSAL ID HELPER ---
+function getStationId(station) {
+    if (!station) return null;
+    if (station.id) return String(station.id);
+    if (station.site_id) return String(station.site_id);
+    if (station.uuid) return String(station.uuid);
+    return `${station.latitude || station.lat},${station.longitude || station.lng}`;
+}
 
 if (window.tailwind) {
     window.tailwind.config = {
@@ -131,7 +140,10 @@ window.closeForecourtDetailSheet = function(event) {
 window.updateAllStarUIStates = function() {
     const btn = document.getElementById('sheet-star-btn');
     if (!btn || !activeSheetStation) return;
-    const isStarred = starredStations.some(s => String(s.id) === String(activeSheetStation.id));
+    
+    const targetId = getStationId(activeSheetStation);
+    const isStarred = starredStations.some(s => getStationId(s) === targetId);
+    
     if (isStarred) {
         btn.innerHTML = '⭐';
         btn.classList.add('text-amber-500', 'border-amber-500/50', 'bg-amber-50', 'dark:bg-amber-500/10');
@@ -149,27 +161,32 @@ window.renderStarredDropdownList = function() {
     container.innerHTML = '';
     
     if (activeDirectoryTab === 'stations') {
-        if (starredStations.length === 0) {
+        if (!starredStations || starredStations.length === 0) {
             container.innerHTML = '<div class="p-3 text-center text-xs text-zinc-500 font-medium">No saved stations yet.</div>';
             return;
         }
         starredStations.forEach(station => {
             const el = document.createElement('div');
             el.className = "flex items-center justify-between p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-lg cursor-pointer transition border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700/50";
+            
             const lat = parseFloat(station.latitude || station.lat);
             const lon = parseFloat(station.longitude || station.lng);
+            const stationName = (station.brand_name || station.name || station.brand || 'Independent Station').replace(/['"]/g, '');
+            const stationAddress = (station.address || 'Location stored').replace(/['"]/g, '');
+            const stationId = getStationId(station);
+
             el.onclick = () => { focusAndHighlightMapMarker(lat, lon); document.getElementById('starred-dropdown-panel').classList.add('hidden'); };
             el.innerHTML = `
                 <div class="min-w-0 flex-1">
-                    <div class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${(station.brand_name || station.name || 'Station').replace(/['"]/g, '')}</div>
-                    <div class="text-[9px] text-zinc-500 truncate">${(station.address || '').replace(/['"]/g, '')}</div>
+                    <div class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${stationName}</div>
+                    <div class="text-[9px] text-zinc-500 truncate">${stationAddress}</div>
                 </div>
-                <button onclick="event.stopPropagation(); toggleStarStation('${station.id}')" class="p-1.5 text-zinc-400 hover:text-rose-500 transition text-xs">✕</button>
+                <button onclick="event.stopPropagation(); toggleStarStation('${stationId}')" class="p-1.5 text-zinc-400 hover:text-rose-500 transition text-xs">✕</button>
             `;
             container.appendChild(el);
         });
     } else {
-        if (savedRoutes.length === 0) {
+        if (!savedRoutes || savedRoutes.length === 0) {
             container.innerHTML = '<div class="p-3 text-center text-xs text-zinc-500 font-medium">No saved routes yet.</div>';
             return;
         }
@@ -192,7 +209,7 @@ window.renderStarredDropdownList = function() {
 window.toggleCurrentStationStar = function(event) {
     if (event) { event.stopPropagation(); event.preventDefault(); }
     if (activeSheetStation) {
-        toggleStarStation(activeSheetStation.id);
+        toggleStarStation(getStationId(activeSheetStation));
     }
 };
 
@@ -202,7 +219,6 @@ window.triggerExternalMappingVectorRoute = function(event) {
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
     
-    // Generates a clean map search that drops a pin at the location rather than trying to path from 'Current Location'
     const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
     window.open(url, '_blank');
 };
@@ -219,20 +235,24 @@ window.toggleStarredDropdownDashboardPanel = function(event) {
 };
 
 window.toggleStarStation = function(stationId) {
-    const index = starredStations.findIndex(s => String(s.id) === String(stationId));
+    const index = starredStations.findIndex(s => getStationId(s) === String(stationId));
     if (index > -1) {
         starredStations.splice(index, 1);
         Toast.show("Station removed from your saved list.", "info");
     } else {
-        const station = rawGlobalStationsPool.find(s => String(s.id) === String(stationId)) || currentlyVisibleStations.find(s => String(s.id) === String(stationId));
+        const station = rawGlobalStationsPool.find(s => getStationId(s) === String(stationId)) 
+                     || currentlyVisibleStations.find(s => getStationId(s) === String(stationId));
+                     
         if (station) {
+            if (!station.id) station.id = stationId; 
             starredStations.push(station);
             Toast.show("Station saved to your shortcuts successfully!", "success");
         }
     }
+    
     localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
     
-    if (activeSheetStation && String(activeSheetStation.id) === String(stationId)) {
+    if (activeSheetStation && getStationId(activeSheetStation) === String(stationId)) {
         updateAllStarUIStates();
     }
     updateSavedItemsCountUI();
@@ -266,10 +286,22 @@ window.fetchEVStationsInBounds = async function(southWest, northEast) {
     }
 };
 
-// Automatically link and execute target calculations upon parameter changes
 document.getElementById('refuel-tank-size')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 document.getElementById('refuel-current-level')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 document.getElementById('refuel-safety-buffer')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
+
+const fuelTypeSelectListener = document.getElementById('fuel-type-select');
+if(fuelTypeSelectListener) {
+    fuelTypeSelectListener.addEventListener('change', () => {
+        if(activeTabContext === 'route') {
+            const startInput = document.getElementById('route-start');
+            const endInput = document.getElementById('route-end');
+            if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
+                executeRouteGenerationPipeline();
+            }
+        }
+    });
+}
 
 // --- MOBILE UX SWITCHER LOGIC ---
 window.setActiveMobileSheet = function(targetType) {
@@ -283,10 +315,11 @@ window.setActiveMobileSheet = function(targetType) {
     if (targetType === 'search') {
         if (rightSidebar) {
             rightSidebar.classList.remove('mobile-active-sheet');
-            rightSidebar.style.zIndex = "1900"; 
+            rightSidebar.classList.add('hidden'); 
             rightSidebar.classList.add('desktop-collapsed-right');
         }
         if (leftSidebar) {
+            leftSidebar.classList.remove('hidden'); 
             leftSidebar.classList.add('mobile-active-sheet');
             leftSidebar.style.zIndex = "2000";
             leftSidebar.classList.remove('desktop-collapsed');
@@ -301,7 +334,7 @@ window.setActiveMobileSheet = function(targetType) {
     } else if (targetType === 'telemetry') {
         if (leftSidebar) {
             leftSidebar.classList.remove('mobile-active-sheet');
-            leftSidebar.style.zIndex = "1900";
+            leftSidebar.classList.add('hidden'); 
             leftSidebar.classList.add('desktop-collapsed');
         }
         if (rightSidebar) {
@@ -424,6 +457,11 @@ window.setGlobalFuelSelectionType = function(type) {
     
     updateUIForMode(type === 'electric');
     executeStationDataFilteringPipeline();
+    
+    const telemetryCostLabel = document.getElementById('telemetry-cost-label');
+    if (telemetryCostLabel) {
+        telemetryCostLabel.innerText = type === 'electric' ? 'Cost' : 'Price';
+    }
 };
 
 window.updateUIForMode = function(isEV) {
@@ -565,7 +603,6 @@ function initMap() {
 
     originalMapCenter = map.getCenter();
     
-    // Unhide the scan button dynamically on moveend
     map.on('moveend', () => {
         if (!originalMapCenter || !scanBtn) return;
         if (activeTabContext === 'route') return;
@@ -902,7 +939,6 @@ window.renderLiveTrafficDashboard = function(incidents) {
         const severity = i.properties?.magnitudeOfDelay || 0;
         const delay = i.properties?.delay || 0;
         
-        // Strict High Priority Check: Only map Major (3), Overwhelming (4), or delays >= 5 mins (300s)
         if (severity < 3 && delay < 300) return false;
         
         if (!plottedRouteCoordinates || plottedRouteCoordinates.length === 0) return true;
@@ -1475,9 +1511,6 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
                 <div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-lg flex items-center justify-center text-white font-black text-[10px] rounded-full px-2 py-0.5 whitespace-nowrap">
                     ${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}
                 </div>
-                <div id="weather-badge-${station.id}" class="absolute -top-2 -right-2 bg-white dark:bg-zinc-800 rounded-full text-[8px] shadow-sm border border-zinc-200 dark:border-zinc-700 z-[1000] flex items-center justify-center w-[18px] h-[18px] transition-all" title="Loading weather...">
-                    ⏳
-                </div>
             </div>
         `;
 
@@ -1488,15 +1521,6 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
         
         markerInstance.on('click', (e) => { L.DomEvent.stopPropagation(e); openForecourtDetailSheet(station); });
         markerClusterGroupInstance.addLayer(markerInstance);
-
-        // Concurrently fetch and inject weather emoji
-        fetchWeatherForStation(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)).then(w => {
-            const container = document.getElementById(`weather-badge-${station.id}`);
-            if (container) {
-                container.textContent = w.emoji;
-                container.title = w.text;
-            }
-        });
     });
 };
 
@@ -1517,7 +1541,7 @@ window.calculateOptimalRefuelStrategy = function() {
     if (savingsBlock) savingsBlock.classList.add('hidden');
     
     if (!globalRouteDistanceMiles || globalRouteDistanceMiles === 0 || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
-        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock AI Refuel Strategy.</p>'; }
+        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock Smart Refuel.</p>'; }
         return; 
     }
 
@@ -1620,11 +1644,11 @@ window.calculateOptimalRefuelStrategy = function() {
         savingsBlock.innerHTML = `
             <div class="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
                 <div>
-                    <p class="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Strategy Savings</p>
+                    <p class="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Saving you</p>
                     <p class="text-xl font-black text-emerald-700 dark:text-emerald-400">£${savingsGBP.toFixed(2)}</p>
                 </div>
                 <div class="text-right">
-                    <p class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Target Rate</p>
+                    <p class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Pump Price</p>
                     <p class="text-sm font-black text-zinc-800 dark:text-zinc-100">${bestPrice.toFixed(1)}${isEV?'p/kWh':'p'}</p>
                 </div>
             </div>
@@ -1640,7 +1664,10 @@ window.calculateOptimalRefuelStrategy = function() {
                 <div class="relative border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 ml-4 pl-6 py-2 space-y-6">
                     <div class="relative">
                         <div class="absolute w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-zinc-900 -left-[32px] top-1"></div>
-                        <span class="text-zinc-600 dark:text-zinc-500 font-medium block leading-none">Start</span>
+                        <div class="flex justify-between items-center">
+                            <span class="text-zinc-600 dark:text-zinc-500 font-medium block leading-none">Start</span>
+                            <span class="font-bold text-zinc-400">0.0 mi</span>
+                        </div>
                     </div>
                     <div class="relative">
                         <div class="absolute w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-white dark:border-zinc-900 -left-[32px] top-1"></div>
@@ -1733,7 +1760,7 @@ window.clearFuelOptimizationState = function() {
 window.openForecourtDetailSheet = function(station) {
     if (!station) return;
     if (typeof station === 'string' || typeof station === 'number') {
-        const found = rawGlobalStationsPool.find(s => String(s.id) === String(station));
+        const found = rawGlobalStationsPool.find(s => getStationId(s) === String(station));
         if (found) station = found; else return;
     }
 
