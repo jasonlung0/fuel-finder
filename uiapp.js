@@ -1,6 +1,7 @@
 // --- GLOBAL CONFIGURATION CREDENTIALS ---
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
+const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf'; // <--- REPLACE THIS IF DESIRED
 
 if (window.tailwind) {
     window.tailwind.config = {
@@ -26,6 +27,45 @@ let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
+
+// --- OpenWeatherMap Integration ---
+const weatherCacheMap = new Map();
+
+async function fetchWeatherForStation(lat, lng) {
+    const cacheKey = `${parseFloat(lat).toFixed(1)},${parseFloat(lng).toFixed(1)}`;
+    if (weatherCacheMap.has(cacheKey)) {
+        return weatherCacheMap.get(cacheKey);
+    }
+
+    const fallbackEmojis = ['☀️', '☁️', '🌧️', '🌤️'];
+    const standardFallback = fallbackEmojis[Math.abs(Math.floor(Math.sin(lat) * 10)) % fallbackEmojis.length];
+
+    if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+        return { emoji: standardFallback, text: 'Default Weather' };
+    }
+
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const type = data.weather?.[0]?.main || 'Clear';
+        let emoji = '☀️';
+        
+        if (type.includes('Cloud')) emoji = '☁️';
+        else if (type.includes('Rain') || type.includes('Drizzle')) emoji = '🌧️';
+        else if (type.includes('Thunder')) emoji = '⛈️';
+        else if (type.includes('Snow')) emoji = '❄️';
+        else if (type.includes('Mist') || type.includes('Fog')) emoji = '🌫️';
+        
+        const payload = { emoji, text: type };
+        weatherCacheMap.set(cacheKey, payload);
+        return payload;
+    } catch (err) {
+        return { emoji: standardFallback, text: 'N/A' };
+    }
+}
 
 try {
     const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
@@ -161,7 +201,9 @@ window.triggerExternalMappingVectorRoute = function(event) {
     if (!activeSheetStation) return;
     const lat = activeSheetStation.latitude || activeSheetStation.lat;
     const lon = activeSheetStation.longitude || activeSheetStation.lng;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`;
+    
+    // Generates a clean map search that drops a pin at the location rather than trying to path from 'Current Location'
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
     window.open(url, '_blank');
 };
 
@@ -229,38 +271,51 @@ document.getElementById('refuel-tank-size')?.addEventListener('change', () => { 
 document.getElementById('refuel-current-level')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 document.getElementById('refuel-safety-buffer')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 
-
 // --- MOBILE UX SWITCHER LOGIC ---
 window.setActiveMobileSheet = function(targetType) {
     const leftSidebar = document.getElementById('primary-control-sidebar');
     const rightSidebar = document.getElementById('secondary-control-sidebar');
     const btnSearch = document.getElementById('btn-mob-search');
     const btnTelemetry = document.getElementById('btn-mob-telemetry');
+    const btnViewStationsDesktop = document.getElementById('toggle-view-stations');
+    const btnViewTelemetryDesktop = document.getElementById('toggle-view-telemetry');
 
     if (targetType === 'search') {
         if (rightSidebar) {
             rightSidebar.classList.remove('mobile-active-sheet');
             rightSidebar.style.zIndex = "1900"; 
+            rightSidebar.classList.add('desktop-collapsed-right');
         }
         if (leftSidebar) {
             leftSidebar.classList.add('mobile-active-sheet');
             leftSidebar.style.zIndex = "2000";
+            leftSidebar.classList.remove('desktop-collapsed');
         }
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        
+        if (btnViewStationsDesktop) btnViewStationsDesktop.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200/40 dark:border-zinc-700/30 transition-all duration-200 focus:outline-none";
+        if (btnViewTelemetryDesktop) btnViewTelemetryDesktop.className = "flex-1 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-200 focus:outline-none";
+
         setMobileSidebarState('mid');
     } else if (targetType === 'telemetry') {
         if (leftSidebar) {
             leftSidebar.classList.remove('mobile-active-sheet');
             leftSidebar.style.zIndex = "1900";
+            leftSidebar.classList.add('desktop-collapsed');
         }
         if (rightSidebar) {
             rightSidebar.classList.remove('hidden');
             rightSidebar.classList.add('mobile-active-sheet');
             rightSidebar.style.zIndex = "2000";
+            rightSidebar.classList.remove('desktop-collapsed-right');
         }
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
+        
+        if (btnViewTelemetryDesktop) btnViewTelemetryDesktop.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200/40 dark:border-zinc-700/30 transition-all duration-200 focus:outline-none";
+        if (btnViewStationsDesktop) btnViewStationsDesktop.className = "flex-1 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-200 focus:outline-none";
+
         setMobileRightSidebarState('mid');
     }
 };
@@ -364,26 +419,11 @@ window.toggleRightSidebar = function(event) {
 };
 
 window.setGlobalFuelSelectionType = function(type) {
-    const iconEl = document.getElementById('active-fuel-icon');
-    const labelEl = document.getElementById('active-fuel-label');
     const hiddenFuelInput = document.getElementById('fuel-type');
-    
-    if(iconEl) iconEl.innerText = type === 'electric' ? '⚡' : '⛽';
-    if(labelEl) labelEl.innerText = type === 'E10' ? 'Unleaded E10' : type === 'E5' ? 'Super E5' : type === 'B7' ? 'Diesel B7' : type === 'PremiumDiesel' ? 'Prem. Diesel' : 'EV Chargers';
     if(hiddenFuelInput) hiddenFuelInput.value = type;
     
-    document.getElementById('fuel-dropdown-options')?.classList.add('hidden');
     updateUIForMode(type === 'electric');
     executeStationDataFilteringPipeline();
-};
-
-window.togglePropulsionEngineMode = function() {
-    const currentFuel = document.getElementById('fuel-type')?.value || 'E10';
-    if (currentFuel === 'electric') {
-        window.setGlobalFuelSelectionType('E10');
-    } else {
-        window.setGlobalFuelSelectionType('electric');
-    }
 };
 
 window.updateUIForMode = function(isEV) {
@@ -518,27 +558,21 @@ function initMap() {
         if (typeof closeForecourtDetailSheet === 'function') closeForecourtDetailSheet(); 
     });
     
-    const scanContainer = document.getElementById('scan-area-container');
-    if (scanContainer) {
-        scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-        scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+    const scanBtn = document.getElementById('btn-scan-bounds');
+    if (scanBtn) {
+        scanBtn.classList.add('hidden');
     }
 
     originalMapCenter = map.getCenter();
+    
+    // Unhide the scan button dynamically on moveend
     map.on('moveend', () => {
-        if (!originalMapCenter || !scanContainer) return;
+        if (!originalMapCenter || !scanBtn) return;
+        if (activeTabContext === 'route') return;
+        
         const dist = map.getCenter().distanceTo(originalMapCenter); 
-        if (activeTabContext === 'route') {
-            scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-            scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-            return;
-        }
         if (dist > 500) {
-            scanContainer.classList.remove('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-            scanContainer.classList.add('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-        } else {
-            scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-            scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+            scanBtn.classList.remove('hidden');
         }
     });
     
@@ -548,35 +582,14 @@ function initMap() {
 
 window.executeContextualAreaScanPipeline = function(event) {
     if (event) event.stopPropagation();
-    const btn = document.getElementById('scan-area-btn');
-    const container = document.getElementById('scan-area-container');
-    const iconSearch = document.getElementById('scan-icon-search');
-    const iconSpinner = document.getElementById('scan-icon-spinner');
-    const btnText = document.getElementById('scan-btn-string');
-
-    if (btn) btn.disabled = true;
-    if (iconSearch) iconSearch.classList.add('hidden');
-    if (iconSpinner) iconSpinner.classList.remove('hidden');
-    if (btnText) btnText.textContent = "Updating viewport...";
+    const btn = document.getElementById('btn-scan-bounds');
+    if (btn) btn.classList.add('hidden');
 
     const newCenter = map.getCenter();
     mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
     originalMapCenter = newCenter;
 
-    if (typeof forceReloadRemotePipelineData === 'function') forceReloadRemotePipelineData();
-
-    setTimeout(() => {
-        if (container) {
-            container.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-            container.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
-        }
-        setTimeout(() => {
-            if (btn) btn.disabled = false;
-            if (iconSearch) iconSearch.classList.remove('hidden');
-            if (iconSpinner) iconSpinner.classList.add('hidden');
-            if (btnText) btnText.textContent = "Search this area";
-        }, 300);
-    }, 1000);
+    executeStationDataFilteringPipeline();
 };
 
 function triggerActiveDeviceLocationLookup() {
@@ -629,7 +642,7 @@ function initializeClusterLayerPipeline() {
         showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
         iconCreateFunction: function (cluster) {
             const dynamicChildMarkers = cluster.getAllChildMarkers();
-            const activeFuelKey = document.getElementById('fuel-type')?.value || 'E10';
+            const activeFuelKey = document.getElementById('fuel-type-select')?.value || 'E10';
             const isEV = activeFuelKey === 'electric';
             
             let pricesExtracted = [];
@@ -671,10 +684,9 @@ window.switchWorkflowTabContext = function(contextType) {
         if(panelRoute) panelRoute.classList.remove('hidden');
         if(panelLocal) panelLocal.classList.add('hidden');
         
-        const scanContainer = document.getElementById('scan-area-container');
-        if (scanContainer) {
-            scanContainer.classList.remove('scale-100', 'translate-y-0', 'opacity-100', 'pointer-events-auto');
-            scanContainer.classList.add('scale-90', 'translate-y-2', 'opacity-0', 'pointer-events-none');
+        const scanBtn = document.getElementById('btn-scan-bounds');
+        if (scanBtn) {
+            scanBtn.classList.add('hidden');
         }
     }
     executeStationDataFilteringPipeline();
@@ -875,7 +887,7 @@ function getIncidentSeverity(delay, category) {
 window.renderLiveTrafficDashboard = function(incidents) {
     const alertsViewport = document.getElementById('route-alerts-container');
     const ticker = document.getElementById('dash-metric-delay-ticker');
-    const fuelType = document.getElementById('fuel-type')?.value || 'E10';
+    const fuelType = document.getElementById('fuel-type-select')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
     if (!incidents || incidents.length === 0) {
@@ -1062,7 +1074,7 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
         const travelTimeSeconds = currentActiveRoute.summary.travelTimeInSeconds || 0;
         const timeString = Math.floor(travelTimeSeconds / 3600) > 0 ? `${Math.floor(travelTimeSeconds / 3600)}h ${Math.floor((travelTimeSeconds % 3600) / 60)}m` : `${Math.floor((travelTimeSeconds % 3600) / 60)} m`;
 
-        const activeFuelType = document.getElementById('fuel-type')?.value || 'E10';
+        const activeFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
         let tripCost = 0; let consumptionString = "--";
         
         if (activeFuelType === 'electric') {
@@ -1099,7 +1111,6 @@ window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
             }
         }
         
-        // Wait for fetching to complete before applying strategy
         if (typeof executeStationDataFilteringPipeline === 'function') {
             await executeStationDataFilteringPipeline();
         }
@@ -1240,8 +1251,8 @@ async function forceReloadRemotePipelineData() {
 // MAIN PIPELINE: Filter Stations & Draw Map
 // -------------------------------------------------------------
 window.executeStationDataFilteringPipeline = async function() {
-    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type')?.value !== 'electric') return;
-    const targetFuelType = document.getElementById('fuel-type')?.value || 'E10';
+    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type-select')?.value !== 'electric') return;
+    const targetFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
     const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
     let dynamicBoundedStations = [];
@@ -1252,7 +1263,6 @@ window.executeStationDataFilteringPipeline = async function() {
         if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
         try {
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                // INCREASE SAMPLING: Check points every 8km (~5 miles) instead of long intervals
                 const sampleInterval = Math.max(1, Math.floor(plottedRouteCoordinates.length / 25)); 
                 const sampledCoords = [];
                 for (let i = 0; i < plottedRouteCoordinates.length; i += sampleInterval) sampledCoords.push(plottedRouteCoordinates[i]);
@@ -1281,8 +1291,8 @@ window.executeStationDataFilteringPipeline = async function() {
 
                 currentlyVisibleStations = currentlyVisibleStations.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold);
             } else {
-                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : mapSearchAnchorCoordinates[0];
-                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : mapSearchAnchorCoordinates[1];
+                const searchLat = mapSearchAnchorCoordinates[0];
+                const searchLon = mapSearchAnchorCoordinates[1];
                 let ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
                 
                 const res = await fetch(ocmUrl);
@@ -1460,13 +1470,33 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
         else if (numericPrice <= bT) tierBgClassColor = 'bg-fuel-blue';
         else tierBgClassColor = 'bg-fuel-red';
 
+        const markerBubbleHtml = `
+            <div class="leaflet-div-icon-reset relative">
+                <div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-lg flex items-center justify-center text-white font-black text-[10px] rounded-full px-2 py-0.5 whitespace-nowrap">
+                    ${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}
+                </div>
+                <div id="weather-badge-${station.id}" class="absolute -top-2 -right-2 bg-white dark:bg-zinc-800 rounded-full text-[8px] shadow-sm border border-zinc-200 dark:border-zinc-700 z-[1000] flex items-center justify-center w-[18px] h-[18px] transition-all" title="Loading weather...">
+                    ⏳
+                </div>
+            </div>
+        `;
+
         const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
             stationRawData: station,
-            icon: L.divIcon({ html: `<div class="leaflet-div-icon-reset"><div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-lg flex items-center justify-center text-white font-black text-[10px] rounded-full px-2 py-0.5 whitespace-nowrap">${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}</div></div>`, className: 'leaflet-div-icon-reset', iconSize: [50, 24], iconAnchor: [25, 12] })
+            icon: L.divIcon({ html: markerBubbleHtml, className: 'leaflet-div-icon-reset', iconSize: [50, 32], iconAnchor: [25, 16] })
         });
         
         markerInstance.on('click', (e) => { L.DomEvent.stopPropagation(e); openForecourtDetailSheet(station); });
         markerClusterGroupInstance.addLayer(markerInstance);
+
+        // Concurrently fetch and inject weather emoji
+        fetchWeatherForStation(parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)).then(w => {
+            const container = document.getElementById(`weather-badge-${station.id}`);
+            if (container) {
+                container.textContent = w.emoji;
+                container.title = w.text;
+            }
+        });
     });
 };
 
@@ -1474,7 +1504,7 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
 // CORE CALCULATOR: Smart Refuel Optimization & Savings Logic 
 // -------------------------------------------------------------
 window.calculateOptimalRefuelStrategy = function() {
-    const fuelType = document.getElementById('fuel-type')?.value || 'E10';
+    const fuelType = document.getElementById('fuel-type-select')?.value || 'E10';
     const isEV = fuelType === 'electric';
 
     const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
@@ -1720,7 +1750,7 @@ window.openForecourtDetailSheet = function(station) {
     if (titleEl) titleEl.textContent = (station.brand_name || station.name || 'Independent Hub').replace(/['"]/g, '');
     if (brandEl) brandEl.textContent = (station.address || 'Information Available').replace(/['"]/g, '');
 
-    const isEVPipe = station.isEV || document.getElementById('fuel-type')?.value === 'electric';
+    const isEVPipe = station.isEV || document.getElementById('fuel-type-select')?.value === 'electric';
 
     if (isEVPipe) {
         ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
