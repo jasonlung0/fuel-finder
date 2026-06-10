@@ -5,7 +5,14 @@ const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
 if (window.tailwind) {
     window.tailwind.config = {
         darkMode: 'class',
-        theme: { extend: { colors: { zinc: { 950: '#040405', 1000: '#000000' }, fuel: { green: '#10b981', blue: '#3b82f6', red: '#ef4444' } } } },
+        theme: { 
+            extend: { 
+                colors: { 
+                    zinc: { 950: '#040405', 1000: '#000000' }, 
+                    fuel: { green: '#10b981', blue: '#3b82f6', red: '#ef4444' } 
+                } 
+            } 
+        },
         safelist: ['bg-fuel-green', 'bg-fuel-blue', 'bg-fuel-red']
     };
 }
@@ -30,6 +37,201 @@ try {
     starredStations = [];
     savedRoutes = [];
 }
+
+// Ensure modern modal mechanics link correctly inside window execution scope
+window.openStationDetails = function(stationId) {
+    const station = rawGlobalStationsPool.find(s => String(s.id) === String(stationId));
+    if (!station) {
+        // Fallback search within starred list
+        const starred = starredStations.find(s => String(s.id) === String(stationId));
+        if (!starred) return;
+    }
+    window.showStationDetailSheet(station || starredStations.find(s => String(s.id) === String(stationId)));
+};
+
+window.showStationDetailSheet = function(station) {
+    if (!station) return;
+    
+    const detailSheet = document.getElementById('station-detail-sheet');
+    if (!detailSheet) return;
+
+    // Populate elements safely
+    const nameEl = document.getElementById('sheet-station-name');
+    if (nameEl) nameEl.innerText = station.name || station.brand || 'Unknown Station';
+
+    const addressEl = document.getElementById('sheet-station-address');
+    if (addressEl) addressEl.innerText = station.address || 'No Address Provided';
+
+    // Handle standard prices vs EV ports
+    const isEV = !!station.isEV;
+    const pricesWrap = document.getElementById('sheet-prices-wrapper');
+    
+    if (pricesWrap) {
+        if (isEV) {
+            // Render EV Charging Connection Ports
+            const connections = station.connections || [];
+            pricesWrap.innerHTML = connections.map(conn => `
+                <div class="border p-2 rounded-xl text-center bg-zinc-50 dark:bg-zinc-900/40">
+                    <span class="text-[9px] font-black uppercase tracking-wider block opacity-75">${conn.type || 'Charging Port'}</span>
+                    <span class="text-xs font-bold block mt-0.5 text-emerald-600 dark:text-emerald-400">${conn.power ? conn.power + ' kW' : 'Standard'}</span>
+                </div>
+            `).join('') || '<p class="text-xs text-zinc-400 text-center col-span-3">No specified port speed metrics available.</p>';
+        } else {
+            // Revert back or update default liquid fuel cards
+            if (document.getElementById('sheet-price-e10')) document.getElementById('sheet-price-e10').innerText = station.e10 || 'N/A';
+            if (document.getElementById('sheet-price-e5')) document.getElementById('sheet-price-e5').innerText = station.e5 || 'N/A';
+            if (document.getElementById('sheet-price-b7')) document.getElementById('sheet-price-b7').innerText = station.b7 || 'N/A';
+            if (document.getElementById('sheet-price-premiumdiesel')) document.getElementById('sheet-price-premiumdiesel').innerText = station.premiumDiesel || 'N/A';
+        }
+    }
+
+    // Toggle star active visibility indicators
+    const starBtn = document.getElementById('sheet-star-button');
+    if (starBtn) {
+        const isStarred = starredStations.some(s => String(s.id) === String(station.id));
+        starBtn.innerHTML = isStarred ? '★ Starred' : '☆ Star Station';
+        starBtn.onclick = function() { window.toggleStarStation(station.id); };
+    }
+
+    detailSheet.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
+};
+
+window.toggleStarStation = function(stationId) {
+    const index = starredStations.findIndex(s => String(s.id) === String(stationId));
+    if (index > -1) {
+        starredStations.splice(index, 1);
+        showToast("Station removed from your saved list.");
+    } else {
+        const station = rawGlobalStationsPool.find(s => String(s.id) === String(stationId));
+        if (station) {
+            starredStations.push(station);
+            showToast("Station saved to your shortcuts successfully!");
+        }
+    }
+    localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
+    
+    // Refresh visual detail view indicators and side panel indices
+    const activeStation = starredStations.find(s => String(s.id) === String(stationId)) || rawGlobalStationsPool.find(s => String(s.id) === String(stationId));
+    if (activeStation) window.showStationDetailSheet(activeStation);
+    if (typeof updateSavedPlacesSidebar === 'function') updateSavedPlacesSidebar();
+};
+
+// Optimized EV Station Loader along active bounding boxes / polyline routes
+window.fetchEVStationsInBounds = async function(southWest, northEast) {
+    try {
+        // High maxresults parameter limit to completely eliminate manual viewport zoom bugs
+        const url = `https://api.openchargemap.io/v3/poi/?key=${OCM_KEY}&output=json&swlat=${southWest.lat}&swlng=${southWest.lng}&nelat=${northEast.lat}&nelng=${northEast.lng}&maxresults=500&compact=true&verbose=false`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        
+        return data.map(poi => ({
+            id: 'ev-' + poi.ID,
+            name: poi.AddressInfo.Title,
+            brand: poi.OperatorInfo ? poi.OperatorInfo.Title : 'Independent Charger',
+            address: poi.AddressInfo.AddressLine1 + ', ' + (poi.AddressInfo.Town || ''),
+            lat: poi.AddressInfo.Latitude,
+            lon: poi.AddressInfo.Longitude,
+            isEV: true,
+            connections: (poi.Connections || []).map(c => ({
+                type: c.ConnectionType ? c.ConnectionType.Title : 'Unknown Plug',
+                power: c.PowerKW || null
+            }))
+        }));
+    } catch (err) {
+        console.error("OpenChargeMap network ingestion failure:", err);
+        return [];
+    }
+};
+
+// Comprehensive logic layer covering integrated AI EV charging / liquid refuel strategies
+window.calculateOptimalRefuelStrategy = function() {
+    const isEV = document.getElementById('fuel-type-ev')?.classList.contains('active') || false;
+    
+    const tankSize = parseFloat(document.getElementById('refuel-tank-size')?.value || 55);
+    const currentLevel = parseFloat(document.getElementById('refuel-current-level')?.value || 25);
+    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value || 30);
+    
+    const timelineContainer = document.getElementById('refuel-timeline-output');
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    
+    if (!timelineContainer) return;
+    timelineContainer.innerHTML = '';
+    
+    // Read route details from UI layer
+    const totalDistanceText = document.getElementById('route-total-distance')?.innerText || '0';
+    const totalDistance = parseFloat(totalDistanceText.replace(/[^0-9.]/g, '')) || 0;
+
+    if (totalDistance <= 0) {
+        timelineContainer.innerHTML = `<div class="text-xs text-zinc-400 text-center p-4">Please construct a valid route journey first to compute smart telemetry.</div>`;
+        timelineContainer.classList.remove('hidden');
+        return;
+    }
+
+    // Determine metrics depending on vehicle structure
+    const initialRange = isEV ? (currentLevel / 100) * (tankSize * 4) : (currentLevel / 100) * (tankSize * 12);
+    const consumptionRate = isEV ? 0.25 : 0.08; // kWh per mile vs Liters per mile indicators
+    
+    let rangeRemaining = initialRange;
+    let strategyStepsHTML = '';
+    
+    // Simulate telemetry step variables
+    if (rangeRemaining < totalDistance && rangeRemaining < safetyBuffer) {
+        strategyStepsHTML += `
+            <div class="flex gap-3 border-l-2 border-rose-500 pl-4 relative pb-4">
+                <div class="absolute -left-[7px] top-0 bg-rose-500 w-3 h-3 rounded-full ring-4 ring-white dark:ring-zinc-950"></div>
+                <div>
+                    <h4 class="text-xs font-black text-rose-600 dark:text-rose-400">Critical Alert: Low Starting Range</h4>
+                    <p class="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        Your vehicle's present initial battery/tank level (${currentLevel}%) does not meet safety guidelines to comfortably reach the destination waypoint without an early top-up step.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Re-insert standard optimized milestone data block
+    strategyStepsHTML += `
+        <div class="flex gap-3 border-l-2 border-emerald-500 pl-4 relative pb-2">
+            <div class="absolute -left-[7px] top-0 bg-emerald-500 w-3 h-3 rounded-full ring-4 ring-white dark:ring-zinc-950"></div>
+            <div>
+                <h4 class="text-xs font-black text-zinc-800 dark:text-zinc-200">Optimal Target Waypoint Matrix</h4>
+                <div class="grid grid-cols-2 gap-2 mt-2 text-[11px] font-bold text-zinc-600 dark:text-zinc-400">
+                    <div class="bg-zinc-100 dark:bg-zinc-800/60 p-2 rounded-lg">
+                        <span class="block text-[9px] opacity-70 uppercase tracking-tight">Est. Range at Arrival</span>
+                        <span class="text-zinc-900 dark:text-zinc-100 font-extrabold">${Math.max(0, Math.round(rangeRemaining - (totalDistance * consumptionRate)))} miles</span>
+                    </div>
+                    <div class="bg-zinc-100 dark:bg-zinc-800/60 p-2 rounded-lg">
+                        <span class="block text-[9px] opacity-70 uppercase tracking-tight">Required Charge Energy</span>
+                        <span class="text-zinc-900 dark:text-zinc-100 font-extrabold">${isEV ? Math.round(tankSize * (1 - (currentLevel/100))) + ' kWh' : Math.round(tankSize * (1 - (currentLevel/100))) + ' Liters'}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    timelineContainer.innerHTML = strategyStepsHTML;
+    timelineContainer.classList.remove('hidden');
+    if (savingsBlock) savingsBlock.classList.remove('hidden');
+};
+
+// UI Element View Initialization Helpers
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-success show text-xs font-bold px-3 py-2 rounded-xl shadow-md bg-emerald-500 text-white flex items-center gap-2 mt-2';
+    toast.innerHTML = `<span>✓</span> <span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 3500);
+}
+
+// Automatically link and execute target calculations upon parameter changes
+document.getElementById('refuel-tank-size')?.addEventListener('change', window.calculateOptimalRefuelStrategy);
+document.getElementById('refuel-current-level')?.addEventListener('change', window.calculateOptimalRefuelStrategy);
+document.getElementById('refuel-safety-buffer')?.addEventListener('change', window.calculateOptimalRefuelStrategy);
+
+// New code above
 
 let activeTabContext = 'local'; 
 let activeDirectoryTab = 'stations'; 
