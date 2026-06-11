@@ -1292,13 +1292,8 @@ async function forceReloadRemotePipelineData() {
     
     if (!response.ok) throw new Error(`Proxy error code: ${response.status}`);
 
-    // 2. Unpack the compressed proxy binary stream block
-    const compressedBuffer = await response.arrayBuffer();
-    const decompressedStream = new Response(compressedBuffer).body.pipeThrough(
-      new DecompressionStream("gzip")
-    );
-    const decompressedText = await new Response(decompressedStream).text();
-    const data = JSON.parse(decompressedText);
+    // 2. Read the lean JSON data array directly
+    const data = await response.json();
 
     // 3. Re-map clean properties directly without referencing obsolete structural keys
     rawGlobalStationsPool = data.map(s => { 
