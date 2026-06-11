@@ -687,10 +687,10 @@ function initializeClusterLayerPipeline() {
                 if(marker.options?.stationRawData) {
                     let val = parseFloat(marker.options.stationRawData[activeFuelKey]);
 
-                    // SAFETY FALLBACK: If the data key returns undefined, clean the prefix to match our modern short data layout
+                    // Ensure it evaluates clean field names if nested variables fall back to undefined:
                     if (isNaN(val)) {
-                        const shortKey = activeFuelKey.replace(/^forecourts\./i, '').replace(/^fuel_price\./i, '').trim();
-                        val = parseFloat(marker.options.stationRawData[shortKey]);
+                      const shortKey = activeFuelKey.replace(/^fuel_price\./i, '').trim();
+                      val = parseFloat(marker.options.stationRawData[shortKey]);
                     }
                     
                     if (isEV && (!val || isNaN(val))) {
