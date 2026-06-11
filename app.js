@@ -327,11 +327,26 @@ async function fetchLiveGovStationData() {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
         });
+        
         if (!response.ok) {
             throw new Error(`Edge worker proxy returned execution error state: ${response.status}`);
         }
-        const jsonPayload = await response.json();
+
+        // 1. Extract the raw compressed stream payload as a binary ArrayBuffer
+        const compressedBuffer = await response.arrayBuffer();
+
+        // 2. Use the browser's native hardware engine to unzip the gzip stream instantly
+        const decompressedStream = new Response(compressedBuffer).body.pipeThrough(
+          new DecompressionStream("gzip")
+        );
+
+        // 3. Convert the unzipped text payload into clean JSON text
+        const decompressedText = await new Response(decompressedStream).text();
+        const jsonPayload = JSON.parse(decompressedText);
+
+        // 4. Return the arrays safely to your existing Leaflet rendering filters
         return jsonPayload.data || jsonPayload.stations || jsonPayload;
+
     } catch (error) {
         console.error("Worker extraction processing fault:", error);
         throw error;
