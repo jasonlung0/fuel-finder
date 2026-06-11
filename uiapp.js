@@ -686,8 +686,21 @@ function initializeClusterLayerPipeline() {
             dynamicChildMarkers.forEach(marker => {
                 if(marker.options?.stationRawData) {
                     let val = parseFloat(marker.options.stationRawData[activeFuelKey]);
-                    if (isEV && (!val || isNaN(val))) val = parseFloat(marker.options.stationRawData.electric_price || marker.options.stationRawData.charge_rate || marker.options.stationRawData.electric);
-                    if(!isNaN(val) && val > 0) pricesExtracted.push(val);
+
+                    // SAFETY FALLBACK: If the data key returns undefined, clean the prefix to match our modern short data layout
+                    if (isNaN(val)) {
+                        const shortKey = activeFuelKey.replace(/^forecourts\./i, '').replace(/^fuel_price\./i, '').trim();
+                        val = parseFloat(marker.options.stationRawData[shortKey]);
+                    }
+                    
+                    if (isEV && (!val || isNaN(val))) {
+                        val = parseFloat(marker.options.stationRawData.electric_price || marker.options.stationRawData.charge_rate || marker.options.stationRawData.electric);
+                    }
+                    
+                    if(!isNaN(val) && val > 0) {
+                        pricesExtracted.push(val);
+                    }
+
                 }
             });
 
@@ -1270,18 +1283,45 @@ function initializeClickIsolationBubbling() {
 }
 
 async function forceReloadRemotePipelineData() {
-    try {
-        const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
-        const data = await response.json();
-        rawGlobalStationsPool = data.map(s => { return { ...s, PremiumDiesel: (parseFloat(s.B7) && !isNaN(parseFloat(s.B7))) ? (parseFloat(s.B7) + 14.2).toFixed(1) : null }; });
-        const lbl = document.getElementById('live-timestamp-label');
-        if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        executeStationDataFilteringPipeline();
-    } catch (error) {
-        const lbl = document.getElementById('live-timestamp-label');
-        if (lbl) lbl.textContent = "Offline Data Buffer Frame";
-    }
+  try {
+    const lbl = document.getElementById('live-timestamp-label');
+    if (lbl) lbl.textContent = "Connecting Live...";
+
+    // 1. CRITICAL: Route directly to your API Proxy Worker instead of the scraper
+    const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
+    
+    if (!response.ok) throw new Error(`Proxy error code: ${response.status}`);
+
+    // 2. Unpack the compressed proxy binary stream block
+    const compressedBuffer = await response.arrayBuffer();
+    const decompressedStream = new Response(compressedBuffer).body.pipeThrough(
+      new DecompressionStream("gzip")
+    );
+    const decompressedText = await new Response(decompressedStream).text();
+    const data = JSON.parse(decompressedText);
+
+    // 3. Re-map clean properties directly without referencing obsolete structural keys
+    rawGlobalStationsPool = data.map(s => { 
+      const parsedB7 = parseFloat(s.B7);
+      return {
+        ...s, 
+        // Gracefully compute premium diesel if a valid B7 numeric base is parsed
+        PremiumDiesel: (!isNaN(parsedB7) && parsedB7 > 0) ? (parsedB7 + 14.2).toFixed(1) : null
+      }; 
+    });
+
+    if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+    
+    // 4. Force global filter re-evaluation to draw markers immediately
+    executeStationDataFilteringPipeline();
+
+  } catch (error) {
+    console.error("Pipeline Sync Error:", error);
+    const lbl = document.getElementById('live-timestamp-label');
+    if (lbl) lbl.textContent = "Offline Data Buffer Frame";
+  }
 }
+
 
 // -------------------------------------------------------------
 // MAIN PIPELINE: Filter Stations & Draw Map
