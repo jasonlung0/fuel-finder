@@ -435,8 +435,8 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         const coords = getCoordinates(station);
         if (!coords) return;
 
-        station.brand = station['forecourts.brand_name'] || station.brand || "Independent";
-        station.address = station['forecourts.address_line_1'] || station['forecourts.location.address_line_1'] || station.address || station.Address || "";
+        station.brand = station.brand_name || station.brand || "Independent";
+        station.address = station.address || station.site_address || "";
 
         if (requiresUnleaded) {
             const hasE10 = extractPriceByMetricType(station, 'price_e10');
@@ -599,59 +599,37 @@ function applyBoxPricingColor(boxId, labelId, textId, price) {
 }
 
 function getCoordinates(station) {
-    if (station['forecourts.location.latitude'] && station['forecourts.location.longitude']) {
-        const lat = parseFloat(station['forecourts.location.latitude']);
-        const lon = parseFloat(station['forecourts.location.longitude']);
-        if (!isNaN(lat) && !isNaN(lon)) return { lat, lon };
-    }
-
-    let lat = null, lon = null;
-    for (let key in station) {
-        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (['lat', 'latitude'].includes(normalizedKey)) lat = parseFloat(station[key]);
-        if (['lon', 'lng', 'longitude'].includes(normalizedKey)) lon = parseFloat(station[key]);
-    }
-    return (lat === null || lon === null || isNaN(lat) || isNaN(lon)) ? null : { lat, lon };
+  // Directly extract the parsed floating-point numeric coordinates 
+  const lat = parseFloat(station.latitude || station.lat);
+  const lon = parseFloat(station.longitude || station.lon || station.lng);
+  
+  if (!isNaN(lat) && !isNaN(lon)) {
+    return { lat: lat, lon: lon };
+  }
+  return null;
 }
 
 function extractPriceByMetricType(station, fuelType) {
-    const target = (fuelType || 'price_e10').toLowerCase();
-    
-    if (target.includes('e10') && station['forecourts.fuel_price.E10']) {
-        const val = parseFloat(station['forecourts.fuel_price.E10']);
-        if (!isNaN(val) && val > 0) return val;
-    }
-    if (target.includes('e5') && station['forecourts.fuel_price.E5']) {
-        const val = parseFloat(station['forecourts.fuel_price.E5']);
-        if (!isNaN(val) && val > 0) return val;
-    }
-    if ((target.includes('premium') || target.includes('b7p')) && station['forecourts.fuel_price.B7P']) {
-        const val = parseFloat(station['forecourts.fuel_price.B7P']);
-        if (!isNaN(val) && val > 0) return val;
-    }
-    if ((target.includes('diesel') || target.includes('b7')) && !target.includes('b7p') && !target.includes('premium') && station['forecourts.fuel_price.B7']) {
-        const val = parseFloat(station['forecourts.fuel_price.B7']);
-        if (!isNaN(val) && val > 0) return val;
-    }
+  // Normalize the incoming map search criteria string
+  const target = (fuelType || 'e10').toLowerCase().replace(/[^a-z0-9]/g, '');
+  let val = NaN;
 
-    const targetNorm = target.replace(/[^a-z0-9]/g, '');
-    for (let key in station) {
-        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (targetNorm.includes('e10') && normalizedKey.includes('e10')) {
-            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
-        }
-        if (targetNorm.includes('e5') && normalizedKey.includes('e5')) {
-            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
-        }
-        if ((targetNorm.includes('b7p') || targetNorm.includes('premium')) && (normalizedKey.includes('b7p') || normalizedKey.includes('premium'))) {
-            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
-        }
-        if ((targetNorm.includes('diesel') || targetNorm.includes('b7')) && (normalizedKey.includes('diesel') || normalizedKey.includes('b7')) && !normalizedKey.includes('b7p') && !normalizedKey.includes('premium')) {
-            const val = parseFloat(station[key]); if (!isNaN(val) && val > 0) return val;
-        }
-    }
-    return NaN;
+  // Direct, high-speed key matching with no loops needed
+  if (target.includes('e10')) {
+    val = parseFloat(station.E10);
+  } else if (target.includes('e5')) {
+    val = parseFloat(station.E5);
+  } else if (target.includes('b7p') || target.includes('premium')) {
+    val = parseFloat(station.B7P);
+  } else if (target.includes('diesel') || target.includes('b7')) {
+    val = parseFloat(station.B7);
+  }
+
+  // Safety return check
+  if (!isNaN(val) && val > 0) return val;
+  return NaN;
 }
+
 
 function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
     const p = 0.017453292519943295; 
