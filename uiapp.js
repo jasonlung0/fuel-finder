@@ -494,33 +494,12 @@ window.updateUIForMode = function(isEV) {
 };
 
 // =============================================================================
-// --- UNIFIED INITIALIZATION & HYDRATION GATEWAY
+// --- UNIVERSAL COMPATIBILITY INITIALIZATION BOOTLOADER
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. SAFE MAP INITIALIZATION
-    // Only initialize the map if it hasn't been set up yet by another script
-    if (!map) {
-        try {
-            // Centers the view over the UK naturally
-            map = L.map('map').setView([54.5, -4.0], 6); 
-            
-            tileLayerInstance = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
+    initializeMapSystem();
+    setupEventHandlers();
 
-            // Initialize the marker cluster group if your script uses it
-            if (typeof L.markerClusterGroup === 'function') {
-                markerClusterGroupInstance = L.markerClusterGroup();
-                map.addLayer(markerClusterGroupInstance);
-            }
-            console.log("Map engine and tile layers successfully initialized.");
-        } catch (mapError) {
-            console.error("Map structural rendering failed:", mapError);
-        }
-    }
-
-    // 2. DATA CORRIDOR HYDRATION
     const lbl = document.getElementById('live-timestamp-label');
     try {
         if (lbl) lbl.textContent = "Connecting Live...";
@@ -530,11 +509,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const data = await response.json();
 
-        // Map short keys to long keys simultaneously to satisfy all rendering paths
+        // Universal Hydration Layer: satisfies both old and new code paths simultaneously
         rawGlobalStationsPool = data.map(s => {
+            // Extract coordinates safely from any possible name variation
             const resolvedLat = parseFloat(s.lat || s.Latitude || s.latitude);
             const resolvedLng = parseFloat(s.lng || s.Longitude || s.longitude || s.lon);
 
+            // Extract prices safely
             const rawE10 = s.E10 ?? s.e10 ?? null;
             const rawE5  = s.E5  ?? s.e5  ?? null;
             const rawB7  = s.B7  ?? s.b7  ?? null;
@@ -543,18 +524,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             const stringE5  = rawE5  !== null ? parseFloat(rawE5).toFixed(1)  : null;
             const stringB7  = rawB7  !== null ? parseFloat(rawB7).toFixed(1)  : null;
 
+            let stringPremium = null;
+            if (rawB7 !== null && parseFloat(rawB7) > 0) {
+                stringPremium = (parseFloat(rawB7) + 14.2).toFixed(1);
+            }
+
             return {
-                ...s,
+                ...s, // Keep any other background metadata intact
+                
+                // SATISFY COORDINATES (Both short and long forms)
                 lat: resolvedLat,
                 lng: resolvedLng,
                 latitude: resolvedLat,
                 longitude: resolvedLng,
+
+                // SATISFY FUEL TYPES (Both string formats and original numeric entries)
                 E10: stringE10,
                 e10: stringE10,
                 E5:  stringE5,
                 e5:  stringE5,
                 B7:  stringB7,
                 b7:  stringB7,
+                PremiumDiesel: stringPremium,
+
+                // SATISFY LEGACY ARRAY LOOKUPS
                 fuels: [
                     { fuel_type: "E10", price: rawE10 },
                     { fuel_type: "E5",  price: rawE5 },
@@ -567,7 +560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         
-        // 3. RUN FILTERS & DRAW PINS
+        // Trigger filter pipeline which now passes onward to the map drawer
         if (typeof applyGlobalStationFilters === 'function') {
             applyGlobalStationFilters();
         }
@@ -575,6 +568,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error("Initialization Pipeline Failure:", error);
         if (lbl) lbl.textContent = "Offline Data Buffer Frame";
+        if (typeof forceReloadRemotePipelineData === 'function') {
+            await forceReloadRemotePipelineData();
+        }
     }
 });
 
