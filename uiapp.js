@@ -50,7 +50,7 @@ let originalMapCenter = null;
 let scanAreaTimeout = null;
 
 // Explicit State Initializations to fix Uncaught ReferenceErrors
-let rawGlobalStationsPool = [];
+// let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
 let starredStations = JSON.parse(localStorage.getItem('uk_fuel_starred_v2_stations')) || [];
 let savedRoutes = JSON.parse(localStorage.getItem('uk_fuel_saved_v2_routes')) || [];
