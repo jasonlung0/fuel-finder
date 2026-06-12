@@ -30,7 +30,7 @@ if (window.tailwind) {
 // ==========================================
 // let map = null;
 let tileLayerInstance = null;
-let routePolylineLayer = null;
+// let routePolylineLayer = null;
 let refuelMarkersGroup = null;
 let markerClusterGroupInstance = null;
 
