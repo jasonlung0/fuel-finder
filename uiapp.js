@@ -1271,7 +1271,7 @@ function initializeClickIsolationBubbling() {
 
 async function forceReloadRemotePipelineData() {
     try {
-        const response = await fetch('https://fuel-cron-scraper.jasonlung0.workers.dev/');
+        const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
         const data = await response.json();
         rawGlobalStationsPool = data.map(s => { return { ...s, PremiumDiesel: (parseFloat(s.B7) && !isNaN(parseFloat(s.B7))) ? (parseFloat(s.B7) + 14.2).toFixed(1) : null }; });
         const lbl = document.getElementById('live-timestamp-label');
