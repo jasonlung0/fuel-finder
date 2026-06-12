@@ -7,7 +7,6 @@
 // ==========================================
 // 1. GLOBAL CONFIGURATIONS & API CREDENTIALS
 // ==========================================
-const TOMTOM_API_KEY = 'JY2i0gGmgtYakfi01T3X0obPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
 const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf';
 
