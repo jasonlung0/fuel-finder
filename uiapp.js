@@ -1999,46 +1999,32 @@ function applyGlobalStationFilters() {
     // 2. Safely capture current filtering rules from your UI panels
     const fuelSelectElement = document.getElementById('fuel-type-select');
     const activeFuelType = fuelSelectElement ? fuelSelectElement.value : 'E10';
-
-    // Get selected brands (falls back to empty array if function isn't initialized yet)
     const activeBrands = typeof getSelectedBrandsArray === 'function' ? getSelectedBrandsArray() : [];
-    
     const sliderElement = document.getElementById('distance-range-slider');
     const maxDistanceLimit = sliderElement ? parseFloat(sliderElement.value) : 30;
 
-    // 3. Process all 7,971 stations through our safety verification layer
-    currentlyVisibleStations = rawGlobalStationsPool.filter(station => {
-        
-        // --- CRITERIA A: BULLETPROOF FUEL CHECK ---
-        // Dynamically inspect variations (E10, e10, B7, b7) to avoid case-sensitivity drops
+    // 3. Filter the stations using case-insensitive safeguards
+    const filteredStations = rawGlobalStationsPool.filter(station => {
+        // FUEL CHECK
         const priceRaw = station[activeFuelType] ?? 
                          station[activeFuelType.toLowerCase()] ?? 
                          station[activeFuelType.toUpperCase()] ?? 
                          null;
                          
-        if (priceRaw === null || priceRaw === undefined || priceRaw === '') {
-            return false; // Skip station if it doesn't sell this fuel type
-        }
-        
+        if (priceRaw === null || priceRaw === undefined || priceRaw === '') return false;
         const numericPrice = parseFloat(priceRaw);
-        if (isNaN(numericPrice) || numericPrice <= 0) {
-            return false; // Skip station if price data is corrupted
-        }
+        if (isNaN(numericPrice) || numericPrice <= 0) return false;
 
-        // --- CRITERIA B: BULLETPROOF BRAND CHECK ---
+        // BRAND CHECK
         if (activeBrands && activeBrands.length > 0) {
             const currentStationBrand = (station.brand || station.brand_name || 'Independent').trim().toLowerCase();
             const matchesSelectedBrand = activeBrands.some(b => b.trim().toLowerCase() === currentStationBrand);
-            if (!matchesSelectedBrand) {
-                return false; // Filtered out because its brand isn't checked
-            }
+            if (!matchesSelectedBrand) return false;
         }
 
-        // --- CRITERIA C: BULLETPROOF DISTANCE CHECK ---
-        // Verify if your global script variables have a valid pinpoint location set
+        // DISTANCE CHECK
         const latPivot = typeof userLatitudeGlobalMarkerPivot !== 'undefined' ? userLatitudeGlobalMarkerPivot : null;
         const lngPivot = typeof userLongitudeGlobalMarkerPivot !== 'undefined' ? userLongitudeGlobalMarkerPivot : null;
-        
         const hasValidUserCoordinates = latPivot !== null && lngPivot !== null && latPivot !== 0 && lngPivot !== 0;
 
         if (hasValidUserCoordinates) {
@@ -2046,26 +2032,40 @@ function applyGlobalStationFilters() {
             const stationLng = parseFloat(station.lng || station.longitude);
 
             if (!isNaN(stationLat) && !isNaN(stationLng)) {
-                // Execute mathematical Haversine algorithm
                 const distanceInKM = calculateHaversineDistanceFormulaKM(latPivot, lngPivot, stationLat, stationLng);
                 const distanceInMiles = distanceInKM * 0.621371;
-
-                if (distanceInMiles > maxDistanceLimit) {
-                    return false; // Exceeds chosen search radius
-                }
+                if (distanceInMiles > maxDistanceLimit) return false;
             }
-        } else {
-            // NOTE: If your device location hasn't loaded yet, we safely bypass 
-            // the distance block so the map defaults to showing stations across the UK!
         }
 
-        return true; // Station passed all rules successfully!
+        return true;
     });
 
-    // Output tracking diagnostic log matching your console layout
+    // 4. TRANSLATION LAYER: Ensure every visible station has BOTH sets of keys
+    // so the map rendering functions don't read "undefined" properties.
+    currentlyVisibleStations = filteredStations.map(station => {
+        const resolvedLat = parseFloat(station.lat || station.latitude);
+        const resolvedLng = parseFloat(station.lng || station.longitude);
+        const rawB7 = station.B7 ?? station.b7 ?? null;
+
+        return {
+            ...station,
+            // Map coordinates to both property structures
+            lat: resolvedLat,
+            lng: resolvedLng,
+            latitude: resolvedLat,
+            longitude: resolvedLng,
+            // Map fuel types to uppercase keys for UI template components
+            E10: station.E10 ?? station.e10 ?? null,
+            E5:  station.E5  ?? station.e5  ?? null,
+            B7:  rawB7,
+            PremiumDiesel: station.PremiumDiesel ?? (rawB7 ? (parseFloat(rawB7) + 14.2).toFixed(1) : null)
+        };
+    });
+
     console.log(`${currentlyVisibleStations.length} stations visible after user filtering criteria array check`);
 
-    // 4. Trigger the visual cluster redraw hook
+    // 5. Trigger the visual cluster redraw hook
     if (typeof updateMapMarkersWithClusters === 'function') {
         updateMapMarkersWithClusters();
     } else if (typeof renderMarkersOnMap === 'function') {
