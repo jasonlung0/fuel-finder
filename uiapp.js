@@ -28,7 +28,7 @@ if (window.tailwind) {
 // ==========================================
 // 2. CORE ENGINE STATE VARIABLES & SYSTEM DATA POOLS
 // ==========================================
-let map = null;
+// let map = null;
 let tileLayerInstance = null;
 let routePolylineLayer = null;
 let refuelMarkersGroup = null;
