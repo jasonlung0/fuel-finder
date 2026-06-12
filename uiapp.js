@@ -493,118 +493,43 @@ window.updateUIForMode = function(isEV) {
     }
 };
 
-// =============================================================================
-// --- UNIFIED Leaflet Map Initialization & Data Hydration Engine
-// =============================================================================
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. SELF-CONTAINED MAP STRUCTURAL INITIALIZATION
+document.addEventListener('DOMContentLoaded', () => {
+    initMap(); 
+    updateSavedItemsCountUI();
+    
     try {
-        // Build the core map object if it hasn't been instantiated yet
-        if (!map) {
-            map = L.map('map', {
-                zoomControl: false // Keeps control cleaner; we'll position it nicely
-            }).setView([54.3, -2.5], 6); // Clean default zoom centered squarely over the UK
+        if (document.getElementById('sidebar-drag-handle')) bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
+        if (document.getElementById('right-sidebar-drag-handle')) bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
+        if (document.getElementById('detail-sheet-drag-handle')) bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
+    } catch (err) { console.warn('UI Initialization skipped.', err); }
 
-            L.control.zoom({ position: 'topright' }).addTo(map);
-
-            // Inject standard high-performance map tiles
-            tileLayerInstance = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            
-            console.log("Leaflet map canvas container successfully spawned.");
-        }
-
-        // Initialize your global marker cluster layer group if missing
-        if (!markerClusterGroupInstance && typeof L.markerClusterGroup === 'function') {
-            markerClusterGroupInstance = L.markerClusterGroup({
-                maxClusterRadius: 50,
-                spiderfyOnMaxZoom: true,
-                showCoverageOnHover: false
-            });
-            map.addLayer(markerClusterGroupInstance);
-            console.log("Marker cluster management layer attached to map scene.");
-        }
-    } catch (mapSetupError) {
-        console.error("Critical failure during Leaflet layer construction:", mapSetupError);
-    }
-
-    // 2. REACTIVE USER INTERFACE INTERCEPTORS
-    // Automatically binds your UI inputs to refresh filters instantly when clicked or dragged
-    const fuelDropdown = document.getElementById('fuel-type-select');
-    if (fuelDropdown) {
-        fuelDropdown.addEventListener('change', () => {
-            if (typeof applyGlobalStationFilters === 'function') applyGlobalStationFilters();
+    const radiusSlider = document.getElementById('radius-slider');
+    if (radiusSlider) {
+        radiusSlider.addEventListener('input', (e) => {
+            document.getElementById('radius-val').textContent = `${e.target.value} Miles`;
+            executeStationDataFilteringPipeline();
         });
     }
 
-    const distanceSlider = document.getElementById('distance-range-slider');
-    if (distanceSlider) {
-        distanceSlider.addEventListener('input', (e) => {
-            const displayLabel = document.getElementById('distance-slider-value-label');
-            if (displayLabel) displayLabel.textContent = `${e.target.value} miles`;
-            if (typeof applyGlobalStationFilters === 'function') applyGlobalStationFilters();
+    const detourSlider = document.getElementById('route-radius-slider');
+    if (detourSlider) {
+        detourSlider.addEventListener('input', (e) => {
+            document.getElementById('route-radius-val').textContent = `${e.target.value} Mi`;
+            executeStationDataFilteringPipeline();
         });
     }
 
-    // 3. SECURE DATA CORRIDOR FETCH & PROXY TRANSLATION LAYER
-    const lbl = document.getElementById('live-timestamp-label');
-    try {
-        if (lbl) lbl.textContent = "Connecting Live...";
+    setupAutocompleteListeners();
+    initializeClickIsolationBubbling();
 
-        const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
-        if (!response.ok) throw new Error(`Proxy network status failure: ${response.status}`);
+    if (window.innerWidth < 1024) {
+        setActiveMobileSheet('search');
+    }
 
-        const data = await response.json();
-
-        // Dual-Property Translation Layer: Maps keys so both old/new map functions read data perfectly
-        rawGlobalStationsPool = data.map(s => {
-            const resolvedLat = parseFloat(s.lat || s.Latitude || s.latitude);
-            const resolvedLng = parseFloat(s.lng || s.Longitude || s.longitude || s.lon);
-
-            const rawE10 = s.E10 ?? s.e10 ?? null;
-            const rawE5  = s.E5  ?? s.e5  ?? null;
-            const rawB7  = s.B7  ?? s.b7  ?? null;
-
-            const stringE10 = rawE10 !== null ? parseFloat(rawE10).toFixed(1) : null;
-            const stringE5  = rawE5  !== null ? parseFloat(rawE5).toFixed(1)  : null;
-            const stringB7  = rawB7  !== null ? parseFloat(rawB7).toFixed(1)  : null;
-
-            return {
-                ...s, // Keep background object properties intact
-                lat: resolvedLat,
-                lng: resolvedLng,
-                latitude: resolvedLat,
-                longitude: resolvedLng,
-                E10: stringE10,
-                e10: stringE10,
-                E5:  stringE5,
-                e5:  stringE5,
-                B7:  stringB7,
-                b7:  stringB7,
-                fuels: [
-                    { fuel_type: "E10", price: rawE10 },
-                    { fuel_type: "E5",  price: rawE5 },
-                    { fuel_type: "B7",  price: rawB7 }
-                ].filter(f => f.price !== null)
-            };
-        });
-
-        console.log(`Successfully unified and processed ${rawGlobalStationsPool.length} stations.`);
-
-        if (lbl) {
-            lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        }
-        
-        // 4. KICK OFF THE FILTERING AND RENDERING PIPELINE
-        if (typeof applyGlobalStationFilters === 'function') {
-            applyGlobalStationFilters();
-        }
-
-    } catch (networkError) {
-        console.error("Initialization Pipeline Failure:", networkError);
-        if (lbl) lbl.textContent = "Offline Data Buffer Active";
+    const detailSheet = document.getElementById('global-detail-sheet');
+    if (detailSheet) {
+        detailSheet.classList.add('hidden');
+        setMobileSheetUIState('hidden');
     }
 });
 
@@ -1936,173 +1861,3 @@ window.openForecourtDetailSheet = function(station) {
     if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
     else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
-
-function executeStationDataFilteringPipeline() {
-    // 1. Instantly exit if the master database array is empty
-    if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) {
-        currentlyVisibleStations = [];
-        if (typeof updateMapMarkersWithClusters === 'function') updateMapMarkersWithClusters();
-        return;
-    }
-
-    // 2. Safely capture current filtering rules from your UI panels
-    const fuelSelectElement = document.getElementById('fuel-type-select');
-    const activeFuelType = fuelSelectElement ? fuelSelectElement.value : 'E10';
-
-    // Get selected brands (falls back to empty array if function isn't initialized yet)
-    const activeBrands = typeof getSelectedBrandsArray === 'function' ? getSelectedBrandsArray() : [];
-    
-    const sliderElement = document.getElementById('distance-range-slider');
-    const maxDistanceLimit = sliderElement ? parseFloat(sliderElement.value) : 30;
-
-    // 3. Process all 7,971 stations through our safety verification layer
-    currentlyVisibleStations = rawGlobalStationsPool.filter(station => {
-        
-        // --- CRITERIA A: BULLETPROOF FUEL CHECK ---
-        // Dynamically inspect variations (E10, e10, B7, b7) to avoid case-sensitivity drops
-        const priceRaw = station[activeFuelType] ?? 
-                         station[activeFuelType.toLowerCase()] ?? 
-                         station[activeFuelType.toUpperCase()] ?? 
-                         null;
-                         
-        if (priceRaw === null || priceRaw === undefined || priceRaw === '') {
-            return false; // Skip station if it doesn't sell this fuel type
-        }
-        
-        const numericPrice = parseFloat(priceRaw);
-        if (isNaN(numericPrice) || numericPrice <= 0) {
-            return false; // Skip station if price data is corrupted
-        }
-
-        // --- CRITERIA B: BULLETPROOF BRAND CHECK ---
-        if (activeBrands && activeBrands.length > 0) {
-            const currentStationBrand = (station.brand || station.brand_name || 'Independent').trim().toLowerCase();
-            const matchesSelectedBrand = activeBrands.some(b => b.trim().toLowerCase() === currentStationBrand);
-            if (!matchesSelectedBrand) {
-                return false; // Filtered out because its brand isn't checked
-            }
-        }
-
-        // --- CRITERIA C: BULLETPROOF DISTANCE CHECK ---
-        // Verify if your global script variables have a valid pinpoint location set
-        const latPivot = typeof userLatitudeGlobalMarkerPivot !== 'undefined' ? userLatitudeGlobalMarkerPivot : null;
-        const lngPivot = typeof userLongitudeGlobalMarkerPivot !== 'undefined' ? userLongitudeGlobalMarkerPivot : null;
-        
-        const hasValidUserCoordinates = latPivot !== null && lngPivot !== null && latPivot !== 0 && lngPivot !== 0;
-
-        if (hasValidUserCoordinates) {
-            const stationLat = parseFloat(station.lat || station.latitude);
-            const stationLng = parseFloat(station.lng || station.longitude);
-
-            if (!isNaN(stationLat) && !isNaN(stationLng)) {
-                // Execute mathematical Haversine algorithm
-                const distanceInKM = calculateHaversineDistanceFormulaKM(latPivot, lngPivot, stationLat, stationLng);
-                const distanceInMiles = distanceInKM * 0.621371;
-
-                if (distanceInMiles > maxDistanceLimit) {
-                    return false; // Exceeds chosen search radius
-                }
-            }
-        } else {
-            // NOTE: If your device location hasn't loaded yet, we safely bypass 
-            // the distance block so the map defaults to showing stations across the UK!
-        }
-
-        return true; // Station passed all rules successfully!
-    });
-
-    // Output tracking diagnostic log matching your console layout
-    console.log(`${currentlyVisibleStations.length} stations visible after user filtering criteria array check`);
-
-    // 4. Trigger the visual cluster redraw hook
-    if (typeof updateMapMarkersWithClusters === 'function') {
-        updateMapMarkersWithClusters();
-    } else if (typeof renderMarkersOnMap === 'function') {
-        renderMarkersOnMap();
-    }
-}
-
-function applyGlobalStationFilters() {
-    // 1. Instantly exit if the master database array is empty
-    if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) {
-        currentlyVisibleStations = [];
-        if (typeof updateMapMarkersWithClusters === 'function') updateMapMarkersWithClusters();
-        return;
-    }
-
-    // 2. Safely capture current filtering rules from your UI panels
-    const fuelSelectElement = document.getElementById('fuel-type-select');
-    const activeFuelType = fuelSelectElement ? fuelSelectElement.value : 'E10';
-    const activeBrands = typeof getSelectedBrandsArray === 'function' ? getSelectedBrandsArray() : [];
-    const sliderElement = document.getElementById('distance-range-slider');
-    const maxDistanceLimit = sliderElement ? parseFloat(sliderElement.value) : 30;
-
-    // 3. Filter the stations using case-insensitive safeguards
-    const filteredStations = rawGlobalStationsPool.filter(station => {
-        // FUEL CHECK
-        const priceRaw = station[activeFuelType] ?? 
-                         station[activeFuelType.toLowerCase()] ?? 
-                         station[activeFuelType.toUpperCase()] ?? 
-                         null;
-                         
-        if (priceRaw === null || priceRaw === undefined || priceRaw === '') return false;
-        const numericPrice = parseFloat(priceRaw);
-        if (isNaN(numericPrice) || numericPrice <= 0) return false;
-
-        // BRAND CHECK
-        if (activeBrands && activeBrands.length > 0) {
-            const currentStationBrand = (station.brand || station.brand_name || 'Independent').trim().toLowerCase();
-            const matchesSelectedBrand = activeBrands.some(b => b.trim().toLowerCase() === currentStationBrand);
-            if (!matchesSelectedBrand) return false;
-        }
-
-        // DISTANCE CHECK
-        const latPivot = typeof userLatitudeGlobalMarkerPivot !== 'undefined' ? userLatitudeGlobalMarkerPivot : null;
-        const lngPivot = typeof userLongitudeGlobalMarkerPivot !== 'undefined' ? userLongitudeGlobalMarkerPivot : null;
-        const hasValidUserCoordinates = latPivot !== null && lngPivot !== null && latPivot !== 0 && lngPivot !== 0;
-
-        if (hasValidUserCoordinates) {
-            const stationLat = parseFloat(station.lat || station.latitude);
-            const stationLng = parseFloat(station.lng || station.longitude);
-
-            if (!isNaN(stationLat) && !isNaN(stationLng)) {
-                const distanceInKM = calculateHaversineDistanceFormulaKM(latPivot, lngPivot, stationLat, stationLng);
-                const distanceInMiles = distanceInKM * 0.621371;
-                if (distanceInMiles > maxDistanceLimit) return false;
-            }
-        }
-
-        return true;
-    });
-
-    // 4. TRANSLATION LAYER: Ensure every visible station has BOTH sets of keys
-    // so the map rendering functions don't read "undefined" properties.
-    currentlyVisibleStations = filteredStations.map(station => {
-        const resolvedLat = parseFloat(station.lat || station.latitude);
-        const resolvedLng = parseFloat(station.lng || station.longitude);
-        const rawB7 = station.B7 ?? station.b7 ?? null;
-
-        return {
-            ...station,
-            // Map coordinates to both property structures
-            lat: resolvedLat,
-            lng: resolvedLng,
-            latitude: resolvedLat,
-            longitude: resolvedLng,
-            // Map fuel types to uppercase keys for UI template components
-            E10: station.E10 ?? station.e10 ?? null,
-            E5:  station.E5  ?? station.e5  ?? null,
-            B7:  rawB7,
-            PremiumDiesel: station.PremiumDiesel ?? (rawB7 ? (parseFloat(rawB7) + 14.2).toFixed(1) : null)
-        };
-    });
-
-    console.log(`${currentlyVisibleStations.length} stations visible after user filtering criteria array check`);
-
-    // 5. Trigger the visual cluster redraw hook
-    if (typeof updateMapMarkersWithClusters === 'function') {
-        updateMapMarkersWithClusters();
-    } else if (typeof renderMarkersOnMap === 'function') {
-        renderMarkersOnMap();
-    }
-}
