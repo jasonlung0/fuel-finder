@@ -497,9 +497,6 @@ window.updateUIForMode = function(isEV) {
 // --- UNIVERSAL COMPATIBILITY INITIALIZATION BOOTLOADER
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    initializeMapSystem();
-    setupEventHandlers();
-
     const lbl = document.getElementById('live-timestamp-label');
     try {
         if (lbl) lbl.textContent = "Connecting Live...";
