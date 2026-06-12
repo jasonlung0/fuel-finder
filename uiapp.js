@@ -1,8 +1,8 @@
-/**
- * PRODUCTION-GRADE UNIFIED FINDER & REFUEL OPTIMIZATION ENGINE
- * Resolved Global Reference Errors, Core State Instantiations,
- * and Native HTML/Inline Component Event Triggers.
- */
+// ==========================================
+// PRODUCTION-GRADE UNIFIED FINDER & REFUEL OPTIMIZATION ENGINE
+// Resolved Global Reference Errors, Core State Instantiations,
+// and Native HTML/Inline Component Event Triggers.
+// ==========================================
 
 // ==========================================
 // 1. GLOBAL CONFIGURATIONS & API CREDENTIALS
