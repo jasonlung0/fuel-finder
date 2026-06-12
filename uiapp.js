@@ -1295,15 +1295,28 @@ async function forceReloadRemotePipelineData() {
     // 2. Read the lean JSON data array directly
     const data = await response.json();
 
-    // 3. Re-map clean properties directly without referencing obsolete structural keys
-    rawGlobalStationsPool = data.map(s => { 
-      const parsedB7 = parseFloat(s.B7);
-      return {
-        ...s, 
-        // Gracefully compute premium diesel if a valid B7 numeric base is parsed
-        PremiumDiesel: (!isNaN(parsedB7) && parsedB7 > 0) ? (parsedB7 + 14.2).toFixed(1) : null
-      }; 
-    });
+    // 3. Map data arrays safely into local memory, standardising case sensitivities
+        rawGlobalStationsPool = data.map(s => {
+            // Safely grab the values regardless of whether the proxy sent upper or lowercase
+            const valE10 = parseFloat(s.E10 || s.e10);
+            const valE5  = parseFloat(s.E5 || s.e5);
+            const valB7  = parseFloat(s.B7 || s.b7);
+            const valSDV = parseFloat(s.SDV || s.sdv);
+
+            return {
+                ...s,
+                // Force uppercase keys so the UI filter dropdown ALWAYS finds a match
+                E10: isNaN(valE10) ? null : valE10,
+                E5:  isNaN(valE5)  ? null : valE5,
+                B7:  isNaN(valB7)  ? null : valB7,
+                SDV: isNaN(valSDV) ? null : valSDV,
+                PremiumDiesel: (!isNaN(valB7) && valB7 > 0) ? (valB7 + 14.2).toFixed(1) : null,
+                
+                // Bulletproof the coordinates just in case the proxy output changed slightly
+                lat: parseFloat(s.lat || s.Latitude || s.latitude),
+                lng: parseFloat(s.lng || s.Longitude || s.longitude || s.lon)
+            };
+        });
 
     if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
     
