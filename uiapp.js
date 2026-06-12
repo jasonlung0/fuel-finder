@@ -493,43 +493,84 @@ window.updateUIForMode = function(isEV) {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    initMap(); 
-    updateSavedItemsCountUI();
-    
+// =============================================================================
+// --- UNIVERSAL COMPATIBILITY INITIALIZATION BOOTLOADER
+// =============================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+    initializeMapSystem();
+    setupEventHandlers();
+
+    const lbl = document.getElementById('live-timestamp-label');
     try {
-        if (document.getElementById('sidebar-drag-handle')) bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
-        if (document.getElementById('right-sidebar-drag-handle')) bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
-        if (document.getElementById('detail-sheet-drag-handle')) bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
-    } catch (err) { console.warn('UI Initialization skipped.', err); }
+        if (lbl) lbl.textContent = "Connecting Live...";
 
-    const radiusSlider = document.getElementById('radius-slider');
-    if (radiusSlider) {
-        radiusSlider.addEventListener('input', (e) => {
-            document.getElementById('radius-val').textContent = `${e.target.value} Miles`;
-            executeStationDataFilteringPipeline();
+        const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
+        if (!response.ok) throw new Error(`Proxy error status: ${response.status}`);
+
+        const data = await response.json();
+
+        // Universal Hydration Layer: satisfies both old and new code paths simultaneously
+        rawGlobalStationsPool = data.map(s => {
+            // Extract coordinates safely from any possible name variation
+            const resolvedLat = parseFloat(s.lat || s.Latitude || s.latitude);
+            const resolvedLng = parseFloat(s.lng || s.Longitude || s.longitude || s.lon);
+
+            // Extract prices safely
+            const rawE10 = s.E10 ?? s.e10 ?? null;
+            const rawE5  = s.E5  ?? s.e5  ?? null;
+            const rawB7  = s.B7  ?? s.b7  ?? null;
+
+            const stringE10 = rawE10 !== null ? parseFloat(rawE10).toFixed(1) : null;
+            const stringE5  = rawE5  !== null ? parseFloat(rawE5).toFixed(1)  : null;
+            const stringB7  = rawB7  !== null ? parseFloat(rawB7).toFixed(1)  : null;
+
+            let stringPremium = null;
+            if (rawB7 !== null && parseFloat(rawB7) > 0) {
+                stringPremium = (parseFloat(rawB7) + 14.2).toFixed(1);
+            }
+
+            return {
+                ...s, // Keep any other background metadata intact
+                
+                // SATISFY COORDINATES (Both short and long forms)
+                lat: resolvedLat,
+                lng: resolvedLng,
+                latitude: resolvedLat,
+                longitude: resolvedLng,
+
+                // SATISFY FUEL TYPES (Both string formats and original numeric entries)
+                E10: stringE10,
+                e10: stringE10,
+                E5:  stringE5,
+                e5:  stringE5,
+                B7:  stringB7,
+                b7:  stringB7,
+                PremiumDiesel: stringPremium,
+
+                // SATISFY LEGACY ARRAY LOOKUPS
+                fuels: [
+                    { fuel_type: "E10", price: rawE10 },
+                    { fuel_type: "E5",  price: rawE5 },
+                    { fuel_type: "B7",  price: rawB7 }
+                ].filter(f => f.price !== null)
+            };
         });
-    }
 
-    const detourSlider = document.getElementById('route-radius-slider');
-    if (detourSlider) {
-        detourSlider.addEventListener('input', (e) => {
-            document.getElementById('route-radius-val').textContent = `${e.target.value} Mi`;
-            executeStationDataFilteringPipeline();
-        });
-    }
+        console.log(`Successfully unified ${rawGlobalStationsPool.length} stations for rendering.`);
 
-    setupAutocompleteListeners();
-    initializeClickIsolationBubbling();
+        if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        
+        // Trigger filter pipeline which now passes onward to the map drawer
+        if (typeof applyGlobalStationFilters === 'function') {
+            applyGlobalStationFilters();
+        }
 
-    if (window.innerWidth < 1024) {
-        setActiveMobileSheet('search');
-    }
-
-    const detailSheet = document.getElementById('global-detail-sheet');
-    if (detailSheet) {
-        detailSheet.classList.add('hidden');
-        setMobileSheetUIState('hidden');
+    } catch (error) {
+        console.error("Initialization Pipeline Failure:", error);
+        if (lbl) lbl.textContent = "Offline Data Buffer Frame";
+        if (typeof forceReloadRemotePipelineData === 'function') {
+            await forceReloadRemotePipelineData();
+        }
     }
 });
 
