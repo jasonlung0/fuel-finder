@@ -1946,3 +1946,88 @@ function executeStationDataFilteringPipeline() {
         renderMarkersOnMap();
     }
 }
+
+function applyGlobalStationFilters() {
+    // 1. Instantly exit if the master database array is empty
+    if (!rawGlobalStationsPool || rawGlobalStationsPool.length === 0) {
+        currentlyVisibleStations = [];
+        if (typeof updateMapMarkersWithClusters === 'function') updateMapMarkersWithClusters();
+        return;
+    }
+
+    // 2. Safely capture current filtering rules from your UI panels
+    const fuelSelectElement = document.getElementById('fuel-type-select');
+    const activeFuelType = fuelSelectElement ? fuelSelectElement.value : 'E10';
+
+    // Get selected brands (falls back to empty array if function isn't initialized yet)
+    const activeBrands = typeof getSelectedBrandsArray === 'function' ? getSelectedBrandsArray() : [];
+    
+    const sliderElement = document.getElementById('distance-range-slider');
+    const maxDistanceLimit = sliderElement ? parseFloat(sliderElement.value) : 30;
+
+    // 3. Process all 7,971 stations through our safety verification layer
+    currentlyVisibleStations = rawGlobalStationsPool.filter(station => {
+        
+        // --- CRITERIA A: BULLETPROOF FUEL CHECK ---
+        // Dynamically inspect variations (E10, e10, B7, b7) to avoid case-sensitivity drops
+        const priceRaw = station[activeFuelType] ?? 
+                         station[activeFuelType.toLowerCase()] ?? 
+                         station[activeFuelType.toUpperCase()] ?? 
+                         null;
+                         
+        if (priceRaw === null || priceRaw === undefined || priceRaw === '') {
+            return false; // Skip station if it doesn't sell this fuel type
+        }
+        
+        const numericPrice = parseFloat(priceRaw);
+        if (isNaN(numericPrice) || numericPrice <= 0) {
+            return false; // Skip station if price data is corrupted
+        }
+
+        // --- CRITERIA B: BULLETPROOF BRAND CHECK ---
+        if (activeBrands && activeBrands.length > 0) {
+            const currentStationBrand = (station.brand || station.brand_name || 'Independent').trim().toLowerCase();
+            const matchesSelectedBrand = activeBrands.some(b => b.trim().toLowerCase() === currentStationBrand);
+            if (!matchesSelectedBrand) {
+                return false; // Filtered out because its brand isn't checked
+            }
+        }
+
+        // --- CRITERIA C: BULLETPROOF DISTANCE CHECK ---
+        // Verify if your global script variables have a valid pinpoint location set
+        const latPivot = typeof userLatitudeGlobalMarkerPivot !== 'undefined' ? userLatitudeGlobalMarkerPivot : null;
+        const lngPivot = typeof userLongitudeGlobalMarkerPivot !== 'undefined' ? userLongitudeGlobalMarkerPivot : null;
+        
+        const hasValidUserCoordinates = latPivot !== null && lngPivot !== null && latPivot !== 0 && lngPivot !== 0;
+
+        if (hasValidUserCoordinates) {
+            const stationLat = parseFloat(station.lat || station.latitude);
+            const stationLng = parseFloat(station.lng || station.longitude);
+
+            if (!isNaN(stationLat) && !isNaN(stationLng)) {
+                // Execute mathematical Haversine algorithm
+                const distanceInKM = calculateHaversineDistanceFormulaKM(latPivot, lngPivot, stationLat, stationLng);
+                const distanceInMiles = distanceInKM * 0.621371;
+
+                if (distanceInMiles > maxDistanceLimit) {
+                    return false; // Exceeds chosen search radius
+                }
+            }
+        } else {
+            // NOTE: If your device location hasn't loaded yet, we safely bypass 
+            // the distance block so the map defaults to showing stations across the UK!
+        }
+
+        return true; // Station passed all rules successfully!
+    });
+
+    // Output tracking diagnostic log matching your console layout
+    console.log(`${currentlyVisibleStations.length} stations visible after user filtering criteria array check`);
+
+    // 4. Trigger the visual cluster redraw hook
+    if (typeof updateMapMarkersWithClusters === 'function') {
+        updateMapMarkersWithClusters();
+    } else if (typeof renderMarkersOnMap === 'function') {
+        renderMarkersOnMap();
+    }
+}
