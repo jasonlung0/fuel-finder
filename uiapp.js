@@ -494,28 +494,75 @@ window.updateUIForMode = function(isEV) {
 };
 
 // =============================================================================
-// --- UNIVERSAL COMPATIBILITY INITIALIZATION BOOTLOADER
+// --- UNIFIED Leaflet Map Initialization & Data Hydration Engine
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    initializeMapSystem();
-    setupEventHandlers();
+    // 1. SELF-CONTAINED MAP STRUCTURAL INITIALIZATION
+    try {
+        // Build the core map object if it hasn't been instantiated yet
+        if (!map) {
+            map = L.map('map', {
+                zoomControl: false // Keeps control cleaner; we'll position it nicely
+            }).setView([54.3, -2.5], 6); // Clean default zoom centered squarely over the UK
 
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            // Inject standard high-performance map tiles
+            tileLayerInstance = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            console.log("Leaflet map canvas container successfully spawned.");
+        }
+
+        // Initialize your global marker cluster layer group if missing
+        if (!markerClusterGroupInstance && typeof L.markerClusterGroup === 'function') {
+            markerClusterGroupInstance = L.markerClusterGroup({
+                maxClusterRadius: 50,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false
+            });
+            map.addLayer(markerClusterGroupInstance);
+            console.log("Marker cluster management layer attached to map scene.");
+        }
+    } catch (mapSetupError) {
+        console.error("Critical failure during Leaflet layer construction:", mapSetupError);
+    }
+
+    // 2. REACTIVE USER INTERFACE INTERCEPTORS
+    // Automatically binds your UI inputs to refresh filters instantly when clicked or dragged
+    const fuelDropdown = document.getElementById('fuel-type-select');
+    if (fuelDropdown) {
+        fuelDropdown.addEventListener('change', () => {
+            if (typeof applyGlobalStationFilters === 'function') applyGlobalStationFilters();
+        });
+    }
+
+    const distanceSlider = document.getElementById('distance-range-slider');
+    if (distanceSlider) {
+        distanceSlider.addEventListener('input', (e) => {
+            const displayLabel = document.getElementById('distance-slider-value-label');
+            if (displayLabel) displayLabel.textContent = `${e.target.value} miles`;
+            if (typeof applyGlobalStationFilters === 'function') applyGlobalStationFilters();
+        });
+    }
+
+    // 3. SECURE DATA CORRIDOR FETCH & PROXY TRANSLATION LAYER
     const lbl = document.getElementById('live-timestamp-label');
     try {
         if (lbl) lbl.textContent = "Connecting Live...";
 
         const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
-        if (!response.ok) throw new Error(`Proxy error status: ${response.status}`);
+        if (!response.ok) throw new Error(`Proxy network status failure: ${response.status}`);
 
         const data = await response.json();
 
-        // Universal Hydration Layer: satisfies both old and new code paths simultaneously
+        // Dual-Property Translation Layer: Maps keys so both old/new map functions read data perfectly
         rawGlobalStationsPool = data.map(s => {
-            // Extract coordinates safely from any possible name variation
             const resolvedLat = parseFloat(s.lat || s.Latitude || s.latitude);
             const resolvedLng = parseFloat(s.lng || s.Longitude || s.longitude || s.lon);
 
-            // Extract prices safely
             const rawE10 = s.E10 ?? s.e10 ?? null;
             const rawE5  = s.E5  ?? s.e5  ?? null;
             const rawB7  = s.B7  ?? s.b7  ?? null;
@@ -524,30 +571,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             const stringE5  = rawE5  !== null ? parseFloat(rawE5).toFixed(1)  : null;
             const stringB7  = rawB7  !== null ? parseFloat(rawB7).toFixed(1)  : null;
 
-            let stringPremium = null;
-            if (rawB7 !== null && parseFloat(rawB7) > 0) {
-                stringPremium = (parseFloat(rawB7) + 14.2).toFixed(1);
-            }
-
             return {
-                ...s, // Keep any other background metadata intact
-                
-                // SATISFY COORDINATES (Both short and long forms)
+                ...s, // Keep background object properties intact
                 lat: resolvedLat,
                 lng: resolvedLng,
                 latitude: resolvedLat,
                 longitude: resolvedLng,
-
-                // SATISFY FUEL TYPES (Both string formats and original numeric entries)
                 E10: stringE10,
                 e10: stringE10,
                 E5:  stringE5,
                 e5:  stringE5,
                 B7:  stringB7,
                 b7:  stringB7,
-                PremiumDiesel: stringPremium,
-
-                // SATISFY LEGACY ARRAY LOOKUPS
                 fuels: [
                     { fuel_type: "E10", price: rawE10 },
                     { fuel_type: "E5",  price: rawE5 },
@@ -556,21 +591,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
         });
 
-        console.log(`Successfully unified ${rawGlobalStationsPool.length} stations for rendering.`);
+        console.log(`Successfully unified and processed ${rawGlobalStationsPool.length} stations.`);
 
-        if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        if (lbl) {
+            lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
         
-        // Trigger filter pipeline which now passes onward to the map drawer
+        // 4. KICK OFF THE FILTERING AND RENDERING PIPELINE
         if (typeof applyGlobalStationFilters === 'function') {
             applyGlobalStationFilters();
         }
 
-    } catch (error) {
-        console.error("Initialization Pipeline Failure:", error);
-        if (lbl) lbl.textContent = "Offline Data Buffer Frame";
-        if (typeof forceReloadRemotePipelineData === 'function') {
-            await forceReloadRemotePipelineData();
-        }
+    } catch (networkError) {
+        console.error("Initialization Pipeline Failure:", networkError);
+        if (lbl) lbl.textContent = "Offline Data Buffer Active";
     }
 });
 
