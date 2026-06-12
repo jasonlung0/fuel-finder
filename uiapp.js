@@ -32,7 +32,7 @@ if (window.tailwind) {
 let tileLayerInstance = null;
 // let routePolylineLayer = null;
 let refuelMarkersGroup = null;
-let markerClusterGroupInstance = null;
+// let markerClusterGroupInstance = null;
 
 let activeTabContext = 'local';
 let activeDirectoryTab = 'stations'; // Keeps track of sub-tabs ('stations' vs 'routes')
