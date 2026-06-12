@@ -2,6 +2,8 @@
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
 const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf'; 
+const weatherCacheMap = new Map();
+const forecourtTrafficCacheMap = new Map();
 
 // --- UNIVERSAL ID HELPER ---
 function getStationId(station) {
@@ -40,6 +42,7 @@ let savedRoutes = [];
 // --- OpenWeatherMap Integration ---
 const weatherCacheMap = new Map();
 
+// New background fetchers that grab the weather and TomTom queue times.
 async function fetchWeatherForStation(lat, lng) {
     const cacheKey = `${parseFloat(lat).toFixed(1)},${parseFloat(lng).toFixed(1)}`;
     if (weatherCacheMap.has(cacheKey)) {
@@ -85,6 +88,93 @@ try {
     console.error("Failed to parse local storage:", e);
     starredStations = [];
     savedRoutes = [];
+}
+
+async function fetchWeatherForStation(lat, lng) {
+    const cacheKey = `${parseFloat(lat).toFixed(3)},${parseFloat(lng).toFixed(3)}`;
+    if (weatherCacheMap.has(cacheKey)) return weatherCacheMap.get(cacheKey);
+
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&appid=${OPENWEATHER_API_KEY}`;
+        const response = await fetch(url);
+        if (!response.ok) return { text: "Unavailable", emoji: "🌡️" };
+        const data = await response.json();
+        if (data.main && data.weather && data.weather[0]) {
+            const description = data.weather[0].main;
+            const temp = Math.round(data.main.temp);
+            
+            let emoji = '☀️';
+            if (description.includes('Cloud')) emoji = '☁️';
+            else if (description.includes('Rain') || description.includes('Drizzle')) emoji = '🌧️';
+            else if (description.includes('Thunder')) emoji = '⛈️';
+            else if (description.includes('Snow')) emoji = '❄️';
+            else if (description.includes('Mist') || description.includes('Fog')) emoji = '🌫️';
+
+            const payload = { text: `${temp}°C, ${description}`, emoji: emoji };
+            weatherCacheMap.set(cacheKey, payload);
+            return payload;
+        }
+    } catch (e) {
+        console.error("Weather fetch failed", e);
+    }
+    return { text: "Unavailable", emoji: "🌡️" };
+}
+
+async function fetchStationQueuePrediction(lat, lng, targetDomId = null) {
+    const cacheKey = `${parseFloat(lat).toFixed(3)},${parseFloat(lng).toFixed(3)}`;
+    if (forecourtTrafficCacheMap.has(cacheKey)) {
+        const cached = forecourtTrafficCacheMap.get(cacheKey);
+        if (targetDomId) updateQueueBadgeDom(targetDomId, cached);
+        return cached;
+    }
+
+    try {
+        const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${lat},${lng}&key=${TOMTOM_API_KEY}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Traffic request issue");
+        const data = await response.json();
+        
+        if (data && data.flowSegmentData) {
+            const flow = data.flowSegmentData;
+            const current = flow.currentSpeed;
+            const freeFlow = flow.freeFlowSpeed;
+            const ratio = freeFlow > 0 ? (current / freeFlow) : 1;
+            
+            let status = { text: "Zero Queue", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500", penaltyMinutes: 0 };
+            if (ratio < 0.25) {
+                status = { text: "Severe Line (+5m)", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500", penaltyMinutes: 5 };
+            } else if (ratio < 0.60) {
+                status = { text: "Moderate Line (+2m)", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500", penaltyMinutes: 2 };
+            }
+            
+            forecourtTrafficCacheMap.set(cacheKey, status);
+            if (targetDomId) updateQueueBadgeDom(targetDomId, status);
+            return status;
+        }
+    } catch (e) {
+        console.error("Traffic prediction system failure", e);
+    }
+    
+    const fallback = { text: "Stable Flow", color: "text-zinc-500 dark:text-zinc-400", bg: "bg-zinc-500", penaltyMinutes: 0 };
+    if (targetDomId) updateQueueBadgeDom(targetDomId, fallback);
+    return fallback;
+}
+
+function updateQueueBadgeDom(domId, status) {
+    const element = document.getElementById(domId);
+    if (element) {
+        element.textContent = status.text;
+        if (element.tagName !== 'DIV' || !element.classList.contains('absolute')) {
+            element.className = `text-xs font-black transition-all ${status.color}`;
+        } else {
+            if (status.text === "Stable Flow" || status.text === "Zero Queue") {
+                element.classList.add('hidden');
+            } else {
+                element.className = `absolute -top-2 -right-2 ${status.bg} border-2 border-white dark:border-zinc-950 text-white px-1.5 py-0.5 rounded-full text-[9px] font-black shadow-lg animate-pulse z-[2000]`;
+                element.classList.remove('hidden');
+            }
+        }
+    }
 }
 
 // --- CORE TOAST NOTIFICATION SYSTEM ---
@@ -352,6 +442,22 @@ window.setActiveMobileSheet = function(targetType) {
         setMobileRightSidebarState('mid');
     }
 };
+
+function setActiveMobileSheet(sheetToOpen) {
+    const sheets = [
+        { id: 'mobile-parameters-sliding-sheet', node: document.getElementById('mobile-parameters-sliding-sheet') },
+        { id: 'mobile-station-sliding-sheet', node: document.getElementById('mobile-station-sliding-sheet') }
+    ];
+
+    sheets.forEach(sheet => {
+        if (!sheet.node) return;
+        if (sheet.id === sheetToOpen) {
+            sheet.node.classList.remove('translate-y-full');
+        } else {
+            sheet.node.classList.add('translate-y-full');
+        }
+    });
+}
 
 // --- 3-STATE MOBILE SWIPE MECHANICS ---
 let currentMobileSidebarUIState = 'peek';
