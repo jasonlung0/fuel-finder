@@ -1475,8 +1475,13 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
     markerClusterGroupInstance.clearLayers();
     
     const isEV = variant === 'electric';
+    
+    // 1. ROBUST PRICE EXTRACTION (Matches what you did in app.js)
     const pricesArray = stationsList.map(s => {
         let p = parseFloat(s[variant]);
+        // Fallback for GOV API data structures
+        if (!p || isNaN(p)) p = parseFloat(s[`price_${variant.toLowerCase()}`] || s[`forecourts.fuel_price.${variant}`]); 
+        
         if (isEV && (!p || isNaN(p))) p = parseFloat(s.electric_price || s.charge_rate || s.electric);
         return p;
     }).filter(p => !isNaN(p) && p > 0);
@@ -1497,8 +1502,11 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
     }
 
     stationsList.forEach((station) => {
+        // 2. ROBUST MARKER PRICE EXTRACTION
         let numericPrice = parseFloat(station[variant]);
+        if (!numericPrice || isNaN(numericPrice)) numericPrice = parseFloat(station[`price_${variant.toLowerCase()}`] || station[`forecourts.fuel_price.${variant}`]);
         if (isEV && (!numericPrice || isNaN(numericPrice))) numericPrice = parseFloat(station.electric_price || station.charge_rate || station.electric);
+        
         if (!numericPrice || isNaN(numericPrice)) return;
         
         let tierBgClassColor = 'bg-fuel-blue';
@@ -1514,7 +1522,13 @@ window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTo
             </div>
         `;
 
-        const markerInstance = L.marker([parseFloat(station.latitude || station.lat), parseFloat(station.longitude || station.lng)], {
+        // 3. ROBUST COORDINATE EXTRACTION (Checking for flat and nested lat/lon)
+        const lat = parseFloat(station.latitude || station.lat || station['forecourts.location.latitude']);
+        const lon = parseFloat(station.longitude || station.lng || station['forecourts.location.longitude']);
+
+        if (isNaN(lat) || isNaN(lon)) return; // Skip if coordinates are still missing
+
+        const markerInstance = L.marker([lat, lon], {
             stationRawData: station,
             icon: L.divIcon({ html: markerBubbleHtml, className: 'leaflet-div-icon-reset', iconSize: [50, 32], iconAnchor: [25, 16] })
         });
