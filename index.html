@@ -89,13 +89,16 @@
             <div>
                 <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1.5">Fuel Type Filter</label>
                 <div class="relative">
-                    <select id="fuel-type-select" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
+                    <select id="fuelType" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
                         <option value="E10">Petrol Unleaded (E10)</option>
                         <option value="E5">Super Unleaded (E5)</option>
                         <option value="B7">Diesel (B7)</option>
                         <option value="PremiumDiesel">Premium Diesel</option>
                         <option value="electric">EV Chargers ⚡</option>
                     </select>
+                    <!-- Add this safe tracking fallback right beneath it -->
+                    <input type="hidden" id="filterUnleaded" value="false" />
+                    
                     <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-zinc-400">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
                     </div>
