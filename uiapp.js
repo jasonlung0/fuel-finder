@@ -27,12 +27,12 @@ if (window.tailwind) {
     };
 }
 
-let map = null;
+// let map = null;
 let tileLayerInstance = null;
 let markerClusterGroupInstance = null;
 let routePolylineLayer = null;
 
-let rawGlobalStationsPool = [];
+// let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
@@ -583,8 +583,18 @@ function applyThemeChangesToDOM() {
 }
 
 function initMap() {
-    if (map) return;
-    map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
+    // 1. CHANGED: Check the global window object instead of the local shadowed variable
+    if (window.map) return;
+    
+    // 2. CHANGED: Assign the Leaflet instance directly to window.map so app.js can see it
+    window.map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
+    
+    // 3. CHANGED: Sync your local uiapp.js file reference shell
+    map = window.map; 
+
+    // =========================================================================
+    // RETAIN EVERYTHING BELOW EXACTLY AS IT WAS IN YOUR ORIGINAL CODE:
+    // =========================================================================
     const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
     tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
     L.control.zoom({ position: 'topright' }).addTo(map);
@@ -616,6 +626,7 @@ function initMap() {
     triggerActiveDeviceLocationLookup();
     forceReloadRemotePipelineData();
 }
+
 
 window.executeContextualAreaScanPipeline = function(event) {
     if (event) event.stopPropagation();
