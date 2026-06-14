@@ -583,13 +583,14 @@ function applyThemeChangesToDOM() {
 }
 
 function initMap() {
-    // 1. CHANGED: Check the global window object instead of the local shadowed variable
-    if (window.map) return;
+    // 1. FIXED: Check if it's already a Leaflet object, not just an HTML Div element
+    if (window.map && typeof window.map.setView === 'function') return;
     
-    // 2. CHANGED: Assign the Leaflet instance directly to window.map so app.js can see it
+    // 2. Clear any browser default DOM string assignments safely
+    window.map = null; 
+    
+    // 3. Initialize Leaflet directly into the window scope
     window.map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 11);
-    
-    // 3. CHANGED: Sync your local uiapp.js file reference shell
     map = window.map; 
 
     // =========================================================================
