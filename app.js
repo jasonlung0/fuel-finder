@@ -2,46 +2,64 @@
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
-// Reference the global map initialized by uiapp.js to prevent conflicts
-// We wait for the DOM to ensure uiapp.js has set up the map variable
-window.rawGlobalStationsPool = []; 
-let map;
+// FIXED: Initialize window bucket immediately. DO NOT redeclare map locally using 'let map' 
+// if uiapp.js defines it top-level. Instead, assign directly to window scope dynamically.
+window.rawGlobalStationsPool = window.rawGlobalStationsPool || [];
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
     headers: { 'User-Agent': 'UK-Fuel-Finder-App-v1.0' }
 });
 
+// Lazily assign tilesets on demand to avoid initialization sequence blocks
 const themes = {
-    light: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
-    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB' }),
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' })
+    light: () => L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }),
+    dark: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CartoDB' }),
+    satellite: () => L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' })
 };
-let activeTheme = themes.light.addTo(map);
+let activeTheme = null;
 
 let currentMode = 'local'; 
 let waypointsList = []; 
 let routeLayer = null;
-let stationMarkers = L.layerGroup().addTo(map);
+let stationMarkers = null; // initialized safely once map exists
 let lastSavedRouteData = null;
 let currentlyFilteredStations = [];
 let userLocation = { lat: 56.0716, lon: -3.4523 }; 
 let searchByAreaActive = false;
 
+// Helper to access the unified global map without closure scope isolation
+function getActiveMap() {
+    return window.map || (typeof map !== 'undefined' ? map : null);
+}
+
+// Safely configure overlay groups once Leaflet finishes initial boot
+function enforceMarkerGroupContext() {
+    const targetMap = getActiveMap();
+    if (targetMap && !stationMarkers) {
+        stationMarkers = L.layerGroup().addTo(targetMap);
+    }
+    return stationMarkers;
+}
+
 window.toggleSidebar = function() {
     const sidebar = document.getElementById('sidebar');
     const icon = document.getElementById('toggleIcon');
+    const targetMap = getActiveMap();
     if (!sidebar || !icon) return;
     
     sidebar.classList.toggle('collapsed');
     icon.innerText = sidebar.classList.contains('collapsed') ? "→" : "←";
     
-    setTimeout(() => { map.invalidateSize(); }, 360);
+    if (targetMap) {
+        setTimeout(() => { targetMap.invalidateSize(); }, 360);
+    }
 };
 
 window.switchTab = function(tabId) {
     document.querySelectorAll('.tab-btn, .tab-content').forEach(el => el.classList.remove('active'));
     searchByAreaActive = false;
+    const targetMap = getActiveMap();
     
     const tabRadius = document.getElementById('bufferRadiusContainer');
     const tabCost = document.getElementById('costSummary');
@@ -49,21 +67,24 @@ window.switchTab = function(tabId) {
     if (tabId === 'local-tab') {
         currentMode = 'local';
         document.getElementById('local-tab').classList.add('active');
-        document.querySelector("button[onclick*='local-tab']").classList.add('active');
-        if(tabRadius) tabRadius.classList.add('hidden');
-        if(tabCost) tabCost.classList.add('hidden');
-        if(routeLayer) map.removeLayer(routeLayer);
+        const localBtn = document.querySelector("button[onclick*='local-tab']");
+        if (localBtn) localBtn.classList.add('active');
+        if (tabRadius) tabRadius.classList.add('hidden');
+        if (tabCost) tabCost.classList.add('hidden');
+        if (routeLayer && targetMap) targetMap.removeLayer(routeLayer);
         filterFuelStationsLocalMode();
     } else {
         currentMode = 'route';
         document.getElementById('route-tab').classList.add('active');
-        document.querySelector("button[onclick*='route-tab']").classList.add('active');
-        if(tabRadius) tabRadius.classList.remove('hidden');
+        const routeBtn = document.querySelector("button[onclick*='route-tab']");
+        if (routeBtn) routeBtn.classList.add('active');
+        if (tabRadius) tabRadius.classList.remove('hidden');
         if (lastSavedRouteData) {
-            if (routeLayer && !map.hasLayer(routeLayer)) routeLayer.addTo(map);
+            if (routeLayer && targetMap && !targetMap.hasLayer(routeLayer)) routeLayer.addTo(targetMap);
             filterFuelStationsRouteMode(lastSavedRouteData);
         } else {
-            stationMarkers.clearLayers();
+            const markers = enforceMarkerGroupContext();
+            if (markers) markers.clearLayers();
             const container = document.getElementById('topStationsContainer');
             if (container) container.classList.add('hidden');
         }
@@ -71,9 +92,11 @@ window.switchTab = function(tabId) {
 };
 
 window.changeMapTheme = function(themeName) {
-    if (activeTheme) map.removeLayer(activeTheme);
-    activeTheme = themes[themeName] || themes.light;
-    activeTheme.addTo(map);
+    const targetMap = getActiveMap();
+    if (!targetMap) return;
+    if (activeTheme) targetMap.removeLayer(activeTheme);
+    activeTheme = themes[themeName] ? themes[themeName]() : themes.light();
+    activeTheme.addTo(targetMap);
 };
 
 window.updateRadiusLabel = function(val) {
@@ -90,254 +113,81 @@ window.updateLocalRadiusLabel = function(val) {
 };
 
 window.searchThisArea = function() {
+    const targetMap = getActiveMap();
+    if (!targetMap) return;
     searchByAreaActive = true;
-    const mapCenter = map.getCenter();
+    const mapCenter = targetMap.getCenter();
     const status = document.getElementById('status');
     if (status) status.innerText = "Scanning visible viewport...";
     userLocation = { lat: mapCenter.lat, lon: mapCenter.lng };
     filterFuelStationsLocalMode();
 };
 
-window.addNewWaypointField = function(customLabel) {
-    if (!customLabel) customLabel = "Stop";
-    const container = document.getElementById('waypointContainer');
-    if (!container) return;
+// =========================================================================
+// FIXED DATATYPE AND COLUMN PARSERS
+// =========================================================================
+
+// Fixed coordinate lookup to match the clean flat payload generated by your Worker scraper
+function getCoordinates(station) {
+    const lat = parseFloat(station.latitude || station.lat);
+    const lon = parseFloat(station.longitude || station.lng);
     
-    const index = waypointsList.length;
-    const rowId = 'waypoint-row-' + index;
-    waypointsList.push({ coordinates: null, rawText: "", id: rowId, label: customLabel });
-
-    const row = document.createElement('div');
-    row.id = rowId;
-    row.className = 'flex items-center gap-2 relative bg-white z-10 w-full transition-all p-1 border border-transparent rounded-md';
-    row.setAttribute('draggable', 'true');
-
-    const isCoreField = (customLabel === "Start" || customLabel === "Destination");
-
-    row.innerHTML = `
-        <span class="text-slate-400 text-sm font-semibold cursor-grab px-1 select-none handle">⋮⋮</span>
-        <div class="relative flex-grow">
-            <input type="text" id="input-${index}" placeholder="${customLabel}..." autocomplete="off" class="w-full bg-white border border-slate-200 rounded-md py-1.5 px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-950">
-            <span id="clear-${index}" onclick="clearWaypointField(${index})" class="absolute right-3 top-2 cursor-pointer text-slate-400 hover:text-slate-600 font-medium hidden text-xs">×</span>
-            <div id="suggest-${index}" class="absolute top-[38px] left-0 w-full bg-white border border-slate-200 z-[99999] hidden max-h-[160px] overflow-y-auto rounded-md shadow-lg divide-y divide-slate-100"></div>
-        </div>
-        ${!isCoreField ? `<button onclick="removeWaypointField(${index}, '${rowId}')" class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-slate-50 transition-colors shrink-0 text-sm">🗑️</button>` : `<div class="w-7 shrink-0"></div>`}`;
-
-    container.appendChild(row);
-    setupDynamicAutocomplete(index, row);
-    setupDragAndDropEvents(row);
-};
-
-window.clearWaypointField = function(index) {
-    const inputEl = document.getElementById('input-' + index);
-    if (inputEl) inputEl.value = '';
-    
-    const suggestEl = document.getElementById('suggest-' + index);
-    if (suggestEl) suggestEl.style.display = 'none';
-    
-    const clearEl = document.getElementById('clear-' + index);
-    if (clearEl) clearEl.style.display = 'none';
-    
-    if(waypointsList[index]) {
-        waypointsList[index].coordinates = null;
-        waypointsList[index].rawText = "";
+    if (!isNaN(lat) && !isNaN(lon)) {
+        return { lat, lon };
     }
-};
-
-window.removeWaypointField = function(index, rowId) { 
-    const el = document.getElementById(rowId);
-    if(el) el.remove(); 
-    waypointsList = waypointsList.filter(wp => wp && wp.id !== rowId);
-    if(lastSavedRouteData) window.calculateJourney(); 
-};
-
-function setupDragAndDropEvents(row) {
-    row.addEventListener('dragstart', (e) => {
-        row.classList.add('dragging');
-        e.dataTransfer.setData('text/plain', row.id);
-    });
-
-    row.addEventListener('dragend', () => {
-        row.classList.remove('dragging');
-        document.querySelectorAll('#waypointContainer > div').forEach(el => el.classList.remove('drag-over'));
-        rebuildWaypointsOrderFromDOM();
-    });
-
-    row.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        row.classList.add('drag-over');
-    });
-
-    row.addEventListener('dragleave', () => {
-        row.classList.remove('drag-over');
-    });
-
-    row.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('text/plain');
-        const draggedEl = document.getElementById(draggedId);
-        const container = document.getElementById('waypointContainer');
-        
-        if (draggedEl && draggedEl !== row) {
-            const allElements = [...container.querySelectorAll('#waypointContainer > div')];
-            const draggedIndex = allElements.indexOf(draggedEl);
-            const targetIndex = allElements.indexOf(row);
-            
-            if (draggedIndex < targetIndex) {
-                row.after(draggedEl);
-            } else {
-                row.before(draggedEl);
-            }
-        }
-    });
+    return null;
 }
 
-function rebuildWaypointsOrderFromDOM() {
-    const container = document.getElementById('waypointContainer');
-    const rows = [...container.querySelectorAll('#waypointContainer > div')];
-    
-    let newWaypoints = [];
-    rows.forEach((row) => {
-        const found = waypointsList.find(wp => wp && wp.id === row.id);
-        if (found) newWaypoints.push(found);
-    });
-    waypointsList = newWaypoints;
+// Fixed pricing extractor logic to match flat keys and bypass case sensitivity crashes
+function extractPriceByMetricType(station, fuelType) {
+    const target = (fuelType || 'E10').toLowerCase();
+    let val = NaN;
+
+    if (target.includes('e10')) {
+        val = parseFloat(station.E10 || station.price_e10 || station.e10);
+    } else if (target.includes('e5')) {
+        val = parseFloat(station.E5 || station.price_e5 || station.e5);
+    } else if (target.includes('premium') || target.includes('b7p')) {
+        val = parseFloat(station.B7P || station.PremiumDiesel || station.b7p);
+    } else if (target.includes('diesel') || target.includes('b7')) {
+        val = parseFloat(station.B7 || station.price_diesel || station.b7);
+    }
+
+    return (!isNaN(val) && val > 0) ? val : NaN;
 }
 
-window.calculateJourney = async function() {
-    const statusDiv = document.getElementById('status');
-    const validCoords = waypointsList.filter(wp => wp && wp.coordinates).map(wp => [parseFloat(wp.coordinates[0]), parseFloat(wp.coordinates[1])]);
+// =========================================================================
+// ASYNC REMOTE TELEMETRY LOGIC PIPELINE
+// =========================================================================
 
-    if (validCoords.length < 2) { 
-        alert('Please map your coordinates points first using autocomplete suggestions.'); 
-        return; 
-    }
+// FIXED: Explicitly maps incoming proxy stream buffer straight to browser window memory scope
+window.forceReloadRemotePipelineData = async function() {
+    const status = document.getElementById('status');
+    if (status) status.innerText = "Connecting to GOV.UK telemetry stream...";
     
-    if (statusDiv) statusDiv.innerText = "Requesting multi-stop track traces...";
-    stationMarkers.clearLayers();
-    if (routeLayer) map.removeLayer(routeLayer);
-
     try {
-        const response = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
-            method: 'POST',
-            headers: { 
-                'Accept': 'application/geo+json', 
-                'Content-Type': 'application/json', 
-                'Authorization': ORS_API_KEY 
-            },
-            body: JSON.stringify({ "coordinates": validCoords })
-        });
-        if (!response.ok) throw new Error(await response.text());
-        const routeData = await response.json();
-        lastSavedRouteData = routeData;
+        const response = await fetch(PROXY_WORKER_URL);
+        if (!response.ok) throw new Error(`HTTP network error: Status ${response.status}`);
         
-        routeLayer = L.geoJSON(routeData, { style: { color: '#0f172a', weight: 5, opacity: 0.85 } }).addTo(map);
-        map.fitBounds(routeLayer.getBounds());
-        filterFuelStationsRouteMode(routeData);
+        const data = await response.json();
+        
+        // Save precisely to window target context so uiapp.js filtering can find it
+        window.rawGlobalStationsPool = Array.isArray(data) ? data : (data.stations || data.data || []);
+        
+        console.log(`Telemetry synchronized. Saved ${window.rawGlobalStationsPool.length} stations to memory.`);
+        if (status) status.innerText = `Live: ${window.rawGlobalStationsPool.length} fuel stations synchronized`;
+        
+        // Execute UI compilation pipeline now that data array has loaded
+        if (typeof window.executeStationDataFilteringPipeline === 'function') {
+            window.executeStationDataFilteringPipeline();
+        } else if (currentMode === 'local') {
+            filterFuelStationsLocalMode();
+        }
     } catch (err) {
-        console.error(err); 
-        if (statusDiv) statusDiv.innerText = "Routing fault. Check your endpoints.";
+        console.error("Data pipeline processing failure:", err);
+        if (status) status.innerText = "Offline Data Buffer Frame";
     }
 };
-
-window.handleBackdropClick = function(event) { 
-    if (event.target.id === 'iosModalBackdrop') closeiOSModalSheet(); 
-};
-
-window.closeiOSModalSheet = function() {
-    const backdrop = document.getElementById('iosModalBackdrop');
-    const sheet = document.getElementById('stationDetailSheet');
-    if(!backdrop || !sheet) return;
-    backdrop.style.opacity = '0'; 
-    sheet.style.transform = 'translateY(100%)';
-    setTimeout(() => { backdrop.style.display = 'none'; }, 250);
-};
-
-function setupDynamicAutocomplete(index, rowElement) {
-    const input = document.getElementById("input-" + index);
-    const suggestionsDiv = document.getElementById("suggest-" + index);
-    const clearBtn = document.getElementById("clear-" + index);
-    if (!input || !suggestionsDiv) return;
-
-    input.addEventListener('focus', () => { rowElement.classList.add('z-[999]'); });
-    input.addEventListener('blur', () => { setTimeout(() => { rowElement.classList.remove('z-[999]'); }, 300); });
-
-    input.addEventListener('input', debounce(async function(e) {
-        const query = e.target.value;
-        if (clearBtn) clearBtn.style.display = query.length > 0 ? 'block' : 'none';
-        
-        const foundIndex = waypointsList.findIndex(wp => wp && wp.id === rowElement.id);
-        if (foundIndex !== -1) waypointsList[foundIndex].rawText = query;
-
-        if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
-        try {
-            const results = await searchProvider.search({ query: query });
-            suggestionsDiv.innerHTML = '';
-            if (!results || results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
-            results.slice(0, 5).forEach(function(item) {
-                const row = document.createElement('div');
-                row.className = 'p-2 px-3 cursor-pointer text-xs hover:bg-slate-50 text-slate-700 font-medium transition-colors';
-                row.innerText = item.label;
-                row.onclick = function() {
-                    input.value = item.label; 
-                    suggestionsDiv.style.display = 'none';
-                    const fIdx = waypointsList.findIndex(wp => wp && wp.id === rowElement.id);
-                    if (fIdx !== -1) waypointsList[fIdx].coordinates = [item.x, item.y]; 
-                };
-                suggestionsDiv.appendChild(row);
-            });
-            suggestionsDiv.style.display = 'block';
-        } catch (err) { console.error(err); }
-    }, 400));
-}
-
-function setupTab1Autocomplete() {
-    const input = document.getElementById('localSearchInput');
-    const suggestionsDiv = document.getElementById('localSuggestions');
-    if (!input || !suggestionsDiv) return;
-
-    input.addEventListener('input', debounce(async function(e) {
-        const query = e.target.value;
-        if (query.length < 3) { suggestionsDiv.style.display = 'none'; return; }
-        try {
-            const results = await searchProvider.search({ query: query });
-            suggestionsDiv.innerHTML = '';
-            if (!results || results.length === 0) { suggestionsDiv.style.display = 'none'; return; }
-            results.forEach(function(item) {
-                const row = document.createElement('div');
-                row.className = 'p-2 px-3 cursor-pointer text-xs hover:bg-slate-50 text-slate-700 font-medium transition-colors';
-                row.innerText = item.label;
-                row.onclick = function() {
-                    input.value = item.label; 
-                    suggestionsDiv.style.display = 'none';
-                    searchByAreaActive = false;
-                    userLocation = { lat: item.y, lon: item.x };
-                    map.setView([item.y, item.x], 13);
-                    filterFuelStationsLocalMode();
-                };
-                suggestionsDiv.appendChild(row);
-            });
-            suggestionsDiv.style.display = 'block';
-        } catch (err) { console.error(err); }
-    }, 400));
-}
-
-async function fetchLiveGovStationData() {
-    try {
-        const response = await fetch(PROXY_WORKER_URL, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-        if (!response.ok) {
-            throw new Error(`Edge worker proxy returned execution error state: ${response.status}`);
-        }
-        const jsonPayload = await response.json();
-        return jsonPayload.data || jsonPayload.stations || jsonPayload;
-    } catch (error) {
-        console.error("Worker extraction processing fault:", error);
-        throw error;
-    }
-}
 
 async function filterFuelStationsLocalMode() {
     const statusEl = document.getElementById('status');
