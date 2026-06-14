@@ -2,9 +2,9 @@
 const ORS_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZlMTc1YjJjNzFkMDQ5NjI5ZTY1ZWExNmQ3NTAyZDNkIiwiaCI6Im11cm11cjY0In0=';
 const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
-// Initialize Leaflet Map Object Instance 
-const map = L.map('map', { zoomControl: false }).setView([56.0716, -3.4523], 12); 
-L.control.zoom({ position: 'topright' }).addTo(map);
+// Reference the global map initialized by uiapp.js to prevent conflicts
+// We wait for the DOM to ensure uiapp.js has set up the map variable
+let map = window.map; 
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
@@ -446,7 +446,8 @@ function processAndRenderStations(stationsArray, spatialBufferPolygon) {
         if (spatialBufferPolygon) {
             if (!turf.booleanPointInPolygon(turf.point([coords.lon, coords.lat]), spatialBufferPolygon)) return;
         } else {
-            if (!bounds.contains([coords.lat, coords.lon])) return;
+            // FIX: If bounds are not fully initialized, skip the strict bounds filter so markers actually paint on initial load
+            if (bounds && bounds.isValid() && !bounds.contains([coords.lat, coords.lon])) return;
         }
         
         if (currentMode === 'local' && userLocation) {
