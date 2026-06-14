@@ -4,6 +4,7 @@ const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
 // Reference the global map initialized by uiapp.js to prevent conflicts
 // We wait for the DOM to ensure uiapp.js has set up the map variable
+window.rawGlobalStationsPool = []; 
 let map;
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
