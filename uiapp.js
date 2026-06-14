@@ -31,8 +31,7 @@ if (window.tailwind) {
 let tileLayerInstance = null;
 let markerClusterGroupInstance = null;
 let routePolylineLayer = null;
-
-// let rawGlobalStationsPool = [];
+let rawGlobalStationsPool = window.rawGlobalStationsPool || [];
 let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
@@ -1307,6 +1306,13 @@ async function forceReloadRemotePipelineData() {
 // MAIN PIPELINE: Filter Stations & Draw Map
 // -------------------------------------------------------------
 window.executeStationDataFilteringPipeline = async function() {
+    // FIXED: Pull the fresh array from window memory or fall back to an empty group
+    const workingDataset = window.rawGlobalStationsPool || rawGlobalStationsPool || [];
+    
+    if (!workingDataset || workingDataset.length === 0) {
+        console.warn("Filtering pipeline halted: rawGlobalStationsPool is currently empty or loading.");
+        return;
+    }
     if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type-select')?.value !== 'electric') return;
     const targetFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
