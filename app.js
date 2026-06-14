@@ -4,7 +4,7 @@ const PROXY_WORKER_URL = 'https://fuel-api-proxy.jasonlung0.workers.dev';
 
 // Reference the global map initialized by uiapp.js to prevent conflicts
 // We wait for the DOM to ensure uiapp.js has set up the map variable
-let map = window.map; 
+let map;
 
 const searchProvider = new GeoSearch.OpenStreetMapProvider({
     params: { countrycodes: 'gb', limit: 5 },
@@ -669,8 +669,16 @@ function getMarkerColor(p) {
     return '#ef4444';                               
 }
 
-window.addEventListener('DOMContentLoaded', function() {
-    // Mobile Layout Setup: Collapse menu by default on smaller mobile displays
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Safely capture the map instance initialized by uiapp.js
+    map = window.map;
+
+    // 2. Add zoom controls to the shared map instance
+    if (map) {
+        L.control.zoom({ position: 'topright' }).addTo(map);
+    }
+
+    // 3. Mobile Layout Setup: Collapse menu by default on smaller mobile displays
     if (window.innerWidth <= 768) {
         const sidebar = document.getElementById('sidebar');
         if (sidebar) sidebar.classList.add('collapsed');
@@ -678,19 +686,24 @@ window.addEventListener('DOMContentLoaded', function() {
         if (icon) icon.innerText = "→";
     }
 
+    // 4. Initialize waypoints and autocomplete
     addNewWaypointField("Start");
     addNewWaypointField("Destination");
     setupTab1Autocomplete();
 
-    document.getElementById('fuelType').addEventListener('change', () => refreshActiveDataView());
-    document.getElementById('mpg').addEventListener('input', () => refreshActiveDataView());
-    document.getElementById('filterUnleaded').addEventListener('change', () => refreshActiveDataView());
+    // 5. Attach Event Listeners
+    // Added optional chaining (?.) just to be safe in case a DOM element is missing
+    document.getElementById('fuelType')?.addEventListener('change', () => refreshActiveDataView());
+    document.getElementById('mpg')?.addEventListener('input', () => refreshActiveDataView());
+    document.getElementById('filterUnleaded')?.addEventListener('change', () => refreshActiveDataView());
 
+    // 6. Geolocation & Initial Data Fetch
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 userLocation = { lat: position.coords.latitude, lon: position.coords.longitude };
-                map.setView([userLocation.lat, userLocation.lon], 12); 
+                // Safely check for map before setting view
+                if (map) map.setView([userLocation.lat, userLocation.lon], 12); 
                 setTimeout(() => { filterFuelStationsLocalMode(); }, 200);
             },
             function() { 
