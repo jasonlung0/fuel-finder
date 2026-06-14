@@ -625,6 +625,14 @@ function initMap() {
     
     triggerActiveDeviceLocationLookup();
     forceReloadRemotePipelineData();
+
+        // Add this line as the absolute last step inside your initMap() block:
+    setTimeout(() => {
+        if (map) {
+            map.invalidateSize();
+            console.log("Map bounds recalculation pipeline executed successfully.");
+        }
+    }, 100);
 }
 
 
