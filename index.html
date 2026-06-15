@@ -20,23 +20,23 @@
         body { font-family: 'Inter', sans-serif; letter-spacing: -0.01em; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e4e4e7; border-radius: 9999px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; }
         
-        /* Unified Leaflet Control Reset */
-        .leaflet-control-zoom { border: none !important; margin: 0 !important; box-shadow: none !important; }
-        .leaflet-bar a { background-color: white !important; color: #18181b !important; border-bottom: 1px solid #f4f4f5 !important; width: 40px !important; height: 40px !important; line-height: 40px !important; font-size: 18px !important; font-weight: bold !important; transition: background-color 0.2s; }
-        .leaflet-bar a:hover { background-color: #f4f4f5 !important; }
-        .dark .leaflet-bar a { background-color: #18181b !important; color: white !important; border-bottom: 1px solid #27272a !important; }
-        .dark .leaflet-bar a:hover { background-color: #27272a !important; }
-        
-        .floating-modal-transition { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease; }
+        /* Unified Leaflet Control Reset & Overrides */
+        .leaflet-control-zoom { display: none !important; } /* Hidden to use custom UI buttons */
+        .leaflet-control-scale { margin-bottom: 20px !important; margin-right: 80px !important; }
+        .floating-modal-transition { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease; }
     </style>
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 select-none">
 
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-    <header class="absolute top-0 left-0 w-full z-[2000] pointer-events-none flex flex-col gap-3 p-4 md:p-6">
-        <div class="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-xl rounded-2xl p-3 md:px-5 md:py-3.5 flex items-center justify-between border border-zinc-200/80 dark:border-zinc-800">
+    <header class="absolute top-0 left-0 w-full z-[2000] pointer-events-none flex flex-col gap-2 p-4 md:p-6">
+        <div class="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-sm rounded-2xl p-3 md:px-4 md:py-3 flex items-center justify-between border border-zinc-200/80 dark:border-zinc-800">
             <div class="flex items-center gap-4 lg:gap-8">
                 <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload();">
                     <div class="bg-gradient-to-tr from-emerald-500 to-teal-400 text-white p-2 rounded-xl shadow-md shadow-emerald-500/20">
@@ -48,173 +48,83 @@
                     </div>
                 </div>
 
-                <div class="hidden lg:flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-950 p-1.5 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
-                    <button onclick="switchSystemOperationalContext('local')" id="context-btn-local" class="px-5 py-2 text-xs font-black bg-white dark:bg-zinc-800 shadow-sm rounded-lg transition-all text-emerald-600 dark:text-emerald-400">Fuel Prices</button>
-                    <button onclick="switchSystemOperationalContext('route')" id="context-btn-route" class="px-5 py-2 text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all rounded-lg">Route Planner</button>
+                <div class="hidden md:flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-950 p-1.5 rounded-xl border border-zinc-200/50 dark:border-zinc-800/50">
+                    <button onclick="switchSystemOperationalContext('local')" id="header-tab-local" class="px-5 py-2 text-xs font-black bg-white dark:bg-zinc-800 shadow-sm rounded-lg transition-all text-emerald-600 dark:text-emerald-400">Fuel Prices</button>
+                    <button onclick="switchSystemOperationalContext('route')" id="header-tab-route" class="px-5 py-2 text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all rounded-lg">Route Planner</button>
                 </div>
             </div>
             
             <div class="flex items-center gap-3 md:gap-4">
-                <button onclick="window.toggleSystemColorModeTheme(event)" class="text-zinc-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors p-2 focus:outline-none" title="Toggle Theme">
-                    <svg id="theme-icon-sun" class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    <svg id="theme-icon-moon" class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                <button class="text-zinc-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors p-2 focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                 </button>
-                <div class="h-6 w-px bg-zinc-200 dark:bg-zinc-800"></div>
-                <div class="relative">
-                    <button onclick="window.toggleStarredDropdownDashboardPanel(event)" class="text-xs font-black px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white rounded-full transition-all flex items-center gap-2 shadow-md active:scale-95 focus:outline-none">
-                        Bookmarks <span id="saved-items-count-badge" class="bg-emerald-500 text-white text-[10px] px-1.5 py-0.5 rounded-full tabular-nums leading-none">0</span>
-                    </button>
-                    
-                    <div id="starred-dropdown-panel" class="hidden absolute top-14 right-0 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 w-[calc(100vw-2rem)] sm:w-80 rounded-2xl shadow-2xl p-3 z-[6000] flex flex-col max-h-[70vh]">
-                        <div class="flex bg-zinc-100 dark:bg-zinc-900 p-1.5 rounded-xl mb-3">
-                            <button id="dir-tab-stations" onclick="switchDirectoryTabContext('stations')" class="flex-1 py-2 rounded-lg text-xs font-black bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm focus:outline-none">Stations</button>
-                            <button id="dir-tab-routes" onclick="switchDirectoryTabContext('routes')" class="flex-1 py-2 rounded-lg text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none transition">Routes</button>
-                        </div>
-                        <div id="starred-list-items-container" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1"></div>
-                    </div>
-                </div>
+                <button class="text-xs font-bold px-4 py-2.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors shadow-sm hidden md:block">Log In / Sign Up</button>
             </div>
         </div>
         
         <div class="pointer-events-auto flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
-            <button onclick="document.getElementById('fuel-type-select').value='E10'; executeStationDataFilteringPipeline();" class="px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-sm rounded-full text-xs font-bold border border-zinc-200/80 dark:border-zinc-800 whitespace-nowrap hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-700 dark:text-zinc-300">⛽ Petrol & Diesel</button>
-            <button onclick="document.getElementById('fuel-type-select').value='electric'; window.updateUIForMode(true); executeStationDataFilteringPipeline();" class="px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-sm rounded-full text-xs font-bold border border-zinc-200/80 dark:border-zinc-800 whitespace-nowrap hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-zinc-700 dark:text-zinc-300">⚡ EV Charging</button>
-            <button onclick="toggleModal('dvla-modal')" class="px-4 py-2 bg-blue-600 text-white shadow-md rounded-full text-xs font-bold whitespace-nowrap hover:bg-blue-700 transition-colors focus:outline-none flex items-center gap-1.5">🇬🇧 Plate Registry</button>
+            <button onclick="document.getElementById('fuel-type-select').value='E10'; window.updateUIForMode(false); executeStationDataFilteringPipeline();" class="px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-sm rounded-full text-[11px] font-bold border border-zinc-200/80 dark:border-zinc-800 whitespace-nowrap hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none text-zinc-700 dark:text-zinc-300">⛽ Petrol Stations</button>
+            <button onclick="document.getElementById('fuel-type-select').value='electric'; window.updateUIForMode(true); executeStationDataFilteringPipeline();" class="px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-sm rounded-full text-[11px] font-bold border border-zinc-200/80 dark:border-zinc-800 whitespace-nowrap hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none text-zinc-700 dark:text-zinc-300">⚡ EV Charging</button>
+            <button class="px-4 py-2 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-sm rounded-full text-[11px] font-bold border border-zinc-200/80 dark:border-zinc-800 whitespace-nowrap hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none text-zinc-700 dark:text-zinc-300">🍽️ Rest Stops</button>
         </div>
     </header>
 
-    <div class="absolute bottom-[100px] md:bottom-8 right-4 md:right-6 z-[1000] flex flex-col gap-3 pointer-events-none">
-        <button id="btn-locate" onclick="triggerActiveDeviceLocationLookup()" class="w-11 h-11 pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 text-blue-600 dark:text-blue-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all focus:outline-none active:scale-95" title="My Location">
+    <div class="absolute top-28 md:top-24 right-4 z-[1000] flex flex-col gap-3 pointer-events-none">
+        <div class="relative pointer-events-auto">
+            <button onclick="window.toggleStarredDropdownDashboardPanel(event)" class="w-11 h-11 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-md rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                <span class="text-amber-500 text-lg">🔖</span>
+                <span id="saved-items-count-badge" class="absolute -top-1 -right-1 bg-emerald-600 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">0</span>
+            </button>
+            
+            <div id="starred-dropdown-panel" class="hidden absolute top-14 right-0 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 w-[calc(100vw-2rem)] sm:w-80 rounded-2xl shadow-2xl p-3 z-[6000] flex flex-col max-h-[70vh]">
+                <div class="flex bg-zinc-100 dark:bg-zinc-900 p-1.5 rounded-xl mb-3">
+                    <button id="dir-tab-stations" onclick="switchDirectoryTabContext('stations')" class="flex-1 py-2 rounded-lg text-xs font-black bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm focus:outline-none">Stations</button>
+                    <button id="dir-tab-routes" onclick="switchDirectoryTabContext('routes')" class="flex-1 py-2 rounded-lg text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none transition">Routes</button>
+                </div>
+                <div id="starred-list-items-container" class="max-h-64 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1"></div>
+            </div>
+        </div>
+        
+        <button onclick="window.toggleSystemColorModeTheme(event)" class="pointer-events-auto w-11 h-11 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-md rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+            <span class="text-zinc-600 dark:text-amber-400 text-lg block dark:hidden">🌓</span>
+            <span class="text-zinc-600 dark:text-amber-400 text-lg hidden dark:block">☀️</span>
+        </button>
+    </div>
+
+    <div class="absolute bottom-[100px] md:bottom-8 right-4 z-[1000] flex flex-col gap-3 pointer-events-none">
+        <button onclick="triggerActiveDeviceLocationLookup()" class="pointer-events-auto w-11 h-11 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-md rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-blue-600 dark:text-blue-400 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         </button>
-        <button id="btn-re-centre" onclick="recenterMapToOriginalBounds()" class="w-11 h-11 pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all focus:outline-none active:scale-95" title="Re-centre Route">
+        <button onclick="recenterMapToOriginalBounds()" class="pointer-events-auto w-11 h-11 bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-md rounded-full flex items-center justify-center border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
         </button>
-        <div class="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-xl rounded-2xl flex flex-col overflow-hidden border border-zinc-200/80 dark:border-zinc-800 pointer-events-auto">
-            <button id="btn-zoom-in" class="w-11 h-11 flex items-center justify-center border-b border-zinc-200/80 dark:border-zinc-800 text-xl font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none">+</button>
-            <button id="btn-zoom-out" class="w-11 h-11 flex items-center justify-center text-xl font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors focus:outline-none">-</button>
+        <div class="pointer-events-auto bg-white/95 dark:bg-zinc-900/95 backdrop-blur shadow-md rounded-xl flex flex-col overflow-hidden border border-zinc-200/80 dark:border-zinc-800">
+            <button id="btn-zoom-in" class="w-11 h-11 flex items-center justify-center border-b border-zinc-100 dark:border-zinc-800 text-xl font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">+</button>
+            <button id="btn-zoom-out" class="w-11 h-11 flex items-center justify-center text-xl font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">-</button>
         </div>
     </div>
 
-    <div class="absolute bottom-6 left-4 right-20 md:right-auto md:left-6 z-[2000] flex flex-col gap-3 pointer-events-none items-start">
+    <div class="absolute bottom-6 left-4 md:left-[420px] z-[2000] flex items-end gap-3 pointer-events-none">
         
-        <div class="flex items-center gap-2 pointer-events-auto">
-            <button id="btn-telemetry-trigger" onclick="toggleModal('telemetry-modal')" class="px-5 py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-xl rounded-full text-[11px] font-black uppercase tracking-wider hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all focus:outline-none flex items-center gap-2 hidden">
-                <div class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></div>
-                Live Telemetry
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <button onclick="toggleModal('dvla-modal')" class="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white shadow-xl rounded-full text-[11px] font-black uppercase tracking-wider transition-all focus:outline-none flex items-center gap-2">
+                🇬🇧 Plate Search
+            </button>
+            <button id="btn-telemetry-trigger" onclick="toggleModal('telemetry-modal')" class="px-5 py-3 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-xl rounded-full text-[11px] border border-zinc-200/80 dark:border-zinc-800 font-black uppercase tracking-wider hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all focus:outline-none flex items-center gap-2 hidden">
+                <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                Telemetry
             </button>
             <button id="btn-refuel-trigger" onclick="toggleModal('smart-refuel-modal')" class="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl rounded-full text-[11px] font-black uppercase tracking-wider transition-all focus:outline-none flex items-center gap-2 hidden">
                 ✨ Smart Refuel
             </button>
         </div>
-
-        <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="pointer-events-auto bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 focus:outline-none hidden self-center md:self-start mb-2 md:mb-0">
+        
+        <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="pointer-events-auto bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 focus:outline-none hidden absolute bottom-0 left-48 md:left-48 whitespace-nowrap">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             Search this area
         </button>
 
-        <div id="smart-refuel-modal" class="hidden floating-modal-transition scale-95 opacity-0 origin-bottom-left pointer-events-auto w-[calc(100vw-2rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-2">
-                    <span class="text-emerald-500 text-sm">✨</span>
-                    <h3 class="text-xs font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">Refuel Planner</h3>
-                </div>
-                <button onclick="toggleModal('smart-refuel-modal')" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg transition-colors focus:outline-none">✕</button>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label id="label-current-fuel" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Current Level</label>
-                        <div class="relative">
-                            <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
-                                <option value="10">10%</option>
-                                <option value="20">20%</option>
-                                <option value="25" selected>25%</option>
-                                <option value="30">30%</option>
-                                <option value="40">40%</option>
-                                <option value="50">50%</option>
-                                <option value="75">75%</option>
-                            </select>
-                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                        </div>
-                    </div>
-                    <div>
-                        <label id="label-capacity" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Tank Capacity</label>
-                        <div class="relative">
-                            <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
-                                <option value="45">45 L</option>
-                                <option value="55" selected>55 L</option>
-                                <option value="70">70 L</option>
-                            </select>
-                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label id="label-safety-buffer" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Safety Buffer Target</label>
-                    <div class="relative">
-                        <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
-                            <option value="10">10 Miles</option>
-                            <option value="20">20 Miles</option>
-                            <option value="30" selected>30 Miles</option>
-                            <option value="50">50 Miles</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[9px]">▼</div>
-                    </div>
-                </div>
-                
-                <div id="smart-refuel-savings-block" class="hidden"></div>
-                <div id="refuel-timeline-output" class="pt-2"></div>
-            </div>
-        </div>
-
-        <div id="telemetry-modal" class="hidden floating-modal-transition scale-95 opacity-0 origin-bottom-left pointer-events-auto w-[calc(100vw-2rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2">
-            <div class="flex items-center justify-between mb-4 border-b border-zinc-200/60 dark:border-zinc-800/60 pb-3">
-                <div class="flex items-center gap-2">
-                    <span class="flex h-2 w-2 relative">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    </span>
-                    <h3 class="text-xs font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">Live Telemetry</h3>
-                    <span id="dash-header-speed-badge" class="ml-1 px-1.5 py-0.5 rounded flex items-center justify-center text-[9px] font-black tracking-wider border uppercase transition-colors duration-300 bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 tabular-nums">-- MPH</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
-                    <button onclick="toggleModal('telemetry-modal')" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg transition-colors focus:outline-none">✕</button>
-                </div>
-            </div>
-            
-            <div class="space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar pr-1">
-                <div class="grid grid-cols-4 gap-2 p-3 bg-zinc-50/80 dark:bg-zinc-900/80 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 text-center shadow-inner">
-                    <div>
-                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Dist.</span>
-                        <span id="dash-metric-distance" class="text-sm font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Time</span>
-                        <span id="dash-metric-time" class="text-sm font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1" id="energy-label">Fuel</span>
-                        <span id="dash-metric-litres" class="text-sm font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
-                    </div>
-                    <div>
-                        <span id="telemetry-cost-label" class="block text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">Price</span>
-                        <span id="summary-cost" class="text-sm font-black text-emerald-600 block tabular-nums">--</span>
-                    </div>
-                </div>
-                
-                <div id="dash-metric-delay-ticker" class="w-full overflow-hidden h-8 relative bg-zinc-100 dark:bg-zinc-800/80 rounded-xl px-3 flex items-center border border-zinc-200/50 dark:border-zinc-700/50">
-                    <div class="absolute inset-0 flex items-center px-3 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 truncate tracking-tight">Awaiting route data...</div>
-                </div>
-
-                <div id="route-alerts-container" class="flex flex-col gap-3 pt-1 hidden"></div>
-            </div>
-        </div>
-
-        <div id="dvla-modal" class="hidden floating-modal-transition scale-95 opacity-0 origin-bottom-left pointer-events-auto w-[calc(100vw-2rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2">
+        <div id="dvla-modal" class="hidden floating-modal-transition opacity-0 scale-95 origin-bottom-left pointer-events-auto w-[calc(100vw-6rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2 ml-2">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-2">
                     <span class="text-blue-600 dark:text-blue-400 text-lg">🇬🇧</span>
@@ -222,21 +132,17 @@
                 </div>
                 <button onclick="toggleModal('dvla-modal')" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg transition-colors focus:outline-none">✕</button>
             </div>
-            
             <p class="text-[11px] font-medium text-zinc-500 mb-4 leading-relaxed">Enter your vehicle registration to automatically configure your engine capacity, MPG parameters, and EV charging profile.</p>
-
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 w-8 bg-blue-700 rounded-l-xl flex flex-col items-center justify-center text-white z-10 border border-blue-800">
                     <span class="text-[6px] font-black leading-none mb-1">UK</span>
                 </div>
                 <input type="text" id="vrn-input" placeholder="ENTER REG" class="w-full bg-amber-400 text-black border-2 border-amber-500 rounded-xl pl-12 pr-4 py-3 text-lg font-black uppercase tracking-[0.2em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 placeholder-zinc-800/50 shadow-inner" onkeyup="this.value = this.value.toUpperCase();">
             </div>
-
             <button onclick="executeDVLALookup()" id="btn-dvla-search" class="w-full mt-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-black py-3.5 rounded-xl shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors focus:outline-none flex justify-center items-center gap-2">
                 Verify Vehicle Data
                 <svg id="dvla-spinner" class="w-4 h-4 animate-spin hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
             </button>
-
             <div id="dvla-result-container" class="mt-4 pt-4 border-t border-zinc-200/60 dark:border-zinc-800/60 hidden">
                 <h4 class="text-[10px] font-black tracking-widest text-zinc-500 uppercase mb-3">Vehicle Profile Loaded</h4>
                 <div class="bg-zinc-50 dark:bg-zinc-900/60 rounded-xl p-3 border border-zinc-200/60 dark:border-zinc-800 flex items-center justify-between">
@@ -248,13 +154,104 @@
                 </div>
             </div>
         </div>
+
+        <div id="smart-refuel-modal" class="hidden floating-modal-transition opacity-0 scale-95 origin-bottom-left pointer-events-auto w-[calc(100vw-6rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2 ml-2">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-emerald-500 text-sm">✨</span>
+                    <h3 class="text-xs font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">Refuel Planner</h3>
+                </div>
+                <button onclick="toggleModal('smart-refuel-modal')" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg transition-colors focus:outline-none">✕</button>
+            </div>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label id="label-current-fuel" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Current Level</label>
+                        <div class="relative">
+                            <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[12px] font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
+                                <option value="10">10%</option>
+                                <option value="20">20%</option>
+                                <option value="25" selected>25%</option>
+                                <option value="30">30%</option>
+                                <option value="40">40%</option>
+                                <option value="50">50%</option>
+                                <option value="75">75%</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[10px]">▼</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label id="label-capacity" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Tank Capacity</label>
+                        <div class="relative">
+                            <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[12px] font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
+                                <option value="45">45 L</option>
+                                <option value="55" selected>55 L</option>
+                                <option value="70">70 L</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[10px]">▼</div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label id="label-safety-buffer" class="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1.5">Safety Buffer Target</label>
+                    <div class="relative">
+                        <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-2.5 text-[12px] font-bold text-zinc-900 dark:text-zinc-100 focus:outline-none cursor-pointer">
+                            <option value="10">10 Miles</option>
+                            <option value="20">20 Miles</option>
+                            <option value="30" selected>30 Miles</option>
+                            <option value="50">50 Miles</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400 text-[10px]">▼</div>
+                    </div>
+                </div>
+                <div id="smart-refuel-savings-block" class="hidden"></div>
+                <div id="refuel-timeline-output" class="pt-2"></div>
+            </div>
+        </div>
+
+        <div id="telemetry-modal" class="hidden floating-modal-transition opacity-0 scale-95 origin-bottom-left pointer-events-auto w-[calc(100vw-6rem)] md:w-96 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl shadow-2xl rounded-3xl border border-zinc-200/80 dark:border-zinc-800/80 p-5 mb-2 ml-2">
+            <div class="flex items-center justify-between mb-4 border-b border-zinc-200/60 dark:border-zinc-800/60 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="flex h-2.5 w-2.5 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                    </span>
+                    <h3 class="text-xs font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">Live Telemetry</h3>
+                    <span id="dash-header-speed-badge" class="ml-1 px-1.5 py-0.5 rounded flex items-center justify-center text-[9px] font-black tracking-wider border uppercase transition-colors duration-300 bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 tabular-nums">-- MPH</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="traffic-status-badge" class="px-2 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-zinc-500/10 text-zinc-500 border-zinc-500/20">WAITING</span>
+                    <button onclick="toggleModal('telemetry-modal')" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1 rounded-lg transition-colors focus:outline-none">✕</button>
+                </div>
+            </div>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                <div class="grid grid-cols-4 gap-2 p-3 bg-zinc-50/80 dark:bg-zinc-900/80 rounded-[1.25rem] border border-zinc-200/60 dark:border-zinc-800/60 text-center shadow-inner">
+                    <div>
+                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Dist.</span>
+                        <span id="dash-metric-distance" class="text-[13px] font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                    </div>
+                    <div>
+                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Time</span>
+                        <span id="dash-metric-time" class="text-[13px] font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                    </div>
+                    <div>
+                        <span class="block text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1" id="energy-label">Fuel</span>
+                        <span id="dash-metric-litres" class="text-[13px] font-black text-zinc-900 dark:text-white block tabular-nums">--</span>
+                    </div>
+                    <div>
+                        <span id="telemetry-cost-label" class="block text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1">Price</span>
+                        <span id="summary-cost" class="text-[13px] font-black text-emerald-600 block tabular-nums">--</span>
+                    </div>
+                </div>
+                <div id="dash-metric-delay-ticker" class="w-full overflow-hidden h-8 relative bg-zinc-100 dark:bg-zinc-800/80 rounded-xl px-3 flex items-center border border-zinc-200/50 dark:border-zinc-700/50">
+                    <div class="absolute inset-0 flex items-center px-3 text-[11px] font-bold text-zinc-600 dark:text-zinc-400 truncate tracking-tight">Awaiting route data...</div>
+                </div>
+                <div id="route-alerts-container" class="flex flex-col gap-3 pt-2 hidden"></div>
+            </div>
+        </div>
     </div>
 
-    <aside id="primary-control-sidebar" class="mobile-bottom-drawer mobile-active-sheet lg:absolute lg:top-24 lg:left-4 z-[2000] w-full lg:w-[380px] h-[85dvh] lg:h-auto lg:max-h-[calc(100vh-140px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-t-[2rem] lg:rounded-3xl shadow-2xl flex flex-col transition-all duration-400 pt-2 lg:pt-6">
-        
-        <div id="sidebar-drag-handle" class="w-full h-8 flex items-center justify-center shrink-0 lg:hidden cursor-grab active:cursor-grabbing rounded-t-[2rem]">
-            <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
-        </div>
+    <aside id="primary-control-sidebar" class="absolute top-28 lg:top-24 left-4 z-[1500] w-[calc(100%-2rem)] md:w-[380px] h-[65vh] md:h-auto md:max-h-[calc(100vh-140px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl shadow-2xl flex flex-col transition-all duration-400 pt-5">
         
         <div class="px-5 pb-4 shrink-0 border-b border-zinc-100 dark:border-zinc-800/60 mb-2 flex flex-col gap-4">
             <div>
@@ -273,13 +270,14 @@
                 </div>
             </div>
             
-            <div class="lg:hidden grid grid-cols-2 bg-zinc-100/80 dark:bg-zinc-900/80 p-1.5 rounded-xl gap-1">
+            <div class="md:hidden grid grid-cols-2 bg-zinc-100/80 dark:bg-zinc-900/80 p-1.5 rounded-xl gap-1">
                 <button onclick="switchSystemOperationalContext('local')" id="mob-context-btn-local" class="py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm focus:outline-none">Search Area</button>
                 <button onclick="switchSystemOperationalContext('route')" id="mob-context-btn-route" class="py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none">Plan Route</button>
             </div>
         </div>
 
         <div class="flex-1 overflow-y-auto px-5 pb-6 space-y-6 custom-scrollbar relative">
+            
             <div id="panel-local-context" class="space-y-6 block">
                 <div class="space-y-3 relative">
                     <label class="text-[10px] font-black tracking-widest text-zinc-500 dark:text-zinc-400 uppercase">Search Anchor</label>
@@ -307,20 +305,17 @@
             <div id="panel-route-context" class="space-y-6 hidden">
                 <div class="relative flex flex-col gap-4 pl-3 pr-1 ml-2">
                     <div class="absolute left-[17px] top-[24px] bottom-[24px] w-px border-l-2 border-dashed border-zinc-300 dark:border-zinc-700"></div>
-
                     <button onclick="swapRouteEndpoints(event)" class="absolute -left-[5px] top-[30px] z-50 w-7 h-7 rounded-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 hover:scale-110 active:scale-90 transition-all shadow-md flex items-center justify-center cursor-pointer focus:outline-none">
                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
                     </button>
-
                     <div class="relative flex items-center w-full gap-4">
                         <div class="w-6 flex justify-center z-10 shrink-0"><div class="w-4 h-4 rounded-full bg-emerald-500 shadow-sm outline outline-4 outline-white dark:outline-zinc-950"></div></div>
                         <div class="space-y-1.5 relative flex-1">
                             <label class="text-[10px] font-black tracking-widest text-zinc-500 uppercase block">Start Location</label>
-                            <input id="route-start-input" type="text" placeholder="Origin point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-inner" />
+                            <input id="route-start-input" type="text" placeholder="Origin point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-inner" />
                             <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl hidden max-h-32 overflow-y-auto z-[2500] p-1.5 text-xs font-semibold"></div>
                         </div>
                     </div>
-
                     <div class="relative flex flex-col w-full pl-10">
                         <div class="flex justify-between items-center mb-2">
                             <label class="text-[10px] font-black tracking-widest text-zinc-500 uppercase">Stops</label>
@@ -328,12 +323,11 @@
                         </div>
                         <div id="dynamic-waypoints-container" class="space-y-3"></div>
                     </div>
-
                     <div class="relative flex items-center w-full gap-4">
                         <div class="w-6 flex justify-center z-10 shrink-0"><div class="w-4 h-4 rounded-full bg-rose-500 shadow-sm outline outline-4 outline-white dark:outline-zinc-950"></div></div>
                         <div class="space-y-1.5 relative flex-1">
                             <label class="text-[10px] font-black tracking-widest text-zinc-500 uppercase block">End Location</label>
-                            <input id="route-end-input" type="text" placeholder="Destination point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-inner" />
+                            <input id="route-end-input" type="text" placeholder="Destination point..." class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-3 text-[13px] font-bold focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-inner" />
                             <div id="end-suggestions" class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl hidden max-h-32 overflow-y-auto z-[2500] p-1.5 text-xs font-semibold"></div>
                         </div>
                     </div>
@@ -351,9 +345,9 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-2 pt-2">
-                    <button onclick="triggerRouteOptimizationPipeline()" class="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-black py-3.5 rounded-xl active:scale-95 shadow-xl col-span-1 focus:outline-none transition-transform">Route</button>
-                    <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[13px] font-black py-3.5 rounded-xl active:scale-95 shadow-xl col-span-1 focus:outline-none transition-transform">Save</button>
-                    <button onclick="clearCalculatedRouteLayer()" class="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300 text-[13px] font-bold py-3.5 rounded-xl active:scale-95 border border-zinc-200 dark:border-zinc-700 col-span-1 focus:outline-none transition-all">Clear</button>
+                    <button onclick="triggerRouteOptimizationPipeline()" class="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-black py-3.5 rounded-2xl active:scale-95 shadow-xl col-span-1 focus:outline-none transition-transform">Route</button>
+                    <button onclick="saveActiveRouteCorridor()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[13px] font-black py-3.5 rounded-2xl active:scale-95 shadow-xl col-span-1 focus:outline-none transition-transform">Save</button>
+                    <button onclick="clearCalculatedRouteLayer()" class="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-700 dark:text-zinc-300 text-[13px] font-bold py-3.5 rounded-2xl active:scale-95 border border-zinc-200 dark:border-zinc-700 col-span-1 focus:outline-none transition-all">Clear</button>
                 </div>
             </div>
 
@@ -370,11 +364,7 @@
         </div>
     </aside>
 
-    <div id="global-detail-sheet" class="hidden mobile-bottom-drawer md:absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-6 flex flex-col gap-5 md:w-[380px] md:top-24 md:bottom-auto md:left-auto md:right-20 z-[6000] md:rounded-[2rem] transition-all duration-400 pb-[calc(24px+env(safe-area-inset-bottom,16px))] md:pb-6">
-        <div id="detail-sheet-drag-handle" class="w-full h-12 flex items-center justify-center shrink-0 md:hidden cursor-grab active:cursor-grabbing -mt-6 -mx-6 rounded-t-[2rem]">
-            <div class="w-14 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
-        </div>
-
+    <div id="global-detail-sheet" class="hidden absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-3xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xl p-6 flex flex-col gap-5 w-[calc(100%-2rem)] left-4 md:w-[380px] md:top-24 md:bottom-auto md:left-auto md:right-20 z-[6000] rounded-3xl transition-all duration-400 pb-6">
         <div class="flex items-start justify-between gap-4 relative">
             <div class="min-w-0 flex-1 pr-4">
                 <h2 id="sheet-station-name" class="text-lg font-black text-zinc-900 dark:text-white tracking-tight uppercase leading-none truncate">Station Hub</h2>
