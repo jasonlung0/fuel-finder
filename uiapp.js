@@ -1367,7 +1367,6 @@ window.executeStationDataFilteringPipeline = async function() {
             if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
         } catch (err) { Toast.show("Failed to fetch live EV locations", "error"); }
         return;
-    }
     // --- COMBUSTION FUEL PIPELINE ---
     } else {
         // IMMUTABLE SOURCE FIX: Evaluating `rawGlobalStationsPool` 
