@@ -126,16 +126,6 @@ let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
 let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
 
-window.closeForecourtDetailSheet = function(event) {
-    if (event) { event.stopPropagation(); event.preventDefault(); }
-    const sheet = document.getElementById('global-detail-sheet');
-    if (sheet) {
-        sheet.classList.add('hidden');
-        if (window.innerWidth < 1024) setMobileSheetUIState('hidden');
-    }
-    activeSheetStation = null;
-};
-
 window.updateAllStarUIStates = function() {
     const btn = document.getElementById('sheet-star-btn');
     if (!btn || !activeSheetStation) return;
@@ -500,7 +490,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('sidebar-drag-handle')) bindMobileSwipeDrawer('sidebar-drag-handle', 'primary-control-sidebar');
         if (document.getElementById('right-sidebar-drag-handle')) bindMobileSwipeDrawer('right-sidebar-drag-handle', 'secondary-control-sidebar');
         if (document.getElementById('detail-sheet-drag-handle')) bindMobileSwipeDrawer('detail-sheet-drag-handle', 'global-detail-sheet');
+        initializeGestureTrackEngine();
     } catch (err) { console.warn('UI Initialization skipped.', err); }
+
+    const fuelTypeSelector = document.getElementById('fuel-type');
+    if (fuelTypeSelector) {
+        fuelTypeSelector.addEventListener('change', (e) => {
+            const isEV = e.target.value === 'electric';
+            updateUIForMode(isEV);
+            executeStationDataFilteringPipeline();
+            
+            // REACTIVE UPDATE: Sync the active detail sheet immediately if it is open
+            if (activeSheetStation) {
+                openForecourtDetailSheet(activeSheetStation);
+            }
+        });
+    }
 
     const radiusSlider = document.getElementById('radius-slider');
     if (radiusSlider) {
@@ -522,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeClickIsolationBubbling();
 
     if (window.innerWidth < 1024) {
-        setActiveMobileSheet('search');
+        toggleMobileView('search');
     }
 
     const detailSheet = document.getElementById('global-detail-sheet');
@@ -530,6 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
         detailSheet.classList.add('hidden');
         setMobileSheetUIState('hidden');
     }
+    
+    console.log('UI Initialized successfully.');
 });
 
 function updateSavedItemsCountUI() {
@@ -1306,91 +1313,98 @@ async function forceReloadRemotePipelineData() {
 // MAIN PIPELINE: Filter Stations & Draw Map
 // -------------------------------------------------------------
 window.executeStationDataFilteringPipeline = async function() {
-    // FIXED: Pull the fresh array from window memory or fall back to an empty group
-    const workingDataset = window.rawGlobalStationsPool || rawGlobalStationsPool || [];
+    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type')?.value !== 'electric') return;
     
-    if (!workingDataset || workingDataset.length === 0) {
-        console.warn("Filtering pipeline halted: rawGlobalStationsPool is currently empty or loading.");
-        return;
-    }
-    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type-select')?.value !== 'electric') return;
-    const targetFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
+    const targetFuelType = document.getElementById('fuel-type')?.value || 'E10';
     const targetLocalRadiusThreshold = parseFloat(document.getElementById('radius-slider')?.value || 5);
     const targetCorridorRadiusThreshold = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
+    
     let dynamicBoundedStations = [];
 
-    // --- EV CHARGING STATION FETCH PIPELINE ---
+    // --- EV CHARGING STATION FETCH PIPELINE (OCM INGESTION) ---
     if (targetFuelType === 'electric') {
         const timelineContainer = document.getElementById('refuel-timeline-output');
         if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
+        
         try {
+            let ocmUrl = '';
+            
+            // IMMUTABLE BOUNDS FIX: Querying UK Grid exclusively
             if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                const sampleInterval = Math.max(1, Math.floor(plottedRouteCoordinates.length / 25)); 
-                const sampledCoords = [];
-                for (let i = 0; i < plottedRouteCoordinates.length; i += sampleInterval) sampledCoords.push(plottedRouteCoordinates[i]);
-                sampledCoords.push(plottedRouteCoordinates[plottedRouteCoordinates.length - 1]);
+                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 10 === 0);
+                const lats = sampledWaypoints.map(c => c[0]);
+                const lngs = sampledWaypoints.map(c => c[1]);
+                const minLat = Math.min(...lats) - 0.05, maxLat = Math.max(...lats) + 0.05;
+                const minLng = Math.min(...lngs) - 0.05, maxLng = Math.max(...lngs) + 0.05;
 
-                let combinedStations = [];
-                for (const coord of sampledCoords) {
-                    const lat = coord[0];
-                    const lon = coord[1];
-                    try {
-                        const url = `https://api.openchargemap.io/v3/poi/?key=${OCM_KEY}&output=json&latitude=${lat}&longitude=${lon}&distance=15&distanceunit=Miles&maxresults=40&compact=true&verbose=false`;
-                        const response = await fetch(url);
-                        const data = await response.json();
-                        if (Array.isArray(data)) combinedStations = combinedStations.concat(data);
-                    } catch (err) {}
-                }
-
-                const uniqueMap = new Map();
-                combinedStations.forEach(item => { if (item.ID) uniqueMap.set(item.ID, item); });
-
-                currentlyVisibleStations = Array.from(uniqueMap.values()).map(poi => ({
-                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
-                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
-                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
-                }));
-
-                currentlyVisibleStations = currentlyVisibleStations.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold);
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=150&verbose=false`;
             } else {
-                const searchLat = mapSearchAnchorCoordinates[0];
-                const searchLon = mapSearchAnchorCoordinates[1];
-                let ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
-                
-                const res = await fetch(ocmUrl);
-                const data = await res.json();
-                currentlyVisibleStations = data.map(poi => ({
-                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
-                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
-                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
-                }));
+                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][0] : mapSearchAnchorCoordinates[0]);
+                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][1] : mapSearchAnchorCoordinates[1]);
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${targetLocalRadiusThreshold}&distanceunit=Miles&maxresults=100`;
+            }
+            
+            const res = await fetch(ocmUrl);
+            const data = await res.json();
+            
+            currentlyVisibleStations = data.map(poi => ({
+                id: poi.ID,
+                brand_name: poi.OperatorInfo?.Title || 'Independent Charger',
+                address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                latitude: poi.AddressInfo?.Latitude,
+                longitude: poi.AddressInfo?.Longitude,
+                electric: poi.Connections?.[0]?.PowerKW || 50, 
+                is_public: poi.UsageType?.IsPayAtLocation ?? true,
+                usage_title: poi.UsageType?.Title || 'Public Access',
+                operator_url: poi.OperatorInfo?.WebsiteURL || `https://openchargemap.org/site/poi/details/${poi.ID}`,
+                isEV: true
+            }));
+
+            // ROUTE IMMUTABLE FILTER FIX
+            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+                currentlyVisibleStations = currentlyVisibleStations.filter(s => {
+                    return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= targetCorridorRadiusThreshold;
+                });
             }
 
             paintMarkerCanvasLayersToMap(currentlyVisibleStations, 'electric', currentlyVisibleStations.length, globalRouteDistanceMiles);
             generateCheapestRankingListDeck(currentlyVisibleStations, 'electric');
             if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
-        } catch (err) { Toast.show("Failed to fetch live EV locations", "error"); }
+            
+        } catch (err) {
+            console.error("OpenChargeMap engine processing failure:", err);
+            Toast.show("Failed to fetch live EV locations from OpenChargeMap", "error");
+        }
         return;
     }
     // --- COMBUSTION FUEL PIPELINE ---
     else {
+        // IMMUTABLE SOURCE FIX: Evaluating `rawGlobalStationsPool` instead of clustered markers
         if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
             dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
                 if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-                return computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetLocalRadiusThreshold;
+                const dist = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+                return dist <= targetLocalRadiusThreshold;
             });
         } else {
             dynamicBoundedStations = rawGlobalStationsPool.filter(s => {
                 if (!s[targetFuelType] || isNaN(parseFloat(s[targetFuelType]))) return false;
-                return computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng)) <= targetCorridorRadiusThreshold;
+                const dist = computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+                return dist <= targetCorridorRadiusThreshold;
             });
         }
     }
 
     currentlyVisibleStations = dynamicBoundedStations;
-    let distanceContext = (activeTabContext === 'route' && typeof globalRouteDistanceMiles !== 'undefined') ? globalRouteDistanceMiles : null;
+    
+    let distanceContext = null;
+    if (activeTabContext === 'route' && typeof globalRouteDistanceMiles !== 'undefined') {
+        distanceContext = globalRouteDistanceMiles;
+    }
+    
     paintMarkerCanvasLayersToMap(currentlyVisibleStations.slice(0, 250), targetFuelType, currentlyVisibleStations.length, distanceContext);
     generateCheapestRankingListDeck(currentlyVisibleStations, targetFuelType);
+    
     if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
 };
 
@@ -1797,59 +1811,86 @@ window.clearFuelOptimizationState = function() {
     }
 };
 
-window.openForecourtDetailSheet = function(station) {
-    if (!station) return;
-    if (typeof station === 'string' || typeof station === 'number') {
-        const found = rawGlobalStationsPool.find(s => getStationId(s) === String(station));
-        if (found) station = found; else return;
-    }
-
+window.openForecourtDetailSheet = function(stationData) {
     const sheet = document.getElementById('global-detail-sheet');
+    const telemetrySidebar = document.getElementById('secondary-control-sidebar');
+    const starredPanel = document.getElementById('starred-dropdown-panel');
+    
     if (!sheet) return;
 
-    const sp = document.getElementById('starred-dropdown-panel');
-    if (sp) sp.classList.add('hidden');
+    // MUTUAL EXCLUSION: Hide Starred Items and Telemetry Sheets on Mobile
+    if (starredPanel) starredPanel.classList.add('hidden');
+    if (window.innerWidth < 1024 && telemetrySidebar) {
+        telemetrySidebar.classList.remove('mobile-active-sheet');
+        setMobileRightSidebarState('hidden');
+    }
     
-    activeSheetStation = station;
-    const titleEl = document.getElementById('sheet-station-name');
-    const brandEl = document.getElementById('sheet-station-brand');
-    
-    if (titleEl) titleEl.textContent = (station.brand_name || station.name || 'Independent Hub').replace(/['"]/g, '');
-    if (brandEl) brandEl.textContent = (station.address || 'Information Available').replace(/['"]/g, '');
+    activeSheetStation = stationData;
+    document.getElementById('sheet-brand-title').textContent = (stationData.brand_name || 'Independent Hub').replace(/['"]/g, '');
+    document.getElementById('sheet-address-details').textContent = (stationData.address || 'UK Grid Station').replace(/['"]/g, '');
 
-    const isEVPipe = station.isEV || document.getElementById('fuel-type-select')?.value === 'electric';
+    const isEVPipe = stationData.isEV || document.getElementById('fuel-type')?.value === 'electric';
 
     if (isEVPipe) {
         ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+
         let evCard = document.getElementById('card-wrap-ev');
-        if (!evCard) { evCard = document.createElement('div'); evCard.id = 'card-wrap-ev'; document.getElementById('sheet-prices-grid')?.appendChild(evCard); }
+        if (!evCard) {
+            evCard = document.createElement('div');
+            evCard.id = 'card-wrap-ev';
+            document.getElementById('card-wrap-e10')?.parentElement.appendChild(evCard);
+        }
         
-        let pRate = parseFloat(station.electric_price || station.charge_rate || station.electric || 50);
+        let pRate = parseFloat(stationData.electric_price || stationData.charge_rate || stationData.electric || 50);
 
         if(evCard) {
             evCard.style.display = 'block';
             evCard.className = `border p-3 rounded-xl text-center transition-all duration-200 col-span-2 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm`;
-            evCard.innerHTML = `<span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span><span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>`;
+            evCard.innerHTML = `
+                <span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span>
+                <span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>
+            `;
         }
-        if (titleEl) titleEl.textContent = `⚡ ${(station.brand_name || station.name || 'EV Charger').replace(/['"]/g, '')}`;
+
+        document.getElementById('sheet-brand-title').textContent = `⚡ ${(stationData.brand_name || 'EV Charger').replace(/['"]/g, '')}`;
+
     } else {
         ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
-        const evCard = document.getElementById('card-wrap-ev'); if (evCard) evCard.style.display = 'none';
+        
+        const evCard = document.getElementById('card-wrap-ev');
+        if (evCard) evCard.style.display = 'none';
 
-        const ce10 = document.getElementById('card-wrap-e10'); if(ce10) ce10.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E10, 'E10')}`;
-        const ce5 = document.getElementById('card-wrap-e5'); if(ce5) ce5.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E5, 'E5')}`;
-        const cb7 = document.getElementById('card-wrap-b7'); if(cb7) cb7.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.B7, 'B7')}`;
-        const cpd = document.getElementById('card-wrap-premiumdiesel'); if(cpd) cpd.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.PremiumDiesel, 'PremiumDiesel')}`;
+        const ce10 = document.getElementById('card-wrap-e10'); if(ce10) ce10.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E10, 'E10')}`;
+        const ce5 = document.getElementById('card-wrap-e5'); if(ce5) ce5.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.E5, 'E5')}`;
+        const cb7 = document.getElementById('card-wrap-b7'); if(cb7) cb7.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.B7, 'B7')}`;
+        const cpd = document.getElementById('card-wrap-premiumdiesel'); if(cpd) cpd.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(stationData.PremiumDiesel, 'PremiumDiesel')}`;
 
-        const se10 = document.getElementById('sheet-price-e10'); if(se10) se10.textContent = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A';
-        const se5 = document.getElementById('sheet-price-e5'); if(se5) se5.textContent = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A';
-        const sb7 = document.getElementById('sheet-price-b7'); if(sb7) sb7.textContent = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A';
-        const spd = document.getElementById('sheet-price-premiumdiesel'); if(spd) spd.textContent = station.PremiumDiesel ? `${parseFloat(station.PremiumDiesel).toFixed(1)}p` : 'N/A';
+        const se10 = document.getElementById('sheet-price-e10'); if(se10) se10.textContent = stationData.E10 ? `${parseFloat(stationData.E10).toFixed(1)}p` : 'N/A';
+        const se5 = document.getElementById('sheet-price-e5'); if(se5) se5.textContent = stationData.E5 ? `${parseFloat(stationData.E5).toFixed(1)}p` : 'N/A';
+        const sb7 = document.getElementById('sheet-price-b7'); if(sb7) sb7.textContent = stationData.B7 ? `${parseFloat(stationData.B7).toFixed(1)}p` : 'N/A';
+        const spd = document.getElementById('sheet-price-premiumdiesel'); if(spd) spd.textContent = stationData.PremiumDiesel ? `${parseFloat(stationData.PremiumDiesel).toFixed(1)}p` : 'N/A';
     }
 
     updateAllStarUIStates();
+
     sheet.classList.remove('hidden'); 
     
-    if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
-    else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
+    if (window.innerWidth < 1024) {
+        setMobileSheetUIState('full'); 
+    } else {
+        sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full');
+    }
+};
+
+window.closeForecourtDetailSheet = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+    
+    if (window.innerWidth < 1024) {
+        setMobileSheetUIState('hidden');
+    } else {
+        sheet.classList.add('hidden');
+    }
+    activeSheetStation = null;
 };
