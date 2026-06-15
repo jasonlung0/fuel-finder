@@ -18,6 +18,28 @@
 
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
+    <!-- New UI Buttons on the Map -->
+    <div class="absolute top-4 right-4 z-[1000] flex flex-col gap-2.5">
+        <button onclick="toggleStarredDropdownDashboardPanel(event)" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
+            <span class="text-lg">⛽</span>
+            <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Smart Refuel</span>
+        </button>
+        
+        <button onclick="setActiveMobileSheet('telemetry')" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
+            <span class="text-lg">📡</span>
+            <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Live Telemetry</span>
+        </button>
+    </div>
+    
+    <div class="absolute bottom-[90px] right-2.5 z-[1000] flex flex-col gap-2">
+        <button onclick="triggerActiveDeviceLocationLookup()" class="bg-white dark:bg-zinc-800 p-2 rounded-md border-2 border-zinc-200/50 dark:border-zinc-700/50 shadow-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-700 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+    </div>    
+    <!-- END: New UI Buttons on the Map -->
+    
     <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="absolute top-[50px] z-[40] left-1/2 -translate-x-1/2 z-[1000] hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-zinc-700 dark:text-zinc-200 shadow-xl border border-zinc-200/60 dark:border-zinc-800/80 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 focus:outline-none">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Scan this area
@@ -43,14 +65,14 @@
             </div>
         </div>
 
-        <div class="hidden lg:flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-1 rounded-xl shadow-inner w-56 absolute left-1/2 -translate-x-1/2">
+        <!--div class="hidden lg:flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-1 rounded-xl shadow-inner w-56 absolute left-1/2 -translate-x-1/2">
             <button id="toggle-view-stations" onclick="setActiveMobileSheet('search')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200/40 dark:border-zinc-700/30 transition-all duration-200 focus:outline-none">
                 Stations
             </button>
             <button id="toggle-view-telemetry" onclick="setActiveMobileSheet('telemetry')" class="flex-1 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-200 focus:outline-none">
                 Telemetry
             </button>
-        </div>
+        </div -->
 
         <div class="flex items-center gap-2">
             <button onclick="window.toggleSystemColorModeTheme(event)" class="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 p-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm focus:outline-none" title="Toggle Theme">
