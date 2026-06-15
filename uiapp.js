@@ -290,16 +290,9 @@ document.getElementById('refuel-current-level')?.addEventListener('change', () =
 document.getElementById('refuel-safety-buffer')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 
 const fuelTypeSelectListener = document.getElementById('fuel-type-select');
-if (fuelTypeSelectListener) {
-    fuelTypeSelectListener.addEventListener('change', (e) => {
-        // 1. Set the global type state globally
-        setGlobalFuelSelectionType(e.target.value);
-        
-        // 2. FORCE the map to clear and repaint with the new active fuel prices
-        executeStationDataFilteringPipeline();
-        
-        // 3. Keep your existing route logic intact
-        if (activeTabContext === 'route') {
+if(fuelTypeSelectListener) {
+    fuelTypeSelectListener.addEventListener('change', () => {
+        if(activeTabContext === 'route') {
             const startInput = document.getElementById('route-start');
             const endInput = document.getElementById('route-end');
             if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
@@ -604,7 +597,7 @@ function initMap() {
     // =========================================================================
     const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
     tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
     
     initializeClusterLayerPipeline();
     
@@ -1860,77 +1853,3 @@ window.openForecourtDetailSheet = function(station) {
     if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
     else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
-
-// 1. Declare a new layer group for POIs
-let poiLayerGroup = L.layerGroup().addTo(map);
-
-// 2. Fetch and render function
-async function fetchAndRenderPOIs() {
-    if (!map) return;
-    
-    const center = map.getCenter();
-    const radius = 2000; // 2km radius in meters
-    
-    // Query Overpass for amenities
-    const query = `
-        [out:json];
-        (
-          node["amenity"="fast_food"](around:${radius},${center.lat},${center.lng});
-          node["amenity"="cafe"](around:${radius},${center.lat},${center.lng});
-          node["amenity"="toilets"](around:${radius},${center.lat},${center.lng});
-        );
-        out;
-    `;
-    
-    try {
-        const response = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        
-        // Clear old POIs before drawing new ones
-        poiLayerGroup.clearLayers();
-        
-        data.elements.forEach(poi => {
-            let iconEmoji = '📍';
-            let bgColor = 'bg-white';
-            let borderColor = 'border-zinc-300';
-            
-            // Style based on screenshot vibe
-            if (poi.tags.amenity === 'fast_food' || poi.tags.amenity === 'cafe') {
-                iconEmoji = '🍔';
-                borderColor = 'border-orange-400';
-            }
-            if (poi.tags.amenity === 'toilets') {
-                iconEmoji = '🚻';
-                borderColor = 'border-blue-400';
-            }
-            
-            const poiIcon = L.divIcon({
-                className: 'custom-poi-marker',
-                html: `
-                    <div class="${bgColor} border-2 ${borderColor} rounded-full shadow-md text-center text-sm w-7 h-7 flex items-center justify-center transform transition-transform hover:scale-125 z-0">
-                        ${iconEmoji}
-                    </div>
-                `,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
-            });
-            
-            const name = poi.tags.name || 'Local Amenity';
-            const marker = L.marker([poi.lat, poi.lon], { icon: poiIcon });
-            
-            marker.bindPopup(`
-                <div class="p-1">
-                    <div class="font-bold text-sm">${name}</div>
-                    <div class="text-[10px] text-zinc-500 capitalize uppercase tracking-wider">${poi.tags.amenity.replace('_', ' ')}</div>
-                </div>
-            `);
-            
-            poiLayerGroup.addLayer(marker);
-        });
-    } catch (error) {
-        console.error("Error fetching POIs from Overpass:", error);
-    }
-}
-
-// 3. Bind it to the map movement (using your existing debounce function so it doesn't spam the API)
-map.on('moveend', debounce(fetchAndRenderPOIs, 1500));
