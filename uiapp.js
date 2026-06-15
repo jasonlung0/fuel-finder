@@ -310,18 +310,20 @@ window.setActiveMobileSheet = function(targetType) {
     const btnTelemetry = document.getElementById('btn-mob-telemetry');
     const btnViewStationsDesktop = document.getElementById('toggle-view-stations');
     const btnViewTelemetryDesktop = document.getElementById('toggle-view-telemetry');
+    
+    const isDesktop = window.innerWidth >= 1024;
 
     if (targetType === 'search') {
         if (rightSidebar) {
             rightSidebar.classList.remove('mobile-active-sheet');
-            rightSidebar.classList.add('hidden'); 
+            // Only completely hide telemetry sidebar on mobile view profiles
+            if (!isDesktop) rightSidebar.classList.add('hidden'); 
             rightSidebar.classList.add('desktop-collapsed-right');
         }
         if (leftSidebar) {
-            leftSidebar.classList.remove('hidden'); 
+            leftSidebar.classList.remove('hidden', 'desktop-collapsed'); 
             leftSidebar.classList.add('mobile-active-sheet');
             leftSidebar.style.zIndex = "2000";
-            leftSidebar.classList.remove('desktop-collapsed');
         }
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
@@ -333,14 +335,16 @@ window.setActiveMobileSheet = function(targetType) {
     } else if (targetType === 'telemetry') {
         if (leftSidebar) {
             leftSidebar.classList.remove('mobile-active-sheet');
-            leftSidebar.classList.add('hidden'); 
-            leftSidebar.classList.add('desktop-collapsed');
+            // CRITICAL FIX: Do NOT add 'hidden' on desktop displays so it slides cleanly
+            if (!isDesktop) {
+                leftSidebar.classList.add('hidden'); 
+            }
+            leftSidebar.classList.remove('desktop-collapsed');
         }
         if (rightSidebar) {
-            rightSidebar.classList.remove('hidden');
+            rightSidebar.classList.remove('hidden', 'desktop-collapsed-right');
             rightSidebar.classList.add('mobile-active-sheet');
             rightSidebar.style.zIndex = "2000";
-            rightSidebar.classList.remove('desktop-collapsed-right');
         }
         if(btnTelemetry) btnTelemetry.className = "h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none";
         if(btnSearch) btnSearch.className = "h-full text-[11px] font-bold tracking-wide px-4 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all focus:outline-none";
@@ -348,7 +352,7 @@ window.setActiveMobileSheet = function(targetType) {
         if (btnViewTelemetryDesktop) btnViewTelemetryDesktop.className = "flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200/40 dark:border-zinc-700/30 transition-all duration-200 focus:outline-none";
         if (btnViewStationsDesktop) btnViewStationsDesktop.className = "flex-1 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition-all duration-200 focus:outline-none";
 
-        setMobileRightSidebarState('mid');
+        setMobileSidebarState('mid');
     }
 };
 
