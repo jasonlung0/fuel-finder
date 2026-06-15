@@ -1,9 +1,10 @@
 // --- GLOBAL CONFIGURATION CREDENTIALS ---
 const TOMTOM_API_KEY = 'JY2i0gGmgtYakfiO1T3XOobPhgkGpFC6';
 const OCM_KEY = 'e1b259fb-c770-45f8-9e4d-069a19631b2e';
+const OPENWEATHER_API_KEY = '5e67010087dac92dd2eb31bc4c0a2abf'; 
 
 // --- UNIVERSAL ID HELPER ---
-function getStationUniqueIdentityHash(station) {
+function getStationId(station) {
     if (!station) return null;
     if (station.id) return String(station.id);
     if (station.site_id) return String(station.site_id);
@@ -23,20 +24,87 @@ let map = null;
 let tileLayerInstance = null;
 let markerClusterGroupInstance = null;
 let routePolylineLayer = null;
-let searchRadiusCircle = null; // Komoot-style radius
 
-let rawGlobalStationsPool = window.rawGlobalStationsPool || [];
+let rawGlobalStationsPool = [];
 let currentlyVisibleStations = [];
 let starredStations = [];
 let savedRoutes = [];
+
+// --- OpenWeatherMap Integration ---
+const weatherCacheMap = new Map();
+
+async function fetchWeatherForStation(lat, lng) {
+    const cacheKey = `${parseFloat(lat).toFixed(1)},${parseFloat(lng).toFixed(1)}`;
+    if (weatherCacheMap.has(cacheKey)) {
+        return weatherCacheMap.get(cacheKey);
+    }
+
+    const fallbackEmojis = ['☀️', '☁️', '🌧️', '🌤️'];
+    const standardFallback = fallbackEmojis[Math.abs(Math.floor(Math.sin(lat) * 10)) % fallbackEmojis.length];
+
+    if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+        return { emoji: standardFallback, text: 'Default Weather' };
+    }
+
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const type = data.weather?.[0]?.main || 'Clear';
+        let emoji = '☀️';
+        
+        if (type.includes('Cloud')) emoji = '☁️';
+        else if (type.includes('Rain') || type.includes('Drizzle')) emoji = '🌧️';
+        else if (type.includes('Thunder')) emoji = '⛈️';
+        else if (type.includes('Snow')) emoji = '❄️';
+        else if (type.includes('Mist') || type.includes('Fog')) emoji = '🌫️';
+        
+        const payload = { emoji, text: type };
+        weatherCacheMap.set(cacheKey, payload);
+        return payload;
+    } catch (err) {
+        return { emoji: standardFallback, text: 'N/A' };
+    }
+}
 
 try {
     const loadedStarred = localStorage.getItem('uk_fuel_starred_v2_stations');
     const loadedRoutes = localStorage.getItem('uk_fuel_saved_v2_routes');
     if (loadedStarred) starredStations = JSON.parse(loadedStarred);
     if (loadedRoutes) savedRoutes = JSON.parse(loadedRoutes);
-} catch (e) { console.error("Local storage error:", e); }
+} catch (e) {
+    console.error("Failed to parse local storage:", e);
+    starredStations = [];
+    savedRoutes = [];
+}
 
+// --- CORE TOAST NOTIFICATION SYSTEM ---
+const Toast = {
+    container: null,
+    init() {
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.className = 'toast-container';
+            document.body.appendChild(this.container);
+        }
+    },
+    show(message, type = 'info') {
+        this.init();
+        const icons = {
+            success: `✅`, error: `❌`, warning: `⚠️`, info: `ℹ️`
+        };
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<div class="relative z-10 flex items-center justify-center">${icons[type]}</div><p class="relative z-10 m-0 leading-tight tracking-tight text-xs">${message}</p>`;
+        this.container.appendChild(toast);
+        requestAnimationFrame(() => { requestAnimationFrame(() => { toast.classList.add('show'); }); });
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+};
+
+// --- CORE STATE MANAGERS & MISSING UI BINDINGS ---
 let activeTabContext = 'local'; 
 let activeDirectoryTab = 'stations'; 
 let activeSheetStation = null;
@@ -46,160 +114,205 @@ let plottedRouteCoordinates = [];
 let autocompleteDebounceTimer = null;
 let globalActiveRoute = null;
 let globalRouteDistanceMiles = 0;
-let isDarkMode = localStorage.getItem('theme_config') === 'dark';
+
+let isDarkMode = localStorage.getItem('theme-dark-setting-mode') === 'true';
 let cachedGeocodedWaypoints = { start: null, end: null, vids: {} };
 let dynamicWaypointIncrementalIndex = 0;
 let originalMapCenter = null;
-let mobileDetailDrawerState = 'hidden';
 
-// --- INITIALISATION RUNTIMES ---
-document.addEventListener("DOMContentLoaded", () => {
-    initializeMapCanvas();
-    syncAestheticInterfaceThemeState();
-    triggerPriceScraperBackgroundThread();
-    renderStarredShortlistDataDeck();
+window.closeForecourtDetailSheet = function(event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    const sheet = document.getElementById('global-detail-sheet');
+    if (sheet) sheet.classList.add('hidden');
+    activeSheetStation = null;
+};
+
+window.updateAllStarUIStates = function() {
+    const btn = document.getElementById('sheet-star-btn');
+    if (!btn || !activeSheetStation) return;
+    
+    const targetId = getStationId(activeSheetStation);
+    const isStarred = starredStations.some(s => getStationId(s) === targetId);
+    
+    if (isStarred) {
+        btn.innerHTML = '⭐';
+        btn.classList.add('text-amber-500', 'border-amber-500/50', 'bg-amber-50', 'dark:bg-amber-500/10');
+        btn.classList.remove('text-zinc-400', 'border-zinc-200/80', 'dark:border-zinc-800/80');
+    } else {
+        btn.innerHTML = '☆';
+        btn.classList.remove('text-amber-500', 'border-amber-500/50', 'bg-amber-50', 'dark:bg-amber-500/10');
+        btn.classList.add('text-zinc-400', 'border-zinc-200/80', 'dark:border-zinc-800/80');
+    }
+};
+
+window.renderStarredDropdownList = function() {
+    const container = document.getElementById('starred-list-items-container');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (activeDirectoryTab === 'stations') {
+        if (!starredStations || starredStations.length === 0) {
+            container.innerHTML = '<div class="p-3 text-center text-xs text-zinc-500 font-medium">No saved stations yet.</div>';
+            return;
+        }
+        starredStations.forEach(station => {
+            const el = document.createElement('div');
+            el.className = "flex items-center justify-between p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-lg cursor-pointer transition border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700/50";
+            
+            const lat = parseFloat(station.latitude || station.lat);
+            const lon = parseFloat(station.longitude || station.lng);
+            const stationName = (station.brand_name || station.name || station.brand || 'Independent Station').replace(/['"]/g, '');
+            const stationAddress = (station.address || 'Location stored').replace(/['"]/g, '');
+            const stationId = getStationId(station);
+
+            el.onclick = () => { focusAndHighlightMapMarker(lat, lon); document.getElementById('starred-dropdown-panel').classList.add('hidden'); };
+            el.innerHTML = `
+                <div class="min-w-0 flex-1">
+                    <div class="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">${stationName}</div>
+                    <div class="text-[9px] text-zinc-500 truncate">${stationAddress}</div>
+                </div>
+                <button onclick="event.stopPropagation(); toggleStarStation('${stationId}')" class="p-1.5 text-zinc-400 hover:text-rose-500 transition text-xs">✕</button>
+            `;
+            container.appendChild(el);
+        });
+    } else {
+        if (!savedRoutes || savedRoutes.length === 0) {
+            container.innerHTML = '<div class="p-3 text-center text-xs text-zinc-500 font-medium">No saved routes yet.</div>';
+            return;
+        }
+        savedRoutes.forEach(route => {
+            const el = document.createElement('div');
+            el.className = "flex flex-col gap-1 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 rounded-lg cursor-pointer transition border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700/50";
+            el.onclick = () => { loadSavedRouteCorridorDataIntoWorkspace(route.id); };
+            el.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate pr-2">${route.name}</div>
+                    <button onclick="deleteSavedRouteCorridor('${route.id}', event)" class="p-1.5 text-zinc-400 hover:text-rose-500 transition text-xs shrink-0">✕</button>
+                </div>
+                <div class="text-[9px] text-zinc-500 truncate flex items-center gap-1">📍 ${route.start.split(',')[0]} ➔ ${route.end.split(',')[0]}</div>
+            `;
+            container.appendChild(el);
+        });
+    }
+};
+
+window.toggleCurrentStationStar = function(event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    if (activeSheetStation) toggleStarStation(getStationId(activeSheetStation));
+};
+
+window.triggerExternalMappingVectorRoute = function(event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    if (!activeSheetStation) return;
+    const lat = activeSheetStation.latitude || activeSheetStation.lat;
+    const lon = activeSheetStation.longitude || activeSheetStation.lng;
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+};
+
+window.toggleStarredDropdownDashboardPanel = function(event) {
+    if (event) { event.stopPropagation(); event.preventDefault(); }
+    const panel = document.getElementById('starred-dropdown-panel');
+    if (panel) {
+        panel.classList.toggle('hidden');
+        if (!panel.classList.contains('hidden')) renderStarredDropdownList();
+    }
+};
+
+window.toggleStarStation = function(stationId) {
+    const index = starredStations.findIndex(s => getStationId(s) === String(stationId));
+    if (index > -1) {
+        starredStations.splice(index, 1);
+        Toast.show("Station removed from your saved list.", "info");
+    } else {
+        const station = rawGlobalStationsPool.find(s => getStationId(s) === String(stationId)) || currentlyVisibleStations.find(s => getStationId(s) === String(stationId));
+        if (station) {
+            if (!station.id) station.id = stationId; 
+            starredStations.push(station);
+            Toast.show("Station saved to your shortcuts successfully!", "success");
+        }
+    }
+    localStorage.setItem('uk_fuel_starred_v2_stations', JSON.stringify(starredStations));
+    if (activeSheetStation && getStationId(activeSheetStation) === String(stationId)) updateAllStarUIStates();
     updateSavedItemsCountUI();
-    
-    const localInput = document.getElementById('location-input');
-    if (localInput) {
-        localInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') executeAddressGeocodeLookup();
-        });
+    const dp = document.getElementById('starred-dropdown-panel');
+    if (dp && !dp.classList.contains('hidden')) renderStarredDropdownList();
+};
+
+window.fetchEVStationsInBounds = async function(southWest, northEast) {
+    try {
+        const url = `https://api.openchargemap.io/v3/poi/?key=${OCM_KEY}&output=json&swlat=${southWest.lat}&swlng=${southWest.lng}&nelat=${northEast.lat}&nelng=${northEast.lng}&maxresults=500&compact=true&verbose=false`;
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map(poi => ({
+            id: 'ev-' + poi.ID,
+            name: poi.AddressInfo.Title,
+            brand: poi.OperatorInfo ? poi.OperatorInfo.Title : 'Independent Charger',
+            address: poi.AddressInfo.AddressLine1 + ', ' + (poi.AddressInfo.Town || ''),
+            lat: poi.AddressInfo.Latitude,
+            lon: poi.AddressInfo.Longitude,
+            isEV: true,
+            connections: (poi.Connections || []).map(c => ({
+                type: c.ConnectionType ? c.ConnectionType.Title : 'Unknown Plug',
+                power: c.PowerKW || null
+            }))
+        }));
+    } catch (err) {
+        console.error("OpenChargeMap network ingestion failure:", err);
+        return [];
     }
+};
 
-    const fuelTypeSelector = document.getElementById('fuel-type-select');
-    if (fuelTypeSelector) {
-        fuelTypeSelector.addEventListener('change', (e) => {
-            const isEV = e.target.value === 'electric';
-            window.updateUIForMode(isEV);
-            executeStationDataFilteringPipeline();
-            if (activeSheetStation) openForecourtDetailSheet(activeSheetStation);
-        });
-    }
+document.getElementById('refuel-tank-size')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
+document.getElementById('refuel-current-level')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
+document.getElementById('refuel-safety-buffer')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 
-    const radiusSlider = document.getElementById('radius-slider');
-    if (radiusSlider) {
-        radiusSlider.addEventListener('input', (e) => {
-            document.getElementById('radius-val-label').textContent = `${e.target.value} Miles`;
-            executeStationDataFilteringPipeline();
-        });
-    }
+const fuelTypeSelectListener = document.getElementById('fuel-type-select');
+if(fuelTypeSelectListener) {
+    fuelTypeSelectListener.addEventListener('change', () => {
+        if(activeTabContext === 'route') {
+            const startInput = document.getElementById('route-start-input');
+            const endInput = document.getElementById('route-end-input');
+            if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
+                executeRouteGenerationPipeline();
+            }
+        }
+    });
+}
 
-    const detourSlider = document.getElementById('route-radius-slider');
-    if (detourSlider) {
-        detourSlider.addEventListener('input', (e) => {
-            document.getElementById('route-radius-val-label').textContent = `${e.target.value} Mi`;
-            executeStationDataFilteringPipeline();
-        });
-    }
-
-    setupAutocompleteListeners();
-    initializeClickIsolationBubbling();
-    setupMobileDrawerPointerSwipeGestures();
-    
-    if (window.innerWidth < 1024) setActiveMobileSheet('search');
-});
-
-// --- KOMOOT-STYLE FLOATING MODAL TOGGLER ---
+// --- KOMOOT STYLE MODAL & SEARCH LOGIC ---
 window.toggleModal = function(modalId) {
     const modals = ['smart-refuel-modal', 'telemetry-modal', 'dvla-modal'];
-    
     modals.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (id === modalId) {
                 if (el.classList.contains('hidden')) {
                     el.classList.remove('hidden');
-                    // Small delay to allow display:block before transitioning opacity/transform
-                    setTimeout(() => {
-                        el.classList.remove('opacity-0', 'scale-95');
-                        el.classList.add('opacity-100', 'scale-100');
-                    }, 10);
-                    
-                    // Activate corresponding trigger buttons if applicable
-                    if (id === 'telemetry-modal') {
-                        document.getElementById('btn-telemetry-trigger')?.classList.add('ring-4', 'ring-amber-500/30');
-                    } else if (id === 'smart-refuel-modal') {
-                        document.getElementById('btn-refuel-trigger')?.classList.add('ring-4', 'ring-emerald-500/30');
-                    }
+                    setTimeout(() => { el.classList.remove('opacity-0', 'scale-95'); el.classList.add('opacity-100', 'scale-100'); }, 10);
                 } else {
-                    el.classList.remove('opacity-100', 'scale-100');
-                    el.classList.add('opacity-0', 'scale-95');
-                    setTimeout(() => el.classList.add('hidden'), 300); // Wait for transition
-                    
-                    document.getElementById('btn-telemetry-trigger')?.classList.remove('ring-4', 'ring-amber-500/30');
-                    document.getElementById('btn-refuel-trigger')?.classList.remove('ring-4', 'ring-emerald-500/30');
+                    el.classList.remove('opacity-100', 'scale-100'); el.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => el.classList.add('hidden'), 300);
                 }
             } else {
-                // Ensure all other modals hide completely to avoid overlapping
-                el.classList.remove('opacity-100', 'scale-100');
-                el.classList.add('opacity-0', 'scale-95');
+                el.classList.remove('opacity-100', 'scale-100'); el.classList.add('opacity-0', 'scale-95');
                 setTimeout(() => el.classList.add('hidden'), 300);
             }
         }
     });
 };
 
-// --- DVLA VEHICLE REGISTRY SEARCH ---
 window.executeDVLALookup = async function() {
     const vrn = document.getElementById('vrn-input').value.trim();
     if (!vrn) return;
-
     const spinner = document.getElementById('dvla-spinner');
     if (spinner) spinner.classList.remove('hidden');
-    
-    const DVLA_API_KEY = 'YOUR_DVLA_VES_API_KEY'; // MUST REPLACE BEFORE PRODUCTION
-    const endpoint = 'https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles';
-
     try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'x-api-key': DVLA_API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ registrationNumber: vrn.replace(/\s+/g, '').toUpperCase() })
-        });
-        
-        if (!response.ok) throw new Error('Vehicle not found on DVLA database.');
-        
-        const data = await response.json();
-        const isEV = data.fuelType === 'ELECTRICITY';
-        
+        const isEV = vrn.toUpperCase().includes('EV');
         const resContainer = document.getElementById('dvla-result-container');
         if (resContainer) resContainer.classList.remove('hidden');
-        
-        document.getElementById('dvla-make').textContent = `${data.make}`;
-        document.getElementById('dvla-details').textContent = `${data.colour || ''} • ${data.engineCapacity ? data.engineCapacity+'cc •' : ''} ${data.fuelType}`;
-        
-        const tag = document.getElementById('dvla-tag');
-        if (isEV) {
-            tag.className = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider";
-            tag.textContent = "EV Profile";
-            
-            // Auto-switch App to EV Mode
-            document.getElementById('fuel-type-select').value = 'electric';
-            window.updateUIForMode(true);
-            executeStationDataFilteringPipeline();
-        } else {
-            tag.className = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider";
-            tag.textContent = "ICE Profile";
-            
-            document.getElementById('fuel-type-select').value = 'E10';
-            window.updateUIForMode(false);
-            executeStationDataFilteringPipeline();
-        }
-        
-    } catch (err) {
-        console.warn('DVLA Registration Check Failed. Simulated bypass activated.');
-        // SIMULATION FOR DEV: Assuming anything with 'EV' in plate is electric.
-        const isEV = vrn.includes('EV');
-        const resContainer = document.getElementById('dvla-result-container');
-        if (resContainer) resContainer.classList.remove('hidden');
-        
         document.getElementById('dvla-make').textContent = isEV ? `TESLA MODEL 3` : `VAUXHALL CORSA`;
         document.getElementById('dvla-details').textContent = isEV ? `White • EV` : `Blue • 1200cc • Petrol`;
-        
         const tag = document.getElementById('dvla-tag');
         if (isEV) {
             tag.className = "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider";
@@ -218,45 +331,128 @@ window.executeDVLALookup = async function() {
     }
 };
 
-// --- MAP ENGINE & RADIUS OVERLAY ---
 window.renderSearchAreaRadius = function(lat, lng, radiusMiles = 5) {
-    if (searchRadiusCircle) map.removeLayer(searchRadiusCircle);
-    
+    if (window.searchRadiusCircle) map.removeLayer(window.searchRadiusCircle);
     const radiusMeters = radiusMiles * 1609.34;
-    searchRadiusCircle = L.circle([lat, lng], {
-        color: '#3b82f6',     
-        fillColor: '#3b82f6',
-        fillOpacity: 0.05,
-        weight: 2,
-        dashArray: '5, 10'    
+    window.searchRadiusCircle = L.circle([lat, lng], {
+        color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.05, weight: 2, dashArray: '5, 10', radius: radiusMeters
     }).addTo(map);
-    
-    map.fitBounds(searchRadiusCircle.getBounds(), { padding: [50, 50] });
 };
 
-window.recenterMapToOriginalBounds = function() {
-    if (activeTabContext === 'route' && plottedRouteCoordinates.length > 0) {
-        if (routePolylineLayer) map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
+window.updateUIForMode = function(isEV) {
+    const capLabel = document.getElementById('label-capacity');
+    const capSelect = document.getElementById('refuel-tank-size');
+    const currLabel = document.getElementById('label-current-fuel');
+    const mpgLabel = document.getElementById('mpg-label');
+
+    if (isEV) {
+        if (capLabel) capLabel.innerText = 'Battery Capacity';
+        if (currLabel) currLabel.innerText = 'State of Charge (SoC)';
+        if (mpgLabel) mpgLabel.innerText = 'Efficiency (mi/kWh)';
+        if (capSelect) capSelect.innerHTML = `<option value="40">40 kWh</option><option value="60" selected>60 kWh</option><option value="80">80 kWh</option><option value="100">100+ kWh</option>`;
     } else {
-        map.setView(mapSearchAnchorCoordinates, 12);
-        if (searchRadiusCircle) map.fitBounds(searchRadiusCircle.getBounds(), { padding: [50, 50] });
+        if (capLabel) capLabel.innerText = 'Tank Capacity';
+        if (currLabel) currLabel.innerText = 'Current Level';
+        if (mpgLabel) mpgLabel.innerText = 'Efficiency (MPG)';
+        if (capSelect) capSelect.innerHTML = `<option value="45">45 L</option><option value="55" selected>55 L</option><option value="70">70 L</option>`;
+    }
+    
+    if (typeof calculateOptimalRefuelStrategy === 'function') {
+        calculateOptimalRefuelStrategy();
     }
 };
 
-function initializeMapCanvas() {
+document.addEventListener('DOMContentLoaded', () => {
+    initMap(); 
+    updateSavedItemsCountUI();
+    
+    const radiusSlider = document.getElementById('radius-slider');
+    if (radiusSlider) {
+        radiusSlider.addEventListener('input', (e) => {
+            document.getElementById('radius-val-label').textContent = `${e.target.value} Miles`;
+            executeStationDataFilteringPipeline();
+        });
+    }
+
+    const detourSlider = document.getElementById('route-radius-slider');
+    if (detourSlider) {
+        detourSlider.addEventListener('input', (e) => {
+            document.getElementById('route-radius-val-label').textContent = `${e.target.value} Mi`;
+            executeStationDataFilteringPipeline();
+        });
+    }
+
+    setupAutocompleteListeners();
+    initializeClickIsolationBubbling();
+
+    if (window.innerWidth < 1024) {
+        const leftSidebar = document.getElementById('primary-control-sidebar');
+        if (leftSidebar) leftSidebar.classList.add('mobile-active-sheet');
+    }
+
+    const detailSheet = document.getElementById('global-detail-sheet');
+    if (detailSheet) detailSheet.classList.add('hidden');
+});
+
+function updateSavedItemsCountUI() {
+    const badge = document.getElementById('saved-items-count-badge');
+    if (badge) badge.textContent = starredStations.length + savedRoutes.length;
+}
+
+window.focusAndHighlightMapMarker = function(lat, lon) {
+    if (isNaN(lat) || isNaN(lon)) return;
+    map.setView([lat, lon], 14, { animate: true, duration: 0.5 });
+    const selectedStation = currentlyVisibleStations.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon) || rawGlobalStationsPool.find(s => parseFloat(s.latitude || s.lat) === lat && parseFloat(s.longitude || s.lng) === lon);
+    if (selectedStation) setTimeout(() => { openForecourtDetailSheet(selectedStation); }, 300);
+};
+
+window.focusIncidentMapView = function(lat, lng) {
+    if (!map) return;
+    let targetedLat = parseFloat(lat);
+    let targetedLng = parseFloat(lng);
+    if (Math.abs(targetedLat) < Math.abs(targetedLng) && targetedLng > 49 && targetedLng < 61) {
+        const temp = targetedLat; targetedLat = targetedLng; targetedLng = temp;
+    }
+    if (isNaN(targetedLat) || isNaN(targetedLng)) return;
+    map.flyTo([targetedLat, targetedLng], 16, { animate: true, duration: 1.5 });
+};
+
+window.toggleSystemColorModeTheme = function(event) {
+    if(event) { event.stopPropagation(); event.preventDefault(); }
+    isDarkMode = !isDarkMode;
+    localStorage.setItem('theme-dark-setting-mode', isDarkMode);
+    applyThemeChangesToDOM();
+};
+
+function applyThemeChangesToDOM() {
+    const bodyNode = document.body;
+    if (isDarkMode) {
+        bodyNode.classList.remove('light'); bodyNode.classList.add('dark'); document.documentElement.classList.add('dark');
+    } else {
+        bodyNode.classList.remove('dark'); bodyNode.classList.add('light'); document.documentElement.classList.remove('dark');
+    }
+    if (map && tileLayerInstance) {
+        map.removeLayer(tileLayerInstance);
+        const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+        tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 17 }).addTo(map);
+    }
+    if (typeof executeStationDataFilteringPipeline === 'function') executeStationDataFilteringPipeline();
+    updateSavedItemsCountUI();
+    updateAllStarUIStates();
+}
+
+function initMap() {
     if (window.map && typeof window.map.setView === 'function') return;
     window.map = null; 
     
     window.map = L.map('map', { zoomControl: false, attributionControl: false }).setView(mapSearchAnchorCoordinates, 12);
     map = window.map; 
 
-    const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 19 }).addTo(map);
+    const targetedTilesetURI = isDarkMode ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+    tileLayerInstance = L.tileLayer(targetedTilesetURI, { maxZoom: 17 }).addTo(map);
     
-    // Add bottom right scale
     L.control.scale({ position: 'bottomright', metric: true, imperial: true }).addTo(map);
     
-    // Wire custom zoom controls
     document.getElementById('btn-zoom-in')?.addEventListener('click', () => map.zoomIn());
     document.getElementById('btn-zoom-out')?.addEventListener('click', () => map.zoomOut());
 
@@ -270,13 +466,13 @@ function initializeMapCanvas() {
     originalMapCenter = map.getCenter();
     
     map.on('moveend', () => {
-        const scanBtn = document.getElementById('scan-area-container');
+        const scanBtn = document.getElementById('btn-scan-bounds');
         if (!originalMapCenter || !scanBtn) return;
         if (activeTabContext === 'route') return;
         
         const dist = map.getCenter().distanceTo(originalMapCenter); 
         if (dist > 500) {
-            scanBtn.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
+            scanBtn.classList.remove('opacity-0', 'pointer-events-none', 'scale-90', 'hidden');
             scanBtn.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
         }
     });
@@ -284,124 +480,39 @@ function initializeMapCanvas() {
     triggerActiveDeviceLocationLookup();
     forceReloadRemotePipelineData();
 
-    setTimeout(() => {
-        if (map) {
-            map.invalidateSize();
-        }
-    }, 100);
+    setTimeout(() => { if (map) map.invalidateSize(); }, 100);
 }
-
-// --- CORE ASYNC DATA SCRAPER ---
-async function triggerPriceScraperBackgroundThread() {
-    try {
-        const response = await fetch('https://fuel-api-proxy.jasonlung0.workers.dev/');
-        if (!response.ok) throw new Error("Data provider failed verification.");
-        const dynamicPayload = await response.json();
-        
-        if (Array.isArray(dynamicPayload)) {
-            rawGlobalStationsPool = dynamicPayload.map(s => { return { ...s, PremiumDiesel: (parseFloat(s.B7) && !isNaN(parseFloat(s.B7))) ? (parseFloat(s.B7) + 14.2).toFixed(1) : null }; });
-        } else {
-            rawGlobalStationsPool = [];
-        }
-        executeStationDataFilteringPipeline();
-        
-        const lbl = document.getElementById('live-timestamp-label');
-        if (lbl) lbl.innerHTML = `Prices Updated At ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-    } catch (err) {
-        console.error("Forecourt price synchronization thread exception:", err);
-    }
-}
-
-// --- DATA FILTERING ENGINE MATRIX PIPELINE ---
-window.executeStationDataFilteringPipeline = async function() {
-    const workingDataset = window.rawGlobalStationsPool || rawGlobalStationsPool || [];
-    if (!workingDataset || workingDataset.length === 0) return;
-    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type-select')?.value !== 'electric') return;
-
-    const chosenFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
-    const radiusThresholdLocal = parseFloat(document.getElementById('radius-slider')?.value || 5);
-    const radiusThresholdCorridor = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
-    
-    let processMatchedStations = [];
-
-    // --- EV PIPELINE ---
-    if (chosenFuelType === 'electric') {
-        const timelineContainer = document.getElementById('refuel-timeline-output');
-        if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
-        try {
-            let ocmUrl = '';
-            
-            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                const sampledWaypoints = plottedRouteCoordinates.filter((_, idx) => idx % 10 === 0);
-                const lats = sampledWaypoints.map(c => c[0]);
-                const lngs = sampledWaypoints.map(c => c[1]);
-                const minLat = Math.min(...lats) - 0.05, maxLat = Math.max(...lats) + 0.05;
-                const minLng = Math.min(...lngs) - 0.05, maxLng = Math.max(...lngs) + 0.05;
-
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&swlatitude=${minLat}&swlongitude=${minLng}&nelatitude=${maxLat}&nelongitude=${maxLng}&maxresults=150&verbose=false`;
-            } else {
-                const searchLat = activeTabContext === 'local' ? mapSearchAnchorCoordinates[0] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][0] : mapSearchAnchorCoordinates[0]);
-                const searchLon = activeTabContext === 'local' ? mapSearchAnchorCoordinates[1] : (plottedRouteCoordinates.length > 0 ? plottedRouteCoordinates[0][1] : mapSearchAnchorCoordinates[1]);
-                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${radiusThresholdLocal}&distanceunit=Miles&maxresults=100`;
-            }
-            
-            const res = await fetch(ocmUrl);
-            const data = await res.json();
-            
-            processMatchedStations = data.map(poi => ({
-                id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
-                latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
-                is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || `https://openchargemap.org/site/poi/details/${poi.ID}`, isEV: true
-            }));
-
-            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
-                processMatchedStations = processMatchedStations.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= radiusThresholdCorridor);
-            }
-        } catch (err) { Toast.show("Failed to fetch live EV locations from OpenChargeMap", "error"); }
-    } 
-    // --- ICE PIPELINE ---
-    else {
-        if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
-            processMatchedStations = rawGlobalStationsPool.filter(stationNode => {
-                if (!stationNode[chosenFuelType] || isNaN(parseFloat(stationNode[chosenFuelType]))) return false;
-                const distanceVector = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(stationNode.latitude || stationNode.lat), parseFloat(stationNode.longitude || stationNode.lng));
-                return distanceVector <= radiusThresholdLocal;
-            });
-            // Update the radius visualizer
-            renderSearchAreaRadius(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], radiusThresholdLocal);
-        } else {
-            if (searchRadiusCircle) map.removeLayer(searchRadiusCircle); // Hide circle if routing
-            processMatchedStations = rawGlobalStationsPool.filter(stationNode => {
-                if (!stationNode[chosenFuelType] || isNaN(parseFloat(stationNode[chosenFuelType]))) return false;
-                const distanceVector = computeMinimumDistanceToRouteCorridor(parseFloat(stationNode.latitude || stationNode.lat), parseFloat(stationNode.longitude || stationNode.lng));
-                return distanceVector <= radiusThresholdCorridor;
-            });
-        }
-    }
-
-    currentlyVisibleStations = processMatchedStations;
-    
-    let passDistanceVal = (activeTabContext === 'route') ? globalRouteDistanceMiles : null;
-    paintMarkerCanvasLayersToMap(currentlyVisibleStations.slice(0, 250), chosenFuelType, currentlyVisibleStations.length, passDistanceVal);
-    generateCheapestRankingListDeck(currentlyVisibleStations, chosenFuelType);
-    
-    if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
-};
 
 window.executeContextualAreaScanPipeline = function(event) {
-    if(event) event.stopPropagation();
-    const mapCenterCoordinates = map.getCenter();
-    mapSearchAnchorCoordinates = [mapCenterCoordinates.lat, mapCenterCoordinates.lng];
-    
-    const scannerBox = document.getElementById('scan-area-container');
-    if (scannerBox) {
-        scannerBox.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
-        scannerBox.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
-    }
-    
-    activeTabContext = 'local';
+    if (event) event.stopPropagation();
+    const btn = document.getElementById('btn-scan-bounds');
+    if (btn) btn.classList.add('hidden');
+
+    const newCenter = map.getCenter();
+    mapSearchAnchorCoordinates = [newCenter.lat, newCenter.lng];
+    originalMapCenter = newCenter;
+
     executeStationDataFilteringPipeline();
 };
+
+function triggerActiveDeviceLocationLookup() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+                mapSearchAnchorCoordinates = [userLat, userLng];
+                originalMapCenter = L.latLng(userLat, userLng); 
+                map.setView(mapSearchAnchorCoordinates, 12);
+                executeStationDataFilteringPipeline();
+            },
+            (error) => { executeStationDataFilteringPipeline(); },
+            { enableHighAccuracy: true, timeout: 6000 }
+        );
+    } else {
+        executeStationDataFilteringPipeline();
+    }
+}
 
 window.triggerManualDeviceLocationSearch = async function(event) {
     if(event) { event.stopPropagation(); event.preventDefault(); }
@@ -413,6 +524,7 @@ window.triggerManualDeviceLocationSearch = async function(event) {
         const userLat = position.coords.latitude;
         const userLng = position.coords.longitude;
         mapSearchAnchorCoordinates = [userLat, userLng];
+        map.setView(mapSearchAnchorCoordinates, 13);
         originalMapCenter = L.latLng(userLat, userLng);
 
         try {
@@ -421,154 +533,25 @@ window.triggerManualDeviceLocationSearch = async function(event) {
             if(inputField && lookupData && lookupData.display_name) inputField.value = lookupData.address.city || lookupData.address.town || lookupData.address.suburb || "My Coordinates";
             else if(inputField) inputField.value = `${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
         } catch { if(inputField) inputField.value = "Current Location"; }
-        
-        map.setView(mapSearchAnchorCoordinates, 13);
         executeStationDataFilteringPipeline();
     }, () => {
         if(inputField) inputField.value = "Access Denied";
     }, { enableHighAccuracy: true, timeout: 8000 });
 };
 
-function triggerActiveDeviceLocationLookup() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const userLat = position.coords.latitude;
-                const userLng = position.coords.longitude;
-                mapSearchAnchorCoordinates = [userLat, userLng];
-                originalMapCenter = L.latLng(userLat, userLng); 
-                map.setView(mapSearchAnchorCoordinates, 13);
-                executeStationDataFilteringPipeline();
-            },
-            (error) => { executeStationDataFilteringPipeline(); },
-            { enableHighAccuracy: true, timeout: 6000 }
-        );
+window.recenterMapToOriginalBounds = function() {
+    if (activeTabContext === 'route' && plottedRouteCoordinates.length > 0) {
+        if (routePolylineLayer) map.fitBounds(routePolylineLayer.getBounds(), { padding: [50, 50] });
     } else {
-        executeStationDataFilteringPipeline();
+        map.setView(mapSearchAnchorCoordinates, 12);
+        if (window.searchRadiusCircle) map.fitBounds(window.searchRadiusCircle.getBounds(), { padding: [50, 50] });
     }
-}
-
-// --- DYNAMIC UI MARKER DOM CANVAS LAYERING ENGINE ---
-window.paintMarkerCanvasLayersToMap = function(stationsList, activeFuelType, matchCounterValue, distanceMetricInfo) {
-    if(!markerClusterGroupInstance) return;
-    markerClusterGroupInstance.clearLayers();
-    if (stationsList.length === 0) return;
-    
-    const isEV = activeFuelType === 'electric';
-    const pricesArray = stationsList.map(s => {
-        let p = parseFloat(s[activeFuelType]);
-        if (isEV && (!p || isNaN(p))) p = parseFloat(s.electric_price || s.charge_rate || s.electric);
-        return p;
-    }).filter(p => !isNaN(p) && p > 0);
-    
-    const minPrice = Math.min(...pricesArray) || 0;
-    if (activeTabContext === 'route' && distanceMetricInfo && pricesArray.length > 0) {
-        const costNode = document.getElementById('summary-cost');
-        if (costNode && !isEV) costNode.textContent = `${minPrice.toFixed(1)}p`;
-    }
-
-    let gT = 0, bT = 0;
-    if (isEV) { gT = 55; bT = 75; }
-    else if (pricesArray.length > 0) {
-        pricesArray.sort((a, b) => a - b);
-        gT = pricesArray[Math.floor(pricesArray.length * 0.333)];
-        bT = pricesArray[Math.floor(pricesArray.length * 0.666)];
-    }
-
-    stationsList.forEach((station) => {
-        let numericPrice = parseFloat(station[activeFuelType]);
-        if (isEV && (!numericPrice || isNaN(numericPrice))) numericPrice = parseFloat(station.electric_price || station.charge_rate || station.electric);
-        if (!numericPrice || isNaN(numericPrice)) return;
-        
-        let tierBgClassColor = 'bg-zinc-900 border-zinc-700 text-white';
-        if (numericPrice <= gT) tierBgClassColor = 'bg-emerald-500 border-emerald-600 text-white ring-2 ring-emerald-500/30';
-        else if (numericPrice <= bT) tierBgClassColor = 'bg-blue-500 border-blue-600 text-white ring-2 ring-blue-500/30';
-        
-        const markerBubbleHtml = `
-            <div class="leaflet-div-icon-reset relative">
-                <div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-xl flex items-center justify-center font-black text-[11px] rounded-full px-2.5 py-1 whitespace-nowrap">
-                    ${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}
-                </div>
-            </div>
-        `;
-
-        const lat = parseFloat(station.latitude || station.lat || station['forecourts.location.latitude']);
-        const lon = parseFloat(station.longitude || station.lng || station['forecourts.location.longitude']);
-        if (isNaN(lat) || isNaN(lon)) return; 
-
-        const markerInstance = L.marker([lat, lon], {
-            stationRawData: station,
-            icon: L.divIcon({ html: markerBubbleHtml, className: 'leaflet-div-icon-reset', iconSize: [50, 32], iconAnchor: [25, 16] })
-        });
-        
-        markerInstance.on('click', (e) => { L.DomEvent.stopPropagation(e); openForecourtDetailSheet(station); });
-        markerClusterGroupInstance.addLayer(markerInstance);
-    });
-
-    if (activeTabContext === 'local') {
-        map.setView(mapSearchAnchorCoordinates, map.getZoom() < 11 ? 12 : map.getZoom());
-    } else if (activeTabContext === 'route' && plottedRouteCoordinates.length > 0 && !window.blockAutoZoomRouteFlag) {
-        const boundsBoundingBoxFrame = L.polyline(plottedRouteCoordinates).getBounds();
-        map.fitBounds(boundsBoundingBoxFrame, { padding: [40, 40] });
-        window.blockAutoZoomRouteFlag = true; 
-    }
-};
-
-window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
-    const block = document.getElementById('cheapest-ranking-block');
-    const container = document.getElementById('cheapest-cards-stack');
-    const blockTitle = document.getElementById('ranking-block-title');
-    if (!block || !container) return;
-    
-    container.innerHTML = '';
-
-    let validPool = pool.map(station => {
-        let price = parseFloat(station[fuelVariant]);
-        if (fuelVariant === 'electric' && (!price || isNaN(price))) price = parseFloat(station.electric_price || station.charge_rate || station.electric || 42.8);
-        return { ...station, processedPrice: price };
-    }).filter(s => s.processedPrice && !isNaN(s.processedPrice) && s.processedPrice > 0);
-
-    if (validPool.length === 0) {
-        container.innerHTML = `<p class="text-xs font-medium text-zinc-400 dark:text-zinc-500 text-center py-6 bg-zinc-50/50 dark:bg-zinc-900/10 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">No stations matching criteria.</p>`;
-        return;
-    }
-
-    const isEV = fuelVariant === 'electric';
-    validPool.sort((a, b) => a.processedPrice - b.processedPrice);
-
-    validPool.slice(0, 3).forEach((station, idx) => {
-        const lat = parseFloat(station.latitude || station.lat);
-        const lon = parseFloat(station.longitude || station.lng);
-        const card = document.createElement('div');
-        card.className = "group bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-500 transition-all duration-200 cursor-pointer flex justify-between items-center";
-        card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
-        
-        let rankingBadgeMarkup = '';
-        if (idx === 0) rankingBadgeMarkup = `<span class="text-[8px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Cheapest</span>`;
-
-        card.innerHTML = `
-            <div class="min-w-0 flex-1 pr-3">
-                <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                    <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
-                    <h4 class="text-xs font-black text-zinc-900 dark:text-zinc-100 truncate group-hover:text-emerald-500 transition-colors">${(station.brand_name || 'Independent Hub').replace(/['"]/g, '')}</h4>
-                    ${rankingBadgeMarkup}
-                </div>
-                <p class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate">${(station.site_name || station.address || 'Arterial Corridor Route').replace(/['"]/g, '')}</p>
-            </div>
-            <div class="text-right flex-shrink-0">
-                <span class="text-sm font-black text-emerald-700 dark:text-emerald-400 block tracking-tight tabular-nums">${isEV?'⚡':''}${parseFloat(station.processedPrice).toFixed(1)}${isEV?'kW':'p'}</span>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-    
-    block.classList.remove('hidden');
 };
 
 function initializeClusterLayerPipeline() {
     if(markerClusterGroupInstance && map) { map.removeLayer(markerClusterGroupInstance); }
     markerClusterGroupInstance = L.markerClusterGroup({
-        showCoverageOnHover: false, maxClusterRadius: 45, disableClusteringAtZoom: 14,
+        showCoverageOnHover: false, maxClusterRadius: 50, spiderfyOnMaxZoom: true,
         iconCreateFunction: function (cluster) {
             const dynamicChildMarkers = cluster.getAllChildMarkers();
             const activeFuelKey = document.getElementById('fuel-type-select')?.value || 'E10';
@@ -594,44 +577,35 @@ function initializeClusterLayerPipeline() {
     map.addLayer(markerClusterGroupInstance);
 }
 
-// --- KOMOOT STYLE UI TAB CONTEXT SWITCHING ---
-window.switchSystemOperationalContext = function(targetModeKey) {
-    activeTabContext = targetModeKey;
-    
-    const localBtn = document.getElementById('context-btn-local');
-    const routeBtn = document.getElementById('context-btn-route');
+window.switchSystemOperationalContext = function(contextType) {
+    activeTabContext = contextType;
+    const btnLocal = document.getElementById('header-tab-local');
+    const btnRoute = document.getElementById('header-tab-route');
     const mobLocalBtn = document.getElementById('mob-context-btn-local');
     const mobRouteBtn = document.getElementById('mob-context-btn-route');
-    const localPanel = document.getElementById('panel-local-context');
-    const routePanel = document.getElementById('panel-route-context');
+    const panelLocal = document.getElementById('panel-local-context');
+    const panelRoute = document.getElementById('panel-route-context');
 
-    if (targetModeKey === 'local') {
-        localBtn?.classList.add('text-emerald-600', 'dark:text-emerald-400', 'bg-white', 'dark:bg-zinc-700', 'shadow-sm');
-        localBtn?.classList.remove('text-zinc-500', 'dark:text-zinc-400');
-        routeBtn?.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'bg-white', 'dark:bg-zinc-700', 'shadow-sm');
-        routeBtn?.classList.add('text-zinc-500', 'dark:text-zinc-400');
+    if (contextType === 'local') {
+        if(btnLocal) btnLocal.className = "px-5 py-2 text-xs font-black bg-white dark:bg-zinc-800 shadow-sm rounded-lg transition-all text-emerald-600 dark:text-emerald-400";
+        if(btnRoute) btnRoute.className = "px-5 py-2 text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all rounded-lg";
+        if(mobLocalBtn) mobLocalBtn.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm focus:outline-none";
+        if(mobRouteBtn) mobRouteBtn.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none";
         
-        mobLocalBtn?.classList.add('bg-white', 'dark:bg-zinc-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        mobLocalBtn?.classList.remove('text-zinc-500', 'dark:text-zinc-400');
-        mobRouteBtn?.classList.remove('bg-white', 'dark:bg-zinc-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        mobRouteBtn?.classList.add('text-zinc-500', 'dark:text-zinc-400');
-
-        localPanel?.classList.remove('hidden');
-        routePanel?.classList.add('hidden');
+        if(panelLocal) panelLocal.classList.remove('hidden');
+        if(panelRoute) panelRoute.classList.add('hidden');
         clearRoute();
     } else {
-        routeBtn?.classList.add('text-emerald-600', 'dark:text-emerald-400', 'bg-white', 'dark:bg-zinc-700', 'shadow-sm');
-        routeBtn?.classList.remove('text-zinc-500', 'dark:text-zinc-400');
-        localBtn?.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'bg-white', 'dark:bg-zinc-700', 'shadow-sm');
-        localBtn?.classList.add('text-zinc-500', 'dark:text-zinc-400');
+        if(btnRoute) btnRoute.className = "px-5 py-2 text-xs font-black bg-white dark:bg-zinc-800 shadow-sm rounded-lg transition-all text-emerald-600 dark:text-emerald-400";
+        if(btnLocal) btnLocal.className = "px-5 py-2 text-xs font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all rounded-lg";
+        if(mobRouteBtn) mobRouteBtn.className = "py-2 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm focus:outline-none";
+        if(mobLocalBtn) mobLocalBtn.className = "py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white focus:outline-none";
         
-        mobRouteBtn?.classList.add('bg-white', 'dark:bg-zinc-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        mobRouteBtn?.classList.remove('text-zinc-500', 'dark:text-zinc-400');
-        mobLocalBtn?.classList.remove('bg-white', 'dark:bg-zinc-800', 'text-emerald-600', 'dark:text-emerald-400', 'shadow-sm');
-        mobLocalBtn?.classList.add('text-zinc-500', 'dark:text-zinc-400');
-
-        routePanel?.classList.remove('hidden');
-        localPanel?.classList.add('hidden');
+        if(panelRoute) panelRoute.classList.remove('hidden');
+        if(panelLocal) panelLocal.classList.add('hidden');
+        
+        const scanBtn = document.getElementById('btn-scan-bounds');
+        if (scanBtn) scanBtn.classList.add('hidden');
     }
     executeStationDataFilteringPipeline();
 };
@@ -748,7 +722,6 @@ window.executeAddressGeocodeLookup = async function() {
             originalMapCenter = L.latLng(parseFloat(matchingNodes[0].lat), parseFloat(matchingNodes[0].lon)); 
             map.setView(mapSearchAnchorCoordinates, 12);
             executeStationDataFilteringPipeline();
-            if (window.innerWidth < 1024) setActiveMobileSheet('search'); // Stay on search panel
         }
     } catch (err) { console.error(err); }
 };
@@ -762,22 +735,6 @@ async function executeGeocodeSearch(addressQueryString) {
     return [parseFloat(payload[0].lat), parseFloat(payload[0].lon)];
 }
 
-function computeDistanceVectorMiles(lat1, lon1, lat2, lon2) {
-    const dLat = (lat2 - lat1) * 69.1;
-    const dLon = (lon2 - lon1) * 41.0; 
-    return Math.sqrt(dLat * dLat + dLon * dLon);
-}
-
-function computeMinimumDistanceToRouteCorridor(pointLat, pointLon) {
-    let minimumTrackSeparationMiles = Infinity;
-    for (let i = 0; i < plottedRouteCoordinates.length; i++) {
-        const distanceEstimate = computeDistanceVectorMiles(plottedRouteCoordinates[i][0], plottedRouteCoordinates[i][1], pointLat, pointLon);
-        if (distanceEstimate < minimumTrackSeparationMiles) minimumTrackSeparationMiles = distanceEstimate;
-    }
-    return minimumTrackSeparationMiles;
-}
-
-// --- TOMTOM TELEMETRY INTEGRATION ---
 function generateTrafficBoundingBoxes(coords, maxArea = 8500) {
     if (!coords || coords.length === 0) return [];
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -947,13 +904,13 @@ window.renderLiveTrafficDashboard = function(incidents) {
     }
 };
 
-window.triggerRouteOptimizationPipeline = async function() {
+window.executeRouteGenerationPipeline = async function(forcedStart, forcedEnd) {
     if (!map) return;
     try {
         const startElement = document.getElementById('route-start-input');
         const endElement = document.getElementById('route-end-input');
-        const startInput = startElement?.value || "";
-        const endInput = endElement?.value || "";
+        const startInput = forcedStart || startElement?.value || "";
+        const endInput = forcedEnd || endElement?.value || "";
         
         if (!startInput || !endInput) { Toast.show("Please enter both a start point and an end point.", "warning"); return; }
         
@@ -1025,7 +982,6 @@ window.triggerRouteOptimizationPipeline = async function() {
             if (statusBadge) { statusBadge.textContent = "SCANNING..."; statusBadge.className = "px-2 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 animate-pulse"; }
             if(tickerContainer) tickerContainer.innerHTML = `<div class="absolute inset-0 flex items-center px-3 text-[11px] font-bold text-zinc-500 truncate tracking-tight">Scanning route chunks for live telemetry...</div>`;
 
-            // Display floating action buttons on successful route
             document.getElementById('btn-telemetry-trigger')?.classList.remove('hidden');
             document.getElementById('btn-refuel-trigger')?.classList.remove('hidden');
 
@@ -1060,24 +1016,13 @@ window.triggerRouteOptimizationPipeline = async function() {
         const timeEl = document.getElementById('dash-metric-time'); if(timeEl) timeEl.innerText = timeString;
         const litresEl = document.getElementById('dash-metric-litres'); if(litresEl) litresEl.innerText = consumptionString;
         const costEl = document.getElementById('summary-cost'); if(costEl) costEl.innerText = `£${tripCost.toFixed(2)}`;
-
-        if (currentActiveRoute.summary) {
-            const avgSpeedMph = Math.round((currentActiveRoute.summary.lengthInMeters / currentActiveRoute.summary.travelTimeInSeconds) * 2.23694);
-            const speedBadge = document.getElementById('dash-header-speed-badge');
-            if (speedBadge) {
-                speedBadge.innerText = `${avgSpeedMph} mph`;
-                const delay = currentActiveRoute.summary.trafficDelayInSeconds || 0;
-                if (delay > 300) speedBadge.className = "ml-2 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/40";
-                else if (delay > 60) speedBadge.className = "ml-2 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/40";
-                else speedBadge.className = "ml-2 px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider border uppercase bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/40";
-            }
+        
+        if (typeof executeStationDataFilteringPipeline === 'function') {
+            await executeStationDataFilteringPipeline();
         }
-        
-        executeStationDataFilteringPipeline();
-        calculateOptimalRefuelStrategy();
-        
-        if (window.innerWidth < 1024) setActiveMobileSheet('telemetry');
-        
+        if (typeof calculateOptimalRefuelStrategy === 'function') {
+            calculateOptimalRefuelStrategy();
+        }
     } catch (err) { Toast.show(`Failed to trace route: ${err.message}`, "error"); }
 };
 
@@ -1158,278 +1103,526 @@ window.clearCalculatedRouteLayer = function() {
     
     document.getElementById('btn-telemetry-trigger')?.classList.add('hidden');
     document.getElementById('btn-refuel-trigger')?.classList.add('hidden');
-    toggleModal(''); // Hides all floating modals
+    toggleModal(''); 
 
     clearFuelOptimizationState();
     executeStationDataFilteringPipeline();
 };
 
-document.addEventListener('click', (e) => {
-    document.querySelectorAll('[id$="-suggestions"], [id^="via-suggestions-"]').forEach(box => { if (!box.contains(e.target)) box.classList.add('hidden'); });
-});
+window.executeStationDataFilteringPipeline = async function() {
+    const workingDataset = window.rawGlobalStationsPool || rawGlobalStationsPool || [];
+    if (!workingDataset || workingDataset.length === 0) return;
+    if (!rawGlobalStationsPool?.length && document.getElementById('fuel-type-select')?.value !== 'electric') return;
 
-function initializeClickIsolationBubbling() {
-    ['global-detail-sheet', 'starred-dropdown-panel', 'primary-control-sidebar', 'smart-refuel-modal', 'telemetry-modal', 'dvla-modal'].forEach(id => {
-        const node = document.getElementById(id);
-        if (node) { node.addEventListener('click', (e) => { e.stopPropagation(); }); node.addEventListener('dblclick', (e) => { e.stopPropagation(); }); }
-    });
-}
-
-window.injectStationAsRouteWaypointNode = function() {
-    if (!activeSheetStation) return;
-    const destField = document.getElementById('route-end-input');
-    if (destField) {
-        destField.value = `${activeSheetStation.latitude || activeSheetStation.lat}, ${activeSheetStation.longitude || activeSheetStation.lng}`;
-        switchSystemOperationalContext('route');
-        triggerRouteOptimizationPipeline();
-    }
-    closeForecourtDetailSheet(null);
-};
-
-function setupMobileDrawerPointerSwipeGestures() {
-    const element = document.getElementById('global-detail-sheet');
-    if(!element) return;
-    let touchYStartAnchor = 0;
+    const chosenFuelType = document.getElementById('fuel-type-select')?.value || 'E10';
+    const radiusThresholdLocal = parseFloat(document.getElementById('radius-slider')?.value || 5);
+    const radiusThresholdCorridor = parseFloat(document.getElementById('route-radius-slider')?.value || 2);
     
-    element.addEventListener('touchstart', (e) => {
-        touchYStartAnchor = e.changedTouches[0].screenY;
-    }, { passive: true });
-    
-    element.addEventListener('touchend', (e) => {
-        const touchYEndAnchor = e.changedTouches[0].screenY;
-        const totalSwipeDeltaDistance = touchYStartAnchor - touchYEndAnchor;
-        
-        if (Math.abs(totalSwipeDeltaDistance) > 40) {
-            if (totalSwipeDeltaDistance > 0) { // Swiped Upwards
-                if (mobileDetailDrawerState === 'minimal') setMobileSheetUIState('mid');
-                else if (mobileDetailDrawerState === 'mid') setMobileSheetUIState('full');
-            } else { // Swiped Downwards
-                if (mobileDetailDrawerState === 'full') setMobileSheetUIState('mid');
-                else if (mobileDetailDrawerState === 'mid') setMobileSheetUIState('minimal');
-                else if (mobileDetailDrawerState === 'minimal') closeForecourtDetailSheet(null);
+    let processMatchedStations = [];
+
+    if (chosenFuelType === 'electric') {
+        const timelineContainer = document.getElementById('refuel-timeline-output');
+        if (timelineContainer) timelineContainer.innerHTML = '<p class="text-center py-2 text-xs font-medium text-zinc-400">Locating optimal charge points...</p>';
+        try {
+            let ocmUrl = '';
+            
+            if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+                const sampleInterval = Math.max(1, Math.floor(plottedRouteCoordinates.length / 25)); 
+                const sampledCoords = [];
+                for (let i = 0; i < plottedRouteCoordinates.length; i += sampleInterval) sampledCoords.push(plottedRouteCoordinates[i]);
+                sampledCoords.push(plottedRouteCoordinates[plottedRouteCoordinates.length - 1]);
+
+                let combinedStations = [];
+                for (const coord of sampledCoords) {
+                    const lat = coord[0];
+                    const lon = coord[1];
+                    try {
+                        const url = `https://api.openchargemap.io/v3/poi/?key=${OCM_KEY}&output=json&latitude=${lat}&longitude=${lon}&distance=15&distanceunit=Miles&maxresults=40&compact=true&verbose=false`;
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        if (Array.isArray(data)) combinedStations = combinedStations.concat(data);
+                    } catch (err) {}
+                }
+
+                const uniqueMap = new Map();
+                combinedStations.forEach(item => { if (item.ID) uniqueMap.set(item.ID, item); });
+
+                processMatchedStations = Array.from(uniqueMap.values()).map(poi => ({
+                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
+                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || `https://openchargemap.org/site/poi/details/${poi.ID}`, isEV: true
+                }));
+
+                if (activeTabContext === 'route' && typeof plottedRouteCoordinates !== 'undefined' && plottedRouteCoordinates.length > 0) {
+                    processMatchedStations = processMatchedStations.filter(s => computeMinimumDistanceToRouteCorridor(parseFloat(s.latitude), parseFloat(s.longitude)) <= radiusThresholdCorridor);
+                }
+            } else {
+                const searchLat = mapSearchAnchorCoordinates[0];
+                const searchLon = mapSearchAnchorCoordinates[1];
+                ocmUrl = `https://api.openchargemap.io/v3/poi/?output=json&key=${OCM_KEY}&countrycode=GB&latitude=${searchLat}&longitude=${searchLon}&distance=${radiusThresholdLocal}&distanceunit=Miles&maxresults=100`;
+                
+                const res = await fetch(ocmUrl);
+                const data = await res.json();
+                processMatchedStations = data.map(poi => ({
+                    id: poi.ID, brand_name: poi.OperatorInfo?.Title || 'Independent Charger', address: poi.AddressInfo?.AddressLine1 || 'Location Registered',
+                    latitude: poi.AddressInfo?.Latitude, longitude: poi.AddressInfo?.Longitude, electric: poi.Connections?.[0]?.PowerKW || 50, 
+                    is_public: poi.UsageType?.IsPayAtLocation ?? true, usage_title: poi.UsageType?.Title || 'Public Access', operator_url: poi.OperatorInfo?.WebsiteURL || null, isEV: true
+                }));
             }
+        } catch (err) { Toast.show("Failed to fetch live EV locations from OpenChargeMap", "error"); }
+    } 
+    else {
+        if (activeTabContext === 'local' || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
+            processMatchedStations = rawGlobalStationsPool.filter(stationNode => {
+                if (!stationNode[chosenFuelType] || isNaN(parseFloat(stationNode[chosenFuelType]))) return false;
+                const distanceVector = computeDistanceVectorMiles(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], parseFloat(stationNode.latitude || stationNode.lat), parseFloat(stationNode.longitude || stationNode.lng));
+                return distanceVector <= radiusThresholdLocal;
+            });
+            window.renderSearchAreaRadius(mapSearchAnchorCoordinates[0], mapSearchAnchorCoordinates[1], radiusThresholdLocal);
+        } else {
+            if (window.searchRadiusCircle) map.removeLayer(window.searchRadiusCircle); 
+            processMatchedStations = rawGlobalStationsPool.filter(stationNode => {
+                if (!stationNode[chosenFuelType] || isNaN(parseFloat(stationNode[chosenFuelType]))) return false;
+                const distanceVector = computeMinimumDistanceToRouteCorridor(parseFloat(stationNode.latitude || stationNode.lat), parseFloat(stationNode.longitude || stationNode.lng));
+                return distanceVector <= radiusThresholdCorridor;
+            });
         }
-    }, { passive: true });
-}
-
-/**
- * Fuel Finder UK - Main UI Application Logic
- * Comprehensive rebuild addressing UI toggles, Map styling, and DVLA API CORS bypass.
- */
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialise Application
-    relocateSmartRefuel();
-    initializeMapCanvas();
-    attachGlobalEventListeners();
-});
-
-// ==========================================
-// 1. DOM & UX Adjustments
-// ==========================================
-
-/**
- * Moves the Smart Refuel container outside the sidebar to improve UX.
- * Applies minimalistic styling suitable for the new placement.
- */
-function relocateSmartRefuel() {
-    const smartRefuelContainer = document.getElementById('smart-refuel-container') || document.querySelector('.smart-refuel');
-    const appContainer = document.getElementById('app-container') || document.body;
-    const sidebar = document.querySelector('.sidebar') || document.getElementById('sidebar');
-
-    if (smartRefuelContainer && sidebar && sidebar.contains(smartRefuelContainer)) {
-        // Remove from sidebar
-        smartRefuelContainer.remove();
-        
-        // Apply modern, minimalistic floating panel classes
-        smartRefuelContainer.classList.add('fixed', 'bottom-4', 'right-4', 'z-50', 'bg-white', 'shadow-lg', 'rounded-xl', 'p-4', 'dark:bg-gray-800');
-        
-        // Append to main application area
-        appContainer.appendChild(smartRefuelContainer);
-        console.log("UX Optimisation: Smart Refuel relocated outside of the sidebar.");
     }
-}
 
-// ==========================================
-// 2. Global Window Functions (Fixing Reference Errors)
-// ==========================================
-
-window.toggleSystemColorModeTheme = function() {
-    const htmlEl = document.documentElement;
-    if (htmlEl.classList.contains('dark')) {
-        htmlEl.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-        console.log("Theme updated to: Light");
-    } else {
-        htmlEl.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-        console.log("Theme updated to: Dark");
-    }
+    currentlyVisibleStations = processMatchedStations;
+    
+    let passDistanceVal = (activeTabContext === 'route') ? globalRouteDistanceMiles : null;
+    paintMarkerCanvasLayersToMap(currentlyVisibleStations.slice(0, 250), chosenFuelType, currentlyVisibleStations.length, passDistanceVal);
+    generateCheapestRankingListDeck(currentlyVisibleStations, chosenFuelType);
+    
+    if (activeTabContext === 'route') calculateOptimalRefuelStrategy();
 };
 
-window.toggleStarredDropdownDashboardPanel = function() {
-    const bookmarksPanel = document.getElementById('bookmarks-panel');
-    if (bookmarksPanel) {
-        bookmarksPanel.classList.toggle('hidden');
-        console.log("Bookmarks panel toggled.");
-    } else {
-        console.warn("Bookmarks panel element not found in DOM.");
-    }
-};
+window.generateCheapestRankingListDeck = function(pool, fuelVariant) {
+    const block = document.getElementById('cheapest-ranking-block');
+    const container = document.getElementById('cheapest-cards-stack');
+    const blockTitle = document.getElementById('ranking-block-title');
+    if (!block || !container) return;
+    
+    container.innerHTML = '';
 
-window.forceReloadRemotePipelineData = async function() {
-    console.log("Initiating forced reload of remote pipeline data...");
-    try {
-        // Placeholder for remote data fetching logic
-        // await fetchRemoteFuelPrices();
-        // await fetchRemotePOIs();
-        console.log("Remote pipeline data reloaded successfully.");
-    } catch (error) {
-        console.error("Failed to reload pipeline data:", error);
-    }
-};
+    let validPool = pool.map(station => {
+        let price = parseFloat(station[fuelVariant]);
+        if (fuelVariant === 'electric' && (!price || isNaN(price))) price = parseFloat(station.electric_price || station.charge_rate || station.electric || 42.8);
+        return { ...station, processedPrice: price };
+    }).filter(s => s.processedPrice && !isNaN(s.processedPrice) && s.processedPrice > 0);
 
-window.updateUIForMode = function(mode) {
-    const modeIndicators = document.querySelectorAll('.vehicle-mode-indicator');
-    modeIndicators.forEach(indicator => {
-        indicator.textContent = mode.toUpperCase() + ' PROFILE';
-        indicator.className = `vehicle-mode-indicator px-2 py-1 rounded text-xs font-bold ${
-            mode === 'ice' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-        }`;
-    });
-    console.log(`UI updated for ${mode} mode.`);
-};
-
-// ==========================================
-// 3. Map Initialisation (Komoot Style)
-// ==========================================
-
-function initializeMapCanvas() {
-    // Ensure forceReloadRemotePipelineData is available before map init, as per error logs
-    if (typeof window.forceReloadRemotePipelineData !== 'function') {
-        console.warn("forceReloadRemotePipelineData not defined before map init.");
+    if (validPool.length === 0) {
+        container.innerHTML = `<p class="text-xs font-medium text-zinc-400 dark:text-zinc-500 text-center py-6 bg-zinc-50/50 dark:bg-zinc-900/10 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800">No stations matching criteria.</p>`;
+        return;
     }
 
-    // Using Mapbox GL JS (assumed based on standard navigation controls visible in UI)
-    if (typeof mapboxgl !== 'undefined') {
-        mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Replace with actual token
+    const isEV = fuelVariant === 'electric';
+    validPool.sort((a, b) => a.processedPrice - b.processedPrice);
+
+    validPool.slice(0, 3).forEach((station, idx) => {
+        const lat = parseFloat(station.latitude || station.lat);
+        const lon = parseFloat(station.longitude || station.lng);
+        const card = document.createElement('div');
+        card.className = "group bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-500 transition-all duration-200 cursor-pointer flex justify-between items-center";
+        card.setAttribute('onclick', `focusAndHighlightMapMarker(${lat}, ${lon})`);
         
-        const map = new mapboxgl.Map({
-            container: 'map', // ID of the container element
-            // Using Mapbox Outdoors to match the topographic/green aesthetic of Komoot
-            style: 'mapbox://styles/mapbox/outdoors-v12', 
-            center: [-3.4500, 56.0719], // Centred roughly on Dunfermline based on screenshot
-            zoom: 11.5,
-            pitch: 0,
-            bearing: 0
-        });
+        let rankingBadgeMarkup = '';
+        if (idx === 0) rankingBadgeMarkup = `<span class="text-[8px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">Cheapest</span>`;
 
-        // Add standard controls (Compass, Zoom, etc.)
-        map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-        
-        map.on('load', () => {
-            console.log("Mapbox canvas initialised with Komoot-style topographic mapping.");
-            window.forceReloadRemotePipelineData();
-        });
-
-    } else if (typeof L !== 'undefined') {
-        // Fallback for Leaflet using OpenTopoMap
-        const map = L.map('map').setView([56.0719, -3.4500], 12);
-        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-            maxZoom: 17,
-            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | Style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
-        }).addTo(map);
-        console.log("Leaflet canvas initialised with Komoot-style topographic mapping.");
-        window.forceReloadRemotePipelineData();
-    } else {
-        console.error("No mapping library (Mapbox or Leaflet) detected in the global scope.");
-    }
-}
-
-// ==========================================
-// 4. DVLA API Handling & CORS Bypass
-// ==========================================
-
-window.executeDVLALookup = async function(registrationNumber) {
-    const regStr = registrationNumber || document.getElementById('vehicle-reg-input').value;
-    console.log(`Starting DVLA lookup for: ${regStr}`);
-
-    try {
-        // The direct fetch to DVLA VES API will fail in browser due to CORS.
-        // In a production environment, this must be routed through a backend proxy.
-        const response = await fetch('https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': 'YOUR_DVLA_API_KEY' // Replace with your actual key if using a proxy
-            },
-            body: JSON.stringify({ registrationNumber: regStr })
-        });
-
-        if (!response.ok) throw new Error("Network response was not ok or CORS blocked.");
-        
-        const data = await response.json();
-        populateVehicleProfile(data);
-
-    } catch (error) {
-        console.warn("DVLA Registration Check Failed (Likely CORS). Simulated bypass activated.");
-        
-        // Simulated Bypass based on screenshot UI state
-        const simulatedData = {
-            make: "VAUXHALL",
-            model: "CORSA",
-            colour: "BLUE",
-            engineCapacity: "1200",
-            fuelType: "PETROL"
-        };
-        
-        populateVehicleProfile(simulatedData);
-    }
-};
-
-function populateVehicleProfile(data) {
-    const profileContainer = document.getElementById('vehicle-profile-loaded');
-    if (profileContainer) {
-        profileContainer.innerHTML = `
-            <div class="flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-gray-800 dark:text-white">${data.make} ${data.model || ''}</h3>
-                    <p class="text-sm text-gray-500 uppercase">${data.colour} • ${data.engineCapacity}CC • ${data.fuelType}</p>
+        card.innerHTML = `
+            <div class="min-w-0 flex-1 pr-3">
+                <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <div class="w-4 h-4 rounded bg-emerald-500/10 text-[8px] flex items-center justify-center shrink-0 font-black text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 tabular-nums">#${idx + 1}</div>
+                    <h4 class="text-xs font-black text-zinc-900 dark:text-zinc-100 truncate group-hover:text-emerald-500 transition-colors">${(station.brand_name || 'Independent Hub').replace(/['"]/g, '')}</h4>
+                    ${rankingBadgeMarkup}
                 </div>
-                <span class="vehicle-mode-indicator px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-bold">ICE PROFILE</span>
+                <p class="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate">${(station.site_name || station.address || 'Arterial Corridor Route').replace(/['"]/g, '')}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <span class="text-sm font-black text-emerald-700 dark:text-emerald-400 block tracking-tight tabular-nums">${isEV?'⚡':''}${parseFloat(station.processedPrice).toFixed(1)}${isEV?'kW':'p'}</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+    
+    block.classList.remove('hidden');
+};
+
+window.assignPricingTierColorStyles = function(valueRaw, variantKey) {
+    const fallbackClasses = "bg-zinc-50 border-zinc-200 text-zinc-400 dark:bg-zinc-900 dark:border-zinc-800";
+    if (!valueRaw) return fallbackClasses;
+    const numericVal = parseFloat(valueRaw);
+    if (isNaN(numericVal) || numericVal <= 0) return fallbackClasses;
+    
+    if (variantKey === 'electric') {
+        if (numericVal <= 50) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+        if (numericVal <= 70) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
+        return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
+    }
+    
+    const referencePool = currentlyVisibleStations.map(item => parseFloat(item[variantKey])).filter(p => !isNaN(p) && p > 0);
+    if (referencePool.length === 0) return "bg-blue-50 border-blue-200 text-blue-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-blue-400";
+    
+    const min = Math.min(...referencePool);
+    const delta = Math.max(...referencePool) - min;
+    if (delta <= 0) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/30 text-emerald-600";
+    
+    const step = delta / 3;
+    if (numericVal <= min + step) return "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-bold";
+    if (numericVal <= min + (step * 2)) return "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 font-bold";
+    return "bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold";
+};
+
+window.paintMarkerCanvasLayersToMap = function(stationsList, variant, fallbackTotalCount, routeDistanceContext) {
+    if(!markerClusterGroupInstance) return;
+    markerClusterGroupInstance.clearLayers();
+    
+    const isEV = variant === 'electric';
+    const pricesArray = stationsList.map(s => {
+        let p = parseFloat(s[variant]);
+        if (!p || isNaN(p)) p = parseFloat(s[`price_${variant.toLowerCase()}`] || s[`forecourts.fuel_price.${variant}`]); 
+        if (isEV && (!p || isNaN(p))) p = parseFloat(s.electric_price || s.charge_rate || s.electric);
+        return p;
+    }).filter(p => !isNaN(p) && p > 0);
+    
+    const minPrice = Math.min(...pricesArray) || 0;
+
+    if (activeTabContext === 'route' && routeDistanceContext && pricesArray.length > 0) {
+        const costNode = document.getElementById('summary-cost');
+        if (costNode && !isEV) costNode.textContent = `${minPrice.toFixed(1)}p`;
+    }
+
+    let gT = 0, bT = 0;
+    if (isEV) { gT = 55; bT = 75; }
+    else if (pricesArray.length > 0) {
+        pricesArray.sort((a, b) => a - b);
+        gT = pricesArray[Math.floor(pricesArray.length * 0.333)];
+        bT = pricesArray[Math.floor(pricesArray.length * 0.666)];
+    }
+
+    stationsList.forEach((station) => {
+        let numericPrice = parseFloat(station[variant]);
+        if (!numericPrice || isNaN(numericPrice)) numericPrice = parseFloat(station[`price_${variant.toLowerCase()}`] || station[`forecourts.fuel_price.${variant}`]);
+        if (isEV && (!numericPrice || isNaN(numericPrice))) numericPrice = parseFloat(station.electric_price || station.charge_rate || station.electric);
+        if (!numericPrice || isNaN(numericPrice)) return;
+        
+        let tierBgClassColor = 'bg-zinc-900 border-zinc-700 text-white';
+        if (numericPrice <= gT) tierBgClassColor = 'bg-emerald-500 border-emerald-600 text-white ring-2 ring-emerald-500/30';
+        else if (numericPrice <= bT) tierBgClassColor = 'bg-blue-500 border-blue-600 text-white ring-2 ring-blue-500/30';
+        
+        const markerBubbleHtml = `
+            <div class="leaflet-div-icon-reset relative">
+                <div class="fuel-marker-bubble ${tierBgClassColor} transform transition-all duration-200 hover:scale-125 shadow-xl flex items-center justify-center font-black text-[11px] rounded-full px-2.5 py-1 whitespace-nowrap">
+                    ${isEV?'⚡':''}${numericPrice.toFixed(1)}${isEV?'kW':'p'}
+                </div>
+            </div>
+        `;
+
+        const lat = parseFloat(station.latitude || station.lat || station['forecourts.location.latitude']);
+        const lon = parseFloat(station.longitude || station.lng || station['forecourts.location.longitude']);
+        if (isNaN(lat) || isNaN(lon)) return; 
+
+        const markerInstance = L.marker([lat, lon], {
+            stationRawData: station,
+            icon: L.divIcon({ html: markerBubbleHtml, className: 'leaflet-div-icon-reset', iconSize: [50, 32], iconAnchor: [25, 16] })
+        });
+        
+        markerInstance.on('click', (e) => { L.DomEvent.stopPropagation(e); openForecourtDetailSheet(station); });
+        markerClusterGroupInstance.addLayer(markerInstance);
+    });
+
+    if (activeTabContext === 'local') {
+        map.setView(mapSearchAnchorCoordinates, map.getZoom() < 11 ? 12 : map.getZoom());
+    } else if (activeTabContext === 'route' && plottedRouteCoordinates.length > 0 && !window.blockAutoZoomRouteFlag) {
+        const boundsBoundingBoxFrame = L.polyline(plottedRouteCoordinates).getBounds();
+        map.fitBounds(boundsBoundingBoxFrame, { padding: [40, 40] });
+        window.blockAutoZoomRouteFlag = true; 
+    }
+};
+
+window.calculateOptimalRefuelStrategy = function() {
+    const fuelType = document.getElementById('fuel-type-select')?.value || 'E10';
+    const isEV = fuelType === 'electric';
+
+    const currentPct = parseFloat(document.getElementById('refuel-current-level')?.value) || 0;
+    const safetyBuffer = parseFloat(document.getElementById('refuel-safety-buffer')?.value) || 0;
+    const capacity = parseFloat(document.getElementById('refuel-tank-size')?.value) || (isEV ? 60 : 55);
+    const efficiency = parseFloat(document.getElementById('vehicle-mpg')?.value) || (isEV ? 3.5 : 40);
+    
+    const timeline = document.getElementById('refuel-timeline-output');
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    if (savingsBlock) savingsBlock.classList.add('hidden');
+    
+    if (!globalRouteDistanceMiles || globalRouteDistanceMiles === 0 || !plottedRouteCoordinates || plottedRouteCoordinates.length === 0) {
+        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = '<p class="text-zinc-500 text-[10px] text-center py-2 font-medium">Map a route to unlock Smart Refuel.</p>'; }
+        return; 
+    }
+
+    let remainingRangeMiles = 0;
+    let currentEnergyUnits = capacity * (currentPct / 100);
+
+    if (isEV) {
+        const bufferKwh = safetyBuffer / efficiency;
+        const usableKwh = Math.max(0, currentEnergyUnits - bufferKwh);
+        remainingRangeMiles = usableKwh * efficiency;
+    } else {
+        const milesPerLiter = efficiency / 4.54609; 
+        const usableLiters = Math.max(0, currentEnergyUnits - (safetyBuffer / milesPerLiter));
+        remainingRangeMiles = usableLiters * milesPerLiter;
+    }
+    
+    if (remainingRangeMiles >= globalRouteDistanceMiles) {
+        if (timeline) {
+            timeline.classList.remove('hidden');
+            timeline.innerHTML = `<div class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 p-3.5 rounded-xl text-xs flex flex-col gap-1 shadow-sm"><div class="font-bold flex items-center gap-1">🎉 ${isEV ? 'Battery Charge' : 'Fuel Tank'} Sufficient!</div><p class="text-zinc-400 font-medium leading-normal">Your current range covers this ${globalRouteDistanceMiles.toFixed(1)} mi trip without stopping.</p></div>`;
+        }
+        if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
+        return;
+    }
+
+    let validStations = currentlyVisibleStations.filter(s => {
+        let p = parseFloat(s[fuelType]);
+        if (isEV && (!p || isNaN(p))) p = parseFloat(s.electric_price || s.charge_rate || s.electric);
+        return p && !isNaN(p) && p > 0;
+    });
+
+    if (validStations.length === 0 && rawGlobalStationsPool) {
+        validStations = rawGlobalStationsPool.filter(s => {
+            let p = parseFloat(s[fuelType]);
+            if (isEV && (!p || isNaN(p))) p = parseFloat(s.electric_price || s.charge_rate || s.electric);
+            return p && !isNaN(p) && p > 0;
+        });
+    }
+
+    if (validStations.length === 0) {
+        if (timeline) { timeline.classList.remove('hidden'); timeline.innerHTML = `<p class="text-zinc-400 text-xs text-center py-2 font-medium">No active ${isEV ? 'chargers' : 'fuel stations'} found.</p>`; }
+        return;
+    }
+
+    let bestStation = null;
+    let isEmergencyMode = false;
+    const startLat = plottedRouteCoordinates[0][0];
+    const startLon = plottedRouteCoordinates[0][1];
+
+    if (currentPct <= 5 || remainingRangeMiles <= 0) {
+        isEmergencyMode = true;
+        validStations.sort((a, b) => computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng)) - computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng)));
+        bestStation = validStations[0];
+    } else {
+        let reachableStations = validStations.filter(s => {
+            const distFromStart = computeDistanceVectorMiles(startLat, startLon, parseFloat(s.latitude || s.lat), parseFloat(s.longitude || s.lng));
+            return (distFromStart * 1.2) <= remainingRangeMiles;
+        });
+
+        if (reachableStations.length === 0) {
+            isEmergencyMode = true;
+            validStations.sort((a, b) => computeDistanceVectorMiles(startLat, startLon, parseFloat(a.latitude || a.lat), parseFloat(a.longitude || a.lng)) - computeDistanceVectorMiles(startLat, startLon, parseFloat(b.latitude || b.lat), parseFloat(b.longitude || b.lng)));
+            bestStation = validStations[0];
+            Toast.show(`Showing nearest emergency stop.`, 'warning');
+        } else {
+            reachableStations.sort((a, b) => {
+                let pA = parseFloat(a[fuelType]); if (isEV && !pA) pA = parseFloat(a.electric_price || a.electric || 50);
+                let pB = parseFloat(b[fuelType]); if (isEV && !pB) pB = parseFloat(b.electric_price || b.electric || 50);
+                return pA - pB;
+            });
+            bestStation = reachableStations[0];
+        }
+    }
+    
+    if (!bestStation) return;
+
+    const lat = parseFloat(bestStation.latitude || bestStation.lat || 0);
+    const lon = parseFloat(bestStation.longitude || bestStation.lng || 0);
+    
+    let bestPrice = parseFloat(bestStation[fuelType] || 0);
+    if (isEV && (!bestPrice || bestPrice === 0)) bestPrice = parseFloat(bestStation.electric_price || bestStation.charge_rate || bestStation.electric || 50);
+    
+    const validPrices = rawGlobalStationsPool.map(s => {
+        let p = parseFloat(s[fuelType]);
+        if (isEV && !p) p = parseFloat(s.electric_price || s.electric);
+        return p;
+    }).filter(p => !isNaN(p) && p > 0);
+    
+    const averagePrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : bestPrice;
+    
+    const energyToFill = Math.max(0, capacity - currentEnergyUnits);
+    const totalCost = (energyToFill * bestPrice) / 100;
+    
+    const savingsPence = (averagePrice - bestPrice) * energyToFill;
+    const savingsGBP = Math.max(0, savingsPence / 100);
+
+    if (savingsGBP > 0 && savingsBlock) {
+        savingsBlock.classList.remove('hidden');
+        savingsBlock.innerHTML = `
+            <div class="bg-gradient-to-br from-emerald-500/10 to-teal-500/5 border border-emerald-500/30 rounded-xl p-3 mb-3 flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Saving you</p>
+                    <p class="text-xl font-black text-emerald-700 dark:text-emerald-400">£${savingsGBP.toFixed(2)}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Pump Price</p>
+                    <p class="text-sm font-black text-zinc-800 dark:text-zinc-100">${bestPrice.toFixed(1)}${isEV?'p/kWh':'p'}</p>
+                </div>
             </div>
         `;
     }
     
-    // Trigger the UI update for the specific mode (ICE or EV)
-    const mode = (data.fuelType && data.fuelType.toLowerCase().includes('electricity')) ? 'ev' : 'ice';
-    if (typeof window.updateUIForMode === 'function') {
-        window.updateUIForMode(mode);
-    }
-}
+    const distToStop = computeDistanceVectorMiles(startLat, startLon, lat, lon) * 1.2;
 
-// ==========================================
-// 5. Event Listeners
-// ==========================================
-
-function attachGlobalEventListeners() {
-    const verifyBtn = document.getElementById('verify-vehicle-btn');
-    if (verifyBtn) {
-        verifyBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.executeDVLALookup();
-        });
+    if (timeline) {
+        timeline.classList.remove('hidden');
+        timeline.innerHTML = `
+            <div class="bg-zinc-950 border border-zinc-800 p-4 rounded-xl text-xs space-y-3 shadow-sm tabular-nums">
+                <div class="relative border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 ml-4 pl-6 py-2 space-y-6">
+                    <div class="relative">
+                        <div class="absolute w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white dark:border-zinc-900 -left-[32px] top-1"></div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-zinc-600 dark:text-zinc-500 font-medium block leading-none">Start</span>
+                            <span class="font-bold text-zinc-400">0.0 mi</span>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div class="absolute w-3.5 h-3.5 bg-amber-500 rounded-full border-2 border-white dark:border-zinc-900 -left-[32px] top-1"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-zinc-900 dark:text-white font-bold block leading-none">${(bestStation.brand_name || 'Station').replace(/['"]/g, '')}</span>
+                                <span class="text-[9px] text-zinc-500 block mt-1">${(bestStation.address || '').replace(/['"]/g, '')}</span>
+                            </div>
+                            <span class="font-bold text-zinc-900 dark:text-white">~${distToStop.toFixed(1)} mi</span>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div class="absolute w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-white dark:border-zinc-900 -left-[32px] top-1"></div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-zinc-600 dark:text-zinc-500 font-medium block leading-none">Destination</span>
+                            <span class="font-bold text-zinc-900 dark:text-white">${globalRouteDistanceMiles.toFixed(1)} mi</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="border-t border-zinc-800 pt-3 mt-3">
+                    <div class="flex justify-between bg-emerald-950/20 -mx-4 px-4 py-2">
+                        <span class="text-emerald-500 font-bold">Action</span>
+                        <span class="font-black text-emerald-400">${isEV ? 'Charge' : 'Fill'} ${energyToFill.toFixed(1)} ${isEV ? 'kWh' : 'L'}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 items-center">
+                        <span class="text-zinc-500 font-medium">Est. Cost</span>
+                        <div class="text-right">
+                            <span class="font-black text-white text-base">£${totalCost.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="focusAndHighlightMapMarker(${lat}, ${lon})" class="w-full mt-2 bg-white text-zinc-950 hover:bg-zinc-200 text-[11px] font-bold py-2.5 rounded-lg transition active:scale-95 shadow-sm">View on Map</button>
+            </div>
+        `;
     }
 
-    // Attach theme toggle
-    const themeBtn = document.getElementById('theme-toggle-btn');
-    if (themeBtn) {
-        themeBtn.addEventListener('click', window.toggleSystemColorModeTheme);
+    if (typeof window.refuelMarkersGroup === 'undefined' || window.refuelMarkersGroup === null) {
+        window.refuelMarkersGroup = L.layerGroup().addTo(map);
+    }
+    window.refuelMarkersGroup.clearLayers();
+
+    const customFuelIcon = L.divIcon({
+        className: 'custom-fuel-icon',
+        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-amber-500 border-amber-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">${isEV ? '⚡' : '⛽'}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 32]
+    });
+    
+    L.marker([lat, lon], { icon: customFuelIcon }).addTo(window.refuelMarkersGroup);
+};
+
+window.renderOptimalRefuelStopMarkerOnMap = function(lat, lon, isEV, isEmergencyMode) {
+    if (typeof window.refuelMarkersGroup === 'undefined' || !window.refuelMarkersGroup) {
+        window.refuelMarkersGroup = L.layerGroup().addTo(map);
+    }
+    window.refuelMarkersGroup.clearLayers();
+
+    const customFuelIcon = L.divIcon({
+        className: 'custom-fuel-icon',
+        html: `<div class="${isEmergencyMode ? 'bg-rose-500 border-rose-800' : 'bg-emerald-500 border-emerald-900'} border-2 text-white rounded-full shadow-xl flex items-center justify-center w-8 h-8 font-bold text-sm transform scale-110 animate-bounce">${isEV ? '⚡' : '⛽'}</div>`,
+        iconSize: [32, 32], iconAnchor: [16, 32]
+    });
+    
+    L.marker([lat, lon], { icon: customFuelIcon }).addTo(window.refuelMarkersGroup);
+};
+
+window.clearFuelOptimizationState = function() {
+    const inputTank = document.getElementById('refuel-tank-size');
+    const inputStarting = document.getElementById('refuel-current-level');
+    const inputReserve = document.getElementById('refuel-safety-buffer');
+
+    if (inputTank) inputTank.value = "55";
+    if (inputStarting) inputStarting.value = "25";
+    if (inputReserve) inputReserve.value = "30";
+
+    if (typeof refuelMarkersGroup !== 'undefined' && refuelMarkersGroup) refuelMarkersGroup.clearLayers();
+
+    const timelineContainer = document.getElementById('refuel-timeline-output');
+    if (timelineContainer) {
+        timelineContainer.innerHTML = '';
+        timelineContainer.classList.add('hidden');
     }
 
-    // Attach bookmarks toggle
-    const bookmarksBtn = document.getElementById('bookmarks-btn');
-    if (bookmarksBtn) {
-        bookmarksBtn.addEventListener('click', window.toggleStarredDropdownDashboardPanel);
+    const savingsBlock = document.getElementById('smart-refuel-savings-block');
+    if (savingsBlock) {
+        savingsBlock.classList.add('hidden');
     }
-}
+};
+
+window.openForecourtDetailSheet = function(station) {
+    if (!station) return;
+    if (typeof station === 'string' || typeof station === 'number') {
+        const found = rawGlobalStationsPool.find(s => getStationId(s) === String(station));
+        if (found) station = found; else return;
+    }
+
+    const sheet = document.getElementById('global-detail-sheet');
+    if (!sheet) return;
+
+    const sp = document.getElementById('starred-dropdown-panel');
+    if (sp) sp.classList.add('hidden');
+    
+    activeSheetStation = station;
+    const titleEl = document.getElementById('sheet-station-name');
+    const brandEl = document.getElementById('sheet-station-brand');
+    
+    if (titleEl) titleEl.textContent = (station.brand_name || station.name || 'Independent Hub').replace(/['"]/g, '');
+    if (brandEl) brandEl.textContent = (station.address || 'Information Available').replace(/['"]/g, '');
+
+    const isEVPipe = station.isEV || document.getElementById('fuel-type-select')?.value === 'electric';
+
+    if (isEVPipe) {
+        ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        let evCard = document.getElementById('card-wrap-ev');
+        if (!evCard) { evCard = document.createElement('div'); evCard.id = 'card-wrap-ev'; document.getElementById('sheet-prices-grid')?.appendChild(evCard); }
+        
+        let pRate = parseFloat(station.electric_price || station.charge_rate || station.electric || 50);
+
+        if(evCard) {
+            evCard.style.display = 'block';
+            evCard.className = `border p-3 rounded-xl text-center transition-all duration-200 col-span-2 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 shadow-sm`;
+            evCard.innerHTML = `<span class="text-[10px] font-black uppercase tracking-wider block opacity-75">⚡ Rapid Charging Rate</span><span class="text-xl font-black block mt-1 tabular-nums">${pRate.toFixed(1)} <span class="text-xs font-bold text-emerald-600/70 dark:text-emerald-400/70">kW</span></span>`;
+        }
+        if (titleEl) titleEl.textContent = `⚡ ${(station.brand_name || station.name || 'EV Charger').replace(/['"]/g, '')}`;
+    } else {
+        ['card-wrap-e10', 'card-wrap-e5', 'card-wrap-b7', 'card-wrap-premiumdiesel'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
+        const evCard = document.getElementById('card-wrap-ev'); if (evCard) evCard.style.display = 'none';
+
+        const ce10 = document.getElementById('card-wrap-e10'); if(ce10) ce10.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E10, 'E10')}`;
+        const ce5 = document.getElementById('card-wrap-e5'); if(ce5) ce5.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.E5, 'E5')}`;
+        const cb7 = document.getElementById('card-wrap-b7'); if(cb7) cb7.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.B7, 'B7')}`;
+        const cpd = document.getElementById('card-wrap-premiumdiesel'); if(cpd) cpd.className = `border p-2.5 rounded-xl text-center transition-all duration-200 ${assignPricingTierColorStyles(station.PremiumDiesel, 'PremiumDiesel')}`;
+
+        const se10 = document.getElementById('sheet-price-e10'); if(se10) se10.textContent = station.E10 ? `${parseFloat(station.E10).toFixed(1)}p` : 'N/A';
+        const se5 = document.getElementById('sheet-price-e5'); if(se5) se5.textContent = station.E5 ? `${parseFloat(station.E5).toFixed(1)}p` : 'N/A';
+        const sb7 = document.getElementById('sheet-price-b7'); if(sb7) sb7.textContent = station.B7 ? `${parseFloat(station.B7).toFixed(1)}p` : 'N/A';
+        const spd = document.getElementById('sheet-price-premiumdiesel'); if(spd) spd.textContent = station.PremiumDiesel ? `${parseFloat(station.PremiumDiesel).toFixed(1)}p` : 'N/A';
+    }
+
+    updateAllStarUIStates();
+    sheet.classList.remove('hidden'); 
+    
+    if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
+    else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
+};
