@@ -63,16 +63,70 @@
         </div -->
 
         <div class="relative">
-            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
+            <button onclick="toggleDesktopSidebar(event)" class="p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-rose-500 rounded-xl text-xs font-extrabold flex items-center gap-1 focus:outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm">
                 <span class="text-lg">⛽</span>
-                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Smart Refuel</span>
+                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Fuel</span>
             </button>
+
+            <div id="smart-refuel-wrapper" class="space-y-4">
+                <div class="flex items-center justify-between select-none">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-emerald-500 text-sm">✨</span>
+                        <h3 class="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Smart Refuel</h3>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label id="label-current-fuel" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Current Level</label>
+                        <div class="relative">
+                            <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                                <option value="10">10%</option>
+                                <option value="20">20%</option>
+                                <option value="25" selected>25%</option>
+                                <option value="30">30%</option>
+                                <option value="40">40%</option>
+                                <option value="50">50%</option>
+                                <option value="75">75%</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label id="label-capacity" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Tank Capacity</label>
+                        <div class="relative">
+                            <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                                <option value="45">45 L</option>
+                                <option value="55" selected>55 L</option>
+                                <option value="70">70 L</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label id="label-safety-buffer" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Safety Buffer Target</label>
+                    <div class="relative">
+                        <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                            <option value="10">10 Miles</option>
+                            <option value="20">20 Miles</option>
+                            <option value="30" selected>30 Miles</option>
+                            <option value="50">50 Miles</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                    </div>
+                </div>
+                
+                <div id="smart-refuel-savings-block" class="hidden"></div>
+                <div id="refuel-timeline-output" class="pt-1"></div>
+            </div>
         </div>
 
         <div class="relative">
-            <button onclick="setActiveMobileSheet('telemetry')" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
-                <span class="text-lg">📡</span>
-                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Live Telemetry</span>
+            <button onclick="setActiveMobileSheet('telemetry')" class="p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-rose-500 rounded-xl text-xs font-extrabold flex items-center gap-1 focus:outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm">
+                <span class="text-lg">🎯</span>
+                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Traffic</span>
             </button>
         </div>
 
