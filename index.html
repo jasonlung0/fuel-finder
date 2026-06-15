@@ -19,18 +19,6 @@
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
     <!-- New UI Buttons on the Map -->
-    <div class="absolute top-4 right-4 z-[1000] flex flex-col gap-2.5">
-        <button onclick="toggleStarredDropdownDashboardPanel(event)" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
-            <span class="text-lg">⛽</span>
-            <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Smart Refuel</span>
-        </button>
-        
-        <button onclick="setActiveMobileSheet('telemetry')" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
-            <span class="text-lg">📡</span>
-            <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Live Telemetry</span>
-        </button>
-    </div>
-    
     <div class="absolute bottom-[90px] right-2.5 z-[1000] flex flex-col gap-2">
         <button onclick="triggerActiveDeviceLocationLookup()" class="bg-white dark:bg-zinc-800 p-2 rounded-md border-2 border-zinc-200/50 dark:border-zinc-700/50 shadow-md hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-700 dark:text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -73,6 +61,20 @@
                 Telemetry
             </button>
         </div -->
+
+        <div class="relative">
+            <button onclick="toggleStarredDropdownDashboardPanel(event)" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
+                <span class="text-lg">⛽</span>
+                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Smart Refuel</span>
+            </button>
+        </div>
+
+        <div class="relative">
+            <button onclick="setActiveMobileSheet('telemetry')" class="flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-xl shadow-lg hover:border-emerald-500 transition-all">
+                <span class="text-lg">📡</span>
+                <span class="text-xs font-bold text-zinc-800 dark:text-zinc-100 hidden md:block">Live Telemetry</span>
+            </button>
+        </div>
 
         <div class="flex items-center gap-2">
             <button onclick="window.toggleSystemColorModeTheme(event)" class="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 p-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm focus:outline-none" title="Toggle Theme">
