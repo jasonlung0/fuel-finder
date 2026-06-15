@@ -16,13 +16,16 @@
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 select-none">
 
+    <!-- Leaflet Map Container Layer -->
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
-    <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="absolute bottom-[100px] md:bottom-8 z-[40] left-1/2 -translate-x-1/2 z-[1000] hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-zinc-700 dark:text-zinc-200 shadow-xl border border-zinc-200/60 dark:border-zinc-800/80 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 focus:outline-none">
+    <!-- Contextual Map Control Elements -->
+    <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="absolute bottom-[100px] md:bottom-8 z-[1000] left-1/2 -translate-x-1/2 hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-zinc-700 dark:text-zinc-200 shadow-xl border border-zinc-200/60 dark:border-zinc-800/80 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 focus:outline-none">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         Scan this area
     </button>
 
+    <!-- Mobile View Sheet Navigation Header Controller -->
     <div class="lg:hidden fixed top-[72px] left-1/2 -translate-x-1/2 z-[4600] bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 p-1 rounded-full shadow-xl flex gap-1 items-center transition-all h-10">
         <button onclick="setActiveMobileSheet('search')" id="btn-mob-search" class="h-full text-[11px] font-black tracking-wide px-4 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all shadow-sm focus:outline-none">
             Stations
@@ -32,6 +35,7 @@
         </button>
     </div>
 
+    <!-- Universal Navigation Control Bar Header -->
     <header class="fixed top-0 left-0 right-0 h-16 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-lg border-b border-zinc-200/60 dark:border-zinc-800/60 z-[5000] flex items-center justify-between px-4 transition-all duration-200">
         <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.reload();">
             <div class="bg-gradient-to-tr from-emerald-500 to-teal-400 text-white p-2 rounded-xl shadow-md shadow-emerald-500/20">
@@ -43,6 +47,7 @@
             </div>
         </div>
 
+        <!-- Desktop Segmented Workspace Filter Controller -->
         <div class="hidden lg:flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 p-1 rounded-xl shadow-inner w-56 absolute left-1/2 -translate-x-1/2">
             <button id="toggle-view-stations" onclick="setActiveMobileSheet('search')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-sm border border-zinc-200/40 dark:border-zinc-700/30 transition-all duration-200 focus:outline-none">
                 Stations
@@ -52,12 +57,14 @@
             </button>
         </div>
 
+        <!-- Universal Control Interoperability Triggers -->
         <div class="flex items-center gap-2">
             <button onclick="window.toggleSystemColorModeTheme(event)" class="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 p-2 rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm focus:outline-none" title="Toggle Theme">
                 <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
             </button>
 
+            <!-- Bookmarked Shortcuts Dropdown Component -->
             <div class="relative">
                 <button onclick="window.toggleStarredDropdownDashboardPanel(event)" class="p-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-rose-500 rounded-xl text-xs font-extrabold flex items-center gap-1 focus:outline-none hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all shadow-sm">
                     ⭐ <span class="hidden sm:inline text-[11px] text-zinc-700 dark:text-zinc-300">Saved</span>
@@ -75,6 +82,7 @@
         </div>
     </header>
 
+    <!-- Primary Operational Sidebar Drawer Panel (Left Workspace) -->
     <aside id="primary-control-sidebar" class="mobile-bottom-drawer mobile-active-sheet lg:absolute lg:top-20 lg:left-4 z-[2000] w-full lg:w-[340px] h-[85dvh] lg:h-auto lg:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-zinc-800/80 rounded-t-3xl lg:rounded-3xl shadow-2xl flex flex-col transition-all duration-400 pt-1 lg:pt-5 lg:transform-none">
         
         <button onclick="toggleDesktopSidebar(event)" class="hidden lg:flex absolute top-1/2 -right-8 -translate-y-1/2 w-8 h-16 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-[4px_0_15px_rgba(0,0,0,0.1)] rounded-r-xl border-y border-r border-zinc-200/50 dark:border-zinc-800/50 items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors z-[2001] focus:outline-none">
@@ -89,14 +97,13 @@
             <div>
                 <label class="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1.5">Fuel Type Filter</label>
                 <div class="relative">
-                    <select id="fuelType" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
+                    <select id="fuel-type-select" class="w-full appearance-none bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-semibold px-3 py-2.5 pr-10 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all cursor-pointer shadow-sm">
                         <option value="E10">Petrol Unleaded (E10)</option>
                         <option value="E5">Super Unleaded (E5)</option>
                         <option value="B7">Diesel (B7)</option>
                         <option value="PremiumDiesel">Premium Diesel</option>
                         <option value="electric">EV Chargers ⚡</option>
                     </select>
-                    <!-- Add this safe tracking fallback right beneath it -->
                     <input type="hidden" id="filterUnleaded" value="false" />
                     
                     <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-zinc-400">
@@ -114,6 +121,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-4 pb-5 space-y-5 custom-scrollbar relative">
+            <!-- Search Context Engine UI Frame -->
             <div id="panel-tab-local" class="space-y-5 block">
                 <div class="space-y-2 relative">
                     <label class="text-[10px] font-black tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">Search Anchor</label>
@@ -137,6 +145,7 @@
                 </div>
             </div>
 
+            <!-- Route Planning Corridor Frame UI -->
             <div id="panel-tab-route" class="space-y-5 hidden">
                 <div class="relative flex flex-col gap-3 pl-2 pr-1 ml-2">
                     <div class="absolute left-[15px] top-[20px] bottom-[20px] w-px border-l-2 border-dashed border-zinc-200 dark:border-zinc-800"></div>
@@ -190,6 +199,7 @@
                 </div>
             </div>
 
+            <!-- Dynamic Ranked Pricing Index Panel Element -->
             <div id="cheapest-ranking-block" class="hidden space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
                 <div class="flex items-center gap-1">
                     <span class="text-xs">🏆</span>
@@ -200,6 +210,65 @@
         </div>
     </aside>
 
+    <!-- NEW UX/UI POSITIONING: Standalone Floating Smart Refuel Panel Widget Overlay (Detached from Sidebars) -->
+    <div id="smart-refuel-floating-panel" class="fixed bottom-24 right-4 lg:bottom-auto lg:top-20 lg:right-[370px] z-[4500] w-[calc(100vw-32px)] sm:w-[320px] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/60 dark:border-zinc-800/80 rounded-3xl shadow-2xl p-4 space-y-4 transition-all duration-300 transform scale-100 opacity-100">
+        <div id="smart-refuel-wrapper" class="space-y-4">
+            <div class="flex items-center justify-between select-none">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-emerald-500 text-sm">✨</span>
+                    <h3 class="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Smart Refuel</h3>
+                </div>
+                <div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label id="label-current-fuel" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Current Level</label>
+                    <div class="relative">
+                        <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                            <option value="10">10%</option>
+                            <option value="20">20%</option>
+                            <option value="25" selected>25%</option>
+                            <option value="30">30%</option>
+                            <option value="40">40%</option>
+                            <option value="50">50%</option>
+                            <option value="75">75%</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                    </div>
+                </div>
+                <div>
+                    <label id="label-capacity" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Tank Capacity</label>
+                    <div class="relative">
+                        <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                            <option value="45">45 L</option>
+                            <option value="55" selected>55 L</option>
+                            <option value="70">70 L</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label id="label-safety-buffer" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Safety Buffer Target</label>
+                <div class="relative">
+                    <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
+                        <option value="10">10 Miles</option>
+                        <option value="20">20 Miles</option>
+                        <option value="30" selected>30 Miles</option>
+                        <option value="50">50 Miles</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
+                </div>
+            </div>
+            
+            <div id="smart-refuel-savings-block" class="hidden"></div>
+            <div id="refuel-timeline-output" class="pt-1"></div>
+        </div>
+    </div>
+
+    <!-- Secondary Operational Telemetry Sidebar Panel (Right Workspace) -->
     <aside id="secondary-control-sidebar" class="mobile-bottom-drawer md:absolute md:top-20 md:right-4 z-[1900] w-full lg:w-[340px] h-[85dvh] lg:h-auto lg:max-h-[calc(100vh-110px)] bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-zinc-200/50 dark:border-zinc-800/50 rounded-t-3xl lg:rounded-3xl shadow-2xl flex flex-col transition-all duration-400 pt-1 lg:pt-5 lg:transform-none desktop-collapsed-right hidden lg:flex">
         
         <button onclick="toggleRightSidebar(event)" class="hidden lg:flex absolute top-1/2 -left-8 -translate-y-1/2 w-8 h-16 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl shadow-[-4px_0_15px_rgba(0,0,0,0.1)] rounded-l-xl border-y border-l border-zinc-200/50 dark:border-zinc-800/50 items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors z-[2001] focus:outline-none">
@@ -211,62 +280,6 @@
         </div>
 
         <div class="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-4 space-y-6">
-            <div id="smart-refuel-wrapper" class="space-y-4">
-                <div class="flex items-center justify-between select-none">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-emerald-500 text-sm">✨</span>
-                        <h3 class="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Smart Refuel</h3>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label id="label-current-fuel" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Current Level</label>
-                        <div class="relative">
-                            <select id="refuel-current-level" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                                <option value="10">10%</option>
-                                <option value="20">20%</option>
-                                <option value="25" selected>25%</option>
-                                <option value="30">30%</option>
-                                <option value="40">40%</option>
-                                <option value="50">50%</option>
-                                <option value="75">75%</option>
-                            </select>
-                            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
-                        </div>
-                    </div>
-                    <div>
-                        <label id="label-capacity" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Tank Capacity</label>
-                        <div class="relative">
-                            <select id="refuel-tank-size" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                                <option value="45">45 L</option>
-                                <option value="55" selected>55 L</option>
-                                <option value="70">70 L</option>
-                            </select>
-                            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label id="label-safety-buffer" class="text-[9px] font-black uppercase tracking-wider text-zinc-400 block mb-1">Safety Buffer Target</label>
-                    <div class="relative">
-                        <select id="refuel-safety-buffer" onchange="calculateOptimalRefuelStrategy()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-2 text-[11px] font-bold text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none appearance-none cursor-pointer">
-                            <option value="10">10 Miles</option>
-                            <option value="20">20 Miles</option>
-                            <option value="30" selected>30 Miles</option>
-                            <option value="50">50 Miles</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-zinc-400 text-[8px]">▼</div>
-                    </div>
-                </div>
-                
-                <div id="smart-refuel-savings-block" class="hidden"></div>
-                <div id="refuel-timeline-output" class="pt-1"></div>
-            </div>
-
-            <hr class="border-zinc-200/60 dark:border-zinc-800/60" />
-
             <div id="traffic-dashboard-wrapper" class="space-y-4 pb-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
@@ -308,6 +321,7 @@
         </div>
     </aside>
 
+    <!-- Global Station Detailed Information Sheet Container Overlay Overlay Panel -->
     <div id="global-detail-sheet" class="hidden mobile-bottom-drawer md:absolute bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border border-white/40 dark:border-zinc-800/60 shadow-2xl p-5 flex flex-col gap-4 md:w-[320px] md:top-20 md:bottom-auto md:left-auto md:right-4 z-[6000] md:rounded-3xl transition-all duration-400 pb-[calc(16px+env(safe-area-inset-bottom,16px))] md:pb-5">
         <div id="detail-sheet-drag-handle" class="w-full h-10 flex items-center justify-center shrink-0 md:hidden cursor-grab active:cursor-grabbing -mt-5 -mx-5 rounded-t-3xl">
             <div class="w-12 h-1.5 bg-zinc-300 dark:bg-zinc-700 rounded-full"></div>
@@ -350,6 +364,7 @@
         </div>
     </div>
 
+    <!-- Core App Ingestion Script Vector Routing Entry Point -->
     <script src="uiapp.js" defer></script>
 </body>
 </html>
