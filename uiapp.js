@@ -290,12 +290,32 @@ document.getElementById('refuel-current-level')?.addEventListener('change', () =
 document.getElementById('refuel-safety-buffer')?.addEventListener('change', () => { if(typeof calculateOptimalRefuelStrategy === 'function') calculateOptimalRefuelStrategy(); });
 
 const fuelTypeSelectListener = document.getElementById('fuel-type-select');
-if(fuelTypeSelectListener) {
-    fuelTypeSelectListener.addEventListener('change', () => {
-        if(activeTabContext === 'route') {
-            const startInput = document.getElementById('route-start');
-            const endInput = document.getElementById('route-end');
-            if (startInput && endInput && startInput.value.trim() !== '' && endInput.value.trim() !== '') {
+if (fuelTypeSelectListener) {
+    fuelTypeSelectListener.addEventListener('change', (e) => {
+        const selectedFuel = e.target.value;
+        
+        // 1. Set the global type state so the filter engine knows what to read
+        if (typeof setGlobalFuelSelectionType === 'function') {
+            setGlobalFuelSelectionType(selectedFuel);
+        } else {
+            window.currentFuelType = selectedFuel; // Fallback variable name if used
+        }
+        
+        // 2. Clear existing map marker layers if accessible
+        if (window.stationMarkers && typeof window.stationMarkers.clearLayers === 'function') {
+            window.stationMarkers.clearLayers();
+        }
+        
+        // 3. Force the station engine to filter and render markers again
+        if (typeof executeStationDataFilteringPipeline === 'function') {
+            executeStationDataFilteringPipeline();
+        } else if (typeof filterFuelStationsLocalMode === 'function') {
+            filterFuelStationsLocalMode();
+        }
+        
+        // 4. If a route is active, update the route fuel calculations
+        if (window.activeTabContext === 'route' || window.currentMode === 'route') {
+            if (typeof executeRouteGenerationPipeline === 'function') {
                 executeRouteGenerationPipeline();
             }
         }
