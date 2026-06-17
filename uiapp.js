@@ -1857,3 +1857,53 @@ window.openForecourtDetailSheet = function(station) {
     if (window.innerWidth < 1024) { setMobileSheetUIState('full'); } 
     else { sheet.classList.remove('drawer-hidden', 'drawer-peek', 'drawer-mid', 'drawer-full'); }
 };
+
+let isIslandExpanded = false;
+
+window.toggleDynamicIslandExpandedState = function() {
+    const island = document.getElementById('dynamic-island');
+    const compactView = document.getElementById('island-compact-view');
+    const expandedView = document.getElementById('island-expanded-view');
+    
+    if (!island || !compactView || !expandedView) return;
+
+    if (!isIslandExpanded) {
+        // Step 1: Hide compact text quickly
+        compactView.style.opacity = '0';
+        
+        setTimeout(() => {
+            compactView.classList.add('hidden');
+            expandedView.classList.remove('hidden');
+            
+            // Step 2: Animate the container sizing smoothly
+            island.classList.remove('w-[180px]', 'h-[36px]', 'rounded-full', 'px-4', 'py-2');
+            island.classList.add('w-[320px]', 'h-[140px]', 'rounded-2xl', 'p-4');
+            
+            // Step 3: Fade in the expanded menu contents
+            setTimeout(() => {
+                expandedView.style.opacity = '1';
+            }, 100);
+        }, 150);
+        
+        isIslandExpanded = true;
+    } else {
+        // Step 1: Fade out expanded options
+        expandedView.style.opacity = '0';
+        
+        setTimeout(() => {
+            expandedView.classList.add('hidden');
+            compactView.classList.remove('hidden');
+            
+            // Step 2: Snap container back into pill form
+            island.classList.remove('w-[320px]', 'h-[140px]', 'rounded-2xl', 'p-4');
+            island.classList.add('w-[180px]', 'h-[36px]', 'rounded-full', 'px-4', 'py-2');
+            
+            // Step 3: Reveal standard text layout
+            setTimeout(() => {
+                compactView.style.opacity = '1';
+            }, 100);
+        }, 150);
+        
+        isIslandExpanded = false;
+    }
+};
