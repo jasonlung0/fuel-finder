@@ -16,6 +16,46 @@
 </head>
 <body class="h-full w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 transition-colors duration-300 select-none">
 
+    <div class="fixed top-3 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto">
+    
+        <div id="dynamic-island" 
+             class="mx-auto bg-zinc-950 text-white shadow-xl flex items-center justify-between transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] overflow-hidden
+                    w-[180px] h-[36px] rounded-full px-4 py-2"
+             onclick="toggleDynamicIslandExpandedState()">
+            
+            <div id="island-compact-view" class="flex items-center justify-between w-full opacity-100 transition-opacity duration-200">
+                <span class="text-xs font-bold tracking-wide text-emerald-400 flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live
+                </span>
+                <span class="text-[11px] font-medium text-zinc-400">Smart Refuel</span>
+            </div>
+    
+            <div id="island-expanded-view" class="hidden w-full opacity-0 transition-opacity duration-300 flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-zinc-800 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">⛽</span>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Smart Refuel Optimization</h4>
+                            <p class="text-[10px] text-zinc-400">Analyzing 24 forecourts nearby</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Active</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 text-center text-xs">
+                    <button onclick="event.stopPropagation(); setActiveMobileSheet('telemetry')" class="bg-zinc-900 hover:bg-zinc-800 p-2.5 rounded-xl border border-zinc-800 transition-colors font-medium">
+                        📡 Telemetry
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleStarredDropdownDashboardPanel(event)" class="bg-zinc-900 hover:bg-zinc-800 p-2.5 rounded-xl border border-zinc-800 transition-colors font-medium">
+                        ⭐ Saved Items
+                    </button>
+                </div>
+            </div>
+    
+        </div>
+    </div>
+    
     <div id="map" class="absolute inset-0 w-full h-full z-0"></div>
 
     <button id="btn-scan-bounds" onclick="executeContextualAreaScanPipeline(event)" class="absolute top-[50px] z-[40] left-1/2 -translate-x-1/2 z-[1000] hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-zinc-700 dark:text-zinc-200 shadow-xl border border-zinc-200/60 dark:border-zinc-800/80 transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 focus:outline-none">
